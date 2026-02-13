@@ -586,13 +586,22 @@ export default function StockStyleSalesChart() {
     } catch (error) { console.error("Failed to save target", error); }
   };
 
-  const { averageSales, displayedTarget, chartHeightDomain } = useMemo(() => {
-    const avg = data.length > 0 ? data.reduce((acc, curr) => acc + curr.sales, 0) / data.length : 0;
+  const { averageSales, displayedTarget, chartHeightDomain, processedData } = useMemo(() => {
+    let currentData = data;
+    if (activeTab === 'Today' && data.length > 0) {
+      let cumulative = 0;
+      currentData = data.map(item => {
+        cumulative += item.sales;
+        return { ...item, sales: cumulative };
+      });
+    }
+
+    const avg = currentData.length > 0 ? currentData.reduce((acc, curr) => acc + curr.sales, 0) / currentData.length : 0;
     const target = baseDailyTarget * (CHART_CONFIG[activeTab]?.days || 1);
-    if (data.length === 0) return { averageSales: avg, displayedTarget: target, chartHeightDomain: [0, baseDailyTarget || 100] as [number, number] };
-    const maxData = Math.max(...data.map((d) => d.sales));
-    const highestPoint = Math.max(maxData, baseDailyTarget, avg);
-    return { averageSales: avg, displayedTarget: target, chartHeightDomain: [0, highestPoint] as [number, number] };
+    if (currentData.length === 0) return { averageSales: avg, displayedTarget: target, chartHeightDomain: [0, baseDailyTarget || 100] as [number, number], processedData: [] };
+    const maxData = Math.max(...currentData.map((d) => d.sales));
+    const highestPoint = Math.max(maxData, target, avg);
+    return { averageSales: avg, displayedTarget: target, chartHeightDomain: [0, highestPoint] as [number, number], processedData: currentData };
   }, [data, baseDailyTarget, activeTab]);
 
   const { stop1, stop2, topColor, middleColor, bottomColor } = useMemo(() => {
@@ -633,9 +642,9 @@ export default function StockStyleSalesChart() {
 
   const CustomLabel = (props: CustomLabelProps) => {
     const { x, y, value } = props;
-    if (value === undefined || x === undefined || y === undefined) return null;
+    if (value === undefined || x === undefined || y === undefined || value === 0) return null;
     return (
-      <text x={x} y={y} dy={-10} fill={getDynamicColor(value)} fontSize={10} fontWeight="bold" textAnchor="middle">
+      <text x={x} y={y - 10} fill={getDynamicColor(value)} fontSize={10} fontWeight="bold" textAnchor="middle">
         {`₹${value.toLocaleString()}`}
       </text>
     );
@@ -690,8 +699,8 @@ export default function StockStyleSalesChart() {
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={data}
-              margin={{ top: 30, right: 10, left: 10, bottom: 0 }}
+              data={processedData}
+              margin={{ top: 30, right: 40, left: 10, bottom: 0 }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onMouseMove={(e: any) => {
                 if (e && e.activePayload) setDisplayValue(e.activePayload[0].value);
@@ -709,17 +718,20 @@ export default function StockStyleSalesChart() {
               <YAxis hide domain={chartHeightDomain} allowDataOverflow={true} />
               <XAxis dataKey="date" hide={false} axisLine={false} tickLine={false} tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 700 }} tickFormatter={formatXAxis} interval="preserveStartEnd" minTickGap={40} />
               <Tooltip content={<CustomTooltip />} />
-              <ReferenceLine y={averageSales} stroke="#374151" strokeDasharray="3 3" strokeWidth={1.5}><Label value={`Avg: ₹${Math.round(averageSales).toLocaleString()}`} position="insideTopRight" fill="#374151" fontSize={10} fontWeight="bold" offset={10} /></ReferenceLine>
-              {baseDailyTarget > 0 && (<ReferenceLine y={baseDailyTarget} stroke="#6366f1" strokeDasharray="5 5" strokeWidth={1.5}><Label value={`Goal: ₹${baseDailyTarget.toLocaleString()}`} position="insideBottomRight" fill="#6366f1" fontSize={10} fontWeight="bold" offset={10} /></ReferenceLine>)}
+              {activeTab !== 'Today' && (
+                <ReferenceLine y={averageSales} stroke="#374151" strokeDasharray="3 3" strokeWidth={1.5}><Label value={`Avg: ₹${Math.round(averageSales).toLocaleString()}`} position="insideTopRight" fill="#374151" fontSize={10} fontWeight="bold" offset={10} /></ReferenceLine>
+              )}
+              {baseDailyTarget > 0 && (<ReferenceLine y={displayedTarget} stroke="#6366f1" strokeDasharray="5 5" strokeWidth={1.5}><Label value={`Goal: ₹${displayedTarget.toLocaleString()}`} position="insideBottomRight" fill="#6366f1" fontSize={10} fontWeight="bold" offset={10} /></ReferenceLine>)}
               <Area
-                type="monotone" dataKey="sales" stroke="url(#multiColorStroke)" fill="url(#multiColorFill)" strokeWidth={2} label={false}
+                type="monotone" dataKey="sales" stroke="url(#multiColorStroke)" fill="url(#multiColorFill)" strokeWidth={2} label={activeTab === 'Today' ? <CustomLabel /> : false}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 dot={(props: any) => {
                   const { cx, cy, payload } = props;
                   if (cx === undefined || cy === undefined) return <g key={payload.date} />;
-                  // Show dots for today to highlight specific hours, or for active selections
-                  // If we have more than 15 points, hide them to keep it neat
-                  if (data.length > 20 && activeTab !== 'Today') return <g key={payload.date} />;
+                  // Hide dots for 0 values to keep it neat (first point is 0)
+                  if (payload.sales === 0 && processedData.indexOf(payload) === 0) return <g key={payload.date} />;
+                  // If we have more than 20 points, hide them to keep it neat
+                  if (processedData.length > 20 && activeTab !== 'Today') return <g key={payload.date} />;
                   return (<circle key={payload.date} cx={cx} cy={cy} r={3} fill={getDynamicColor(payload.sales)} />);
                 }}
                 activeDot={{ r: 6, strokeWidth: 0, fill: "#1f2937" }}

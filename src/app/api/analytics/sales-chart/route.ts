@@ -194,7 +194,22 @@ export async function GET(req: Request) {
 
     const aggregated = await Sale.aggregate(aggregationPipeline);
 
-    // --- NEW: Fill Gaps with 0 Sales for a "Perfect" Timeline ---
+    // --- MODIFIED: For Today (1D) view, return raw sales for better granularity ---
+    if (range === "1D" && !startDateParam) {
+      const rawSales = await Sale.find(query).sort({ createdAt: 1 }).select("amount createdAt");
+      const formattedRaw = rawSales.map(item => ({
+        date: item.createdAt.toISOString(),
+        sales: item.amount
+      }));
+
+      // Still need to start at 12 AM with 0 for a neat start
+      return NextResponse.json([
+        { date: startOfDay(new Date()).toISOString(), sales: 0 },
+        ...formattedRaw
+      ]);
+    }
+
+    // --- NEW: Fill Gaps with 0 Sales for a "Perfect" Timeline (Weekly/Monthly/Custom) ---
     const filledData: { date: string; sales: number }[] = [];
     const current = new Date(startDate);
     const end = new Date(endDate);
@@ -202,7 +217,10 @@ export async function GET(req: Request) {
     // Create a map for quick lookup
     const salesMap = new Map(aggregated.map(item => [item.date, item.sales]));
 
-    while (current <= end) {
+    // --- MODIFIED: For Today (1D) view, truncate at current hour instead of midnight ---
+    const effectiveEnd = (range === "1D" && !startDateParam) ? new Date() : end;
+
+    while (current <= effectiveEnd) {
       const dateStr = unit === "hour"
         ? format(current, "yyyy-MM-dd'T'HH:00:00.000")
         : format(current, "yyyy-MM-dd'T'00:00:00.000");
