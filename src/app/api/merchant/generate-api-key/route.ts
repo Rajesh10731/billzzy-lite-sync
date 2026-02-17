@@ -22,7 +22,7 @@ export async function GET() {
       exists: !!tenant?.apiKeyHash,
       merchantId: tenant?.subdomain || identifier,
     });
-  } catch (_error) {
+  } catch {
     return NextResponse.json({ error: 'Server Error' }, { status: 500 });
   }
 }
@@ -72,7 +72,7 @@ export async function POST() {
       merchantId: updatedTenant.subdomain,
       apiKey: rawKey,
     });
-  } catch (_error) {
+  } catch {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -400,8 +400,10 @@ import {
   LogOut,
   Settings as SettingsIcon,
   ChevronRight,
-  Info
+  Info,
+  Bell
 } from 'lucide-react';
+import { subscribeUserToPush } from '@/lib/push-notifications';
 
 // --- TYPES ---
 type FormData = {
@@ -493,6 +495,7 @@ export default function Settings() {
   const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
     isOpen: false, title: '', message: '', type: 'info'
   });
+  const [notifStatus, setNotifStatus] = useState({ type: '', msg: '' });
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
   // --- HANDLERS ---
@@ -535,6 +538,30 @@ export default function Settings() {
         setEditingSection(null);
       }
     } catch (error) { console.error(error); }
+  };
+
+  const handleSubscribe = async () => {
+    setNotifStatus({ type: 'info', msg: 'Subscribing...' });
+    try {
+      if (!('Notification' in window)) {
+        setModalState({ isOpen: true, title: 'Not Supported', message: 'Browser does not support notifications.', type: 'error' });
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setModalState({ isOpen: true, title: 'Permission Denied', message: 'Please enable notification permissions in your browser settings.', type: 'error' });
+        return;
+      }
+
+      await subscribeUserToPush();
+      setModalState({ isOpen: true, title: 'Subscribed!', message: 'You will now receive notifications even when the app is closed.', type: 'success' });
+    } catch (error) {
+      console.error(error);
+      setModalState({ isOpen: true, title: 'Error', message: 'Failed to subscribe to notifications.', type: 'error' });
+    } finally {
+      setNotifStatus({ type: '', msg: '' });
+    }
   };
 
 
@@ -635,6 +662,24 @@ export default function Settings() {
             </div>
 
 
+
+            {/* 4. NOTIFICATIONS */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <SectionHeader title="Notifications" icon={Bell} colorClass="text-blue-600" />
+              <div className="px-4 py-4 space-y-3">
+                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                  Enable push notifications to receive updates about your store even when the app is closed.
+                </p>
+                <button
+                  onClick={handleSubscribe}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 py-3 rounded-xl font-bold text-sm border border-blue-100 active:scale-95 transition-all hover:bg-blue-100 disabled:opacity-50"
+                  disabled={notifStatus.msg !== ''}
+                >
+                  <Bell size={16} />
+                  {notifStatus.msg || "Enable Notifications"}
+                </button>
+              </div>
+            </div>
 
             {/* 5. DOWNLOADS & ACTIONS */}
             <div className="grid grid-cols-1 gap-3 pt-2">

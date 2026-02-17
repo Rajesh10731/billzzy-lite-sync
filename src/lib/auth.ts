@@ -184,7 +184,7 @@ export const authOptions: NextAuthOptions = {
             tenantId: user.tenantId?.toString() || user.subdomain || user.email,
             phoneNumber: user.phoneNumber
           };
-        } catch (_error) {
+        } catch {
           return null;
         }
       }

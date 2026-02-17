@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Filter, X, IndianRupee,
-  Smartphone, Pencil, Send, Loader2, Tag, Calendar as CalendarIcon
+  Smartphone, Pencil, Send, Loader2, Tag
 } from 'lucide-react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';

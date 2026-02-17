@@ -125,7 +125,7 @@
 //               </option>
 //             ))}
 //           </select> */}
-          
+
 // <select 
 //   value={selectedUserId}
 //   onChange={(e) => setSelectedUserId(e.target.value)}
@@ -175,16 +175,19 @@ export default function AdminNotificationForm() {
   // 2. Type the state with the interface
   const [clients, setClients] = useState<OnboardedClient[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [targetCategory, setTargetCategory] = useState('all');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [url, setUrl] = useState('/dashboard');
+  const [icon, setIcon] = useState('/assets/icon-192.png');
+  const [image, setImage] = useState('');
   const [status, setStatus] = useState({ type: '', msg: '' });
 
   useEffect(() => {
     fetch('/api/admin/tenants')
       .then(res => res.json())
       .then((data: OnboardedClient[]) => setClients(data))
-      // 3. Prefix unused 'err' with underscore to fix build warning
-      .catch(_err => console.error("Failed to load clients"));
+      .catch(() => console.error("Failed to load clients"));
   }, []);
 
   const handleSend = async (e: React.FormEvent) => {
@@ -193,19 +196,23 @@ export default function AdminNotificationForm() {
 
     const res = await fetch('/api/admin/notifications/send', {
       method: 'POST',
-      body: JSON.stringify({ 
-        title, 
-        message, 
-        targetUserId: selectedUserId, 
-        url: '/dashboard' 
+      body: JSON.stringify({
+        title,
+        message,
+        url,
+        icon,
+        image,
+        targetUserId: selectedUserId,
+        category: targetCategory
       }),
       headers: { 'Content-Type': 'application/json' },
     });
 
     const data = await res.json();
-    if (res.ok) {
+    if (res.ok && data.success) {
       setStatus({ type: 'success', msg: `Sent to ${data.sentCount} device(s).` });
       setMessage('');
+      setImage('');
     } else {
       setStatus({ type: 'error', msg: data.message || 'Failed to send' });
     }
@@ -215,43 +222,99 @@ export default function AdminNotificationForm() {
     <div className="p-6 bg-white rounded-xl shadow-md border">
       <h2 className="text-xl font-bold mb-4">Send Push Notification</h2>
       <form onSubmit={handleSend} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium">Select Target Client</label>
-          <select 
-            className="w-full p-2 border rounded mt-1 bg-white"
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-            required
-          >
-            <option value="">-- All Subscribed Users --</option>
-            {/* 4. Removed ': any' here. TypeScript now knows 'client' is an OnboardedClient */}
-            {clients.map((client) => (
-              <option key={client._id} value={client._id}>
-                {client.name || client.email}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium">Target Category</label>
+            <select
+              className="w-full p-2 border rounded mt-1 bg-white"
+              value={targetCategory}
+              onChange={(e) => {
+                setTargetCategory(e.target.value);
+                if (e.target.value !== 'single') setSelectedUserId('');
+              }}
+            >
+              <option value="all">All Subscribed Users</option>
+              <option value="onboarded">Onboarded Clients</option>
+              <option value="unonboarded">Unonboarded Clients (Pending)</option>
+              <option value="single">Single Specific User</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">Select Specific Client</label>
+            <select
+              className="w-full p-2 border rounded mt-1 bg-white disabled:opacity-50"
+              value={selectedUserId}
+              onChange={(e) => {
+                setSelectedUserId(e.target.value);
+                if (e.target.value) setTargetCategory('single');
+              }}
+              disabled={targetCategory !== 'single' && targetCategory !== 'all'}
+            >
+              <option value="">-- Select User (Optional) --</option>
+              {clients.map((client) => (
+                <option key={client._id} value={client._id}>
+                  {client.name || client.email}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-sm font-medium">Title</label>
-          <input 
-            type="text" 
-            placeholder="e.g. New Order Received" 
-            className="w-full p-2 border rounded mt-1"
-            value={title} 
-            onChange={(e) => setTitle(e.target.value)} 
-            required
-          />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium">Title</label>
+            <input
+              type="text"
+              placeholder="e.g. New Order Received"
+              className="w-full p-2 border rounded mt-1"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Route URL</label>
+            <input
+              type="text"
+              placeholder="e.g. /inventory"
+              className="w-full p-2 border rounded mt-1"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium">Icon URL (Optional)</label>
+            <input
+              type="text"
+              placeholder="/assets/icon-192.png"
+              className="w-full p-2 border rounded mt-1"
+              value={icon}
+              onChange={(e) => setIcon(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium">Image URL (Optional)</label>
+            <input
+              type="text"
+              placeholder="https://example.com/image.jpg"
+              className="w-full p-2 border rounded mt-1"
+              value={image}
+              onChange={(e) => setImage(e.target.value)}
+            />
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium">Message Body</label>
-          <textarea 
-            placeholder="What would you like to say?" 
+          <textarea
+            placeholder="What would you like to say?"
             className="w-full p-2 border rounded mt-1 h-24"
-            value={message} 
-            onChange={(e) => setMessage(e.target.value)} 
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
             required
           />
         </div>

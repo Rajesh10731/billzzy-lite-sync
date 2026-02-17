@@ -1,104 +1,65 @@
-// import { NextResponse } from 'next/server';
-// import dbConnect from '@/lib/mongodb';
-// import PushSubscription from '@/models/PushSubscription';
-// import { getServerSession } from 'next-auth';
-// import { authOptions } from '@/lib/auth';
-// import webpush from 'web-push';
-
-// // Configure web-push (Make sure these match your .env)
-// webpush.setVapidDetails(
-//   process.env.VAPID_SUBJECT!,
-//   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-//   process.env.VAPID_PRIVATE_KEY!
-// );
-
-// export async function POST(req: Request) {
-//   const session = await getServerSession(authOptions);
-
-//   // 1. Security Check: Only admins allowed
-//   // Adjust this check based on how you identify admins in your session
-//   if (!session || session.user.role !== 'admin') {
-//     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-//   }
-
-//   const { title, message, url, targetUserId } = await req.json();
-
-//   await dbConnect();
-
-//   // 2. Find subscriptions
-//   // If targetUserId is provided, send to one user. Otherwise, send to ALL.
-//   const query = targetUserId ? { userId: targetUserId } : {};
-//   const subscriptions = await PushSubscription.find(query);
-
-//   if (subscriptions.length === 0) {
-//     return NextResponse.json({ message: 'No active subscriptions found' });
-//   }
-
-//   // 3. Send notifications in parallel
-//   const notifications = subscriptions.map((sub) => {
-//     return webpush.sendNotification(
-//       sub.subscription,
-//       JSON.stringify({
-//         title: title || "Admin Update",
-//         body: message,
-//         url: url || "/dashboard",
-//       })
-//     ).catch(async (err) => {
-//       // Cleanup expired subscriptions (410 Gone or 404 Not Found)
-//       if (err.statusCode === 410 || err.statusCode === 404) {
-//         await PushSubscription.deleteOne({ _id: sub._id });
-//       }
-//     });
-//   });
-
-//   await Promise.all(notifications);
-
-//   return NextResponse.json({ 
-//     success: true, 
-//     sentCount: subscriptions.length 
-//   });
-// }
-
-
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import PushSubscription from '@/models/PushSubscription';
+import User from '@/models/User';
 import webpush from 'web-push';
 
 webpush.setVapidDetails(
-  'mailto:support@billzzy.com',
+  process.env.VAPID_SUBJECT || 'mailto:support@billzzy.com',
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
   process.env.VAPID_PRIVATE_KEY!
 );
 
 export async function POST(req: Request) {
   try {
-    const { title, message, targetUserId } = await req.json();
-    console.log("Admin Sending To User ID:", targetUserId);
+    const { title, message, url, icon, image, targetUserId, category } = await req.json();
+    console.log("Admin Sending Notification. Target:", targetUserId || category || "All Users");
 
     await dbConnect();
 
-    // 1. Find the subscription using the ID passed from the dropdown
-    const subscriptions = await PushSubscription.find({ userId: targetUserId });
+    // 1. Determine the target query
+    const query: { userId?: string | { $in: string[] } } = {};
+
+    if (targetUserId) {
+      // Single specific user
+      query.userId = targetUserId;
+    } else if (category === 'onboarded') {
+      // All onboarded clients
+      const users = await User.find({ onboarded: true, role: { $ne: 'admin' } }).select('_id');
+      const userIds = users.map(u => u._id.toString());
+      query.userId = { $in: userIds };
+    } else if (category === 'unonboarded') {
+      // Clients who haven't finished onboarding
+      const users = await User.find({ onboarded: false, role: { $ne: 'admin' } }).select('_id');
+      const userIds = users.map(u => u._id.toString());
+      query.userId = { $in: userIds };
+    }
+    // else if category is 'all' or empty, query remains {} (all subscribers)
+
+    const subscriptions = await PushSubscription.find(query);
 
     if (subscriptions.length === 0) {
-      console.log("❌ No subscription found in DB for ID:", targetUserId);
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Client has not enabled browser notifications yet.' 
-      }, { status: 200 }); // Return 200 so the UI can show the message nicely
+      console.log("❌ No subscriptions found for target:", targetUserId || category || "All Users");
+      return NextResponse.json({
+        success: false,
+        message: 'No matching clients have enabled notifications yet.'
+      }, { status: 200 });
     }
 
     const payload = JSON.stringify({
       title: title || "New Update",
       body: message,
-      url: "/dashboard",
+      url: url || "/dashboard",
+      icon: icon || "/assets/icon-192.png",
+      image: image || null
     });
 
     await Promise.all(
-      subscriptions.map(sub => 
+      subscriptions.map(sub =>
         webpush.sendNotification(sub.subscription, payload)
-          .catch(err => console.error("Push delivery failed for one device"))
+          .catch(err => {
+            console.error("Push delivery failed for one device", err.statusCode);
+          })
       )
     );
 

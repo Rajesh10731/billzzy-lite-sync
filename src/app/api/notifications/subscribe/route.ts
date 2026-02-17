@@ -36,15 +36,15 @@ export async function POST(req: Request) {
     await dbConnect();
 
     // Use session.user.id (this is the MongoDB _id from your authOptions)
-    const saved = await PushSubscription.findOneAndUpdate(
-      { userId: session.user.id }, 
+    await PushSubscription.findOneAndUpdate(
+      { userId: session.user.id },
       { userId: session.user.id, subscription },
       { upsert: true, new: true }
     );
 
     console.log(`✅ Push Token Saved for User: ${session.user.id} (${session.user.email})`);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
   }
 }
