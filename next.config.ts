@@ -2,11 +2,8 @@ import type { NextConfig } from "next";
 import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  // Enable standalone mode for better deployment compatibility
   output: 'standalone',
 
-  // Handle images properly for all environments
   images: {
     // 1. Add Cloudinary here (Required for the Image component to work with uploads)
     remotePatterns: [
