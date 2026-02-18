@@ -1,45 +1,98 @@
-'use client';
-import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+// 'use client';
+// import { useEffect } from 'react';
+// import { useSession } from 'next-auth/react';
 
-export default function PushInitializer() {
-  const { data: session } = useSession();
+// export default function PushInitializer() {
+//   const { data: session } = useSession();
 
-  useEffect(() => {
-    if (session?.user && 'serviceWorker' in navigator) {
-      registerPush();
-    }
-  }, [session]);
+//   useEffect(() => {
+//     if (session?.user && 'serviceWorker' in navigator) {
+//       registerPush();
+//     }
+//   }, [session]);
 
-  async function registerPush() {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!)
-      });
+//   async function registerPush() {
+//     try {
+//       const registration = await navigator.serviceWorker.register('/sw.js');
+//       const subscription = await registration.pushManager.subscribe({
+//         userVisibleOnly: true,
+//         applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!)
+//       });
 
-      await fetch('/api/notifications/subscribe', {
-        method: 'POST',
-        body: JSON.stringify(subscription),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      console.log('Push Registered Successfully');
-    } catch (err) {
-      console.error('Push registration failed:', err);
-    }
-  }
+//       await fetch('/api/notifications/subscribe', {
+//         method: 'POST',
+//         body: JSON.stringify(subscription),
+//         headers: { 'Content-Type': 'application/json' }
+//       });
+//       console.log('Push Registered Successfully');
+//     } catch (err) {
+//       console.error('Push registration failed:', err);
+//     }
+//   }
 
-  return null; // This component doesn't render anything
-}
+//   return null; // This component doesn't render anything
+// }
+
+// function urlBase64ToUint8Array(base64String: string) {
+//   const padding = '='.repeat((4 - base64String.length % 4) % 4);
+//   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+//   const rawData = window.atob(base64);
+//   const outputArray = new Uint8Array(rawData.length);
+//   for (let i = 0; i < rawData.length; ++i) {
+//     outputArray[i] = rawData.charCodeAt(i);
+//   }
+//   return outputArray;
+// }
+
+"use client";
+import { useEffect } from "react";
 
 function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+export default function PushInitializer() {
+  useEffect(() => {
+    if ("serviceWorker" in navigator && "PushManager" in window) {
+      registerPush();
+    }
+  }, []);
+
+  async function registerPush() {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      
+      // Request Permission
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+
+      // Subscribe
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+        ),
+      });
+
+      // Send to Database
+      await fetch("/api/notifications/subscribe", {
+        method: "POST",
+        body: JSON.stringify(subscription),
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      console.log("✅ Successfully subscribed to Push");
+    } catch (error) {
+      console.error("❌ Push registration failed:", error);
+    }
+  }
+
+  return null; // This is a background component
 }

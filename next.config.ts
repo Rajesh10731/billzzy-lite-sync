@@ -13,16 +13,20 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
-        port: '',
       },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
-        port: '',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'your-netlify-site.netlify.app',
       },
     ],
-    // 2. Keep your existing domains
-    domains: ['localhost', 'your-netlify-site.netlify.app'], // Add your domains here
   },
 
   // Environment variables handling
@@ -34,9 +38,11 @@ const nextConfig: NextConfig = {
 
 const pwaConfig = withPWA({
   dest: "public",
-  disable: false, // Set to false to test PWA/Push in development mode
+  disable: false,
   register: true,
   skipWaiting: true,
+  // @ts-ignore - importScripts is supported by next-pwa but might not be in the type definition used
+  importScripts: ['/push-sw.js'],
 });
 
 export default pwaConfig(nextConfig);

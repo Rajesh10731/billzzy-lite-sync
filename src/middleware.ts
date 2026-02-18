@@ -22,7 +22,7 @@ export async function middleware(req: NextRequest) {
 
   // DEBUG LOGGING
   if (pathname !== '/_next/static' && !pathname.includes('.')) {
-    console.log(`[Middleware] Path: ${pathname}, LoggedIn: ${isLoggedIn}, Phone: ${token?.phoneNumber}`);
+    // console.log(`[Middleware] Path: ${pathname}, LoggedIn: ${isLoggedIn}, Phone: ${token?.phoneNumber}`);
   }
 
   // Define route categories

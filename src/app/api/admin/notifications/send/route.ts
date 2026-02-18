@@ -4,6 +4,7 @@ import PushSubscription from '@/models/PushSubscription';
 import User from '@/models/User';
 import webpush from 'web-push';
 
+// 1. Setup VAPID Keys
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT || 'mailto:support@billzzy.com',
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
@@ -12,60 +13,65 @@ webpush.setVapidDetails(
 
 export async function POST(req: Request) {
   try {
-    const { title, message, url, icon, image, targetUserId, category } = await req.json();
-    console.log("Admin Sending Notification. Target:", targetUserId || category || "All Users");
-
+    const { title, message, url, category, targetUserId, icon } = await req.json();
     await dbConnect();
 
-    // 1. Determine the target query
-    const query: { userId?: string | { $in: string[] } } = {};
+    let query: { userId?: string | { $in: string[] } } = {};
 
-    if (targetUserId) {
-      // Single specific user
+    // 2. Determine who to send to
+    if (targetUserId && targetUserId.trim() !== "") {
       query.userId = targetUserId;
     } else if (category === 'onboarded') {
-      // All onboarded clients
-      const users = await User.find({ onboarded: true, role: { $ne: 'admin' } }).select('_id');
-      const userIds = users.map(u => u._id.toString());
-      query.userId = { $in: userIds };
-    } else if (category === 'unonboarded') {
-      // Clients who haven't finished onboarding
-      const users = await User.find({ onboarded: false, role: { $ne: 'admin' } }).select('_id');
-      const userIds = users.map(u => u._id.toString());
-      query.userId = { $in: userIds };
+      // Find all onboarded users (Removing Admin check temporarily so you can test on yourself)
+      const onboardedUsers = await User.find({ onboarded: true }).select('_id');
+      const onboardedIds = onboardedUsers.map(u => u._id.toString());
+      query.userId = { $in: onboardedIds };
+    } else if (category === 'all') {
+      query = {}; // Empty query finds everyone in PushSubscription collection
     }
-    // else if category is 'all' or empty, query remains {} (all subscribers)
 
     const subscriptions = await PushSubscription.find(query);
 
+    console.log(`Targeting: ${category || 'Direct'}. Found: ${subscriptions.length} matching devices.`);
+
     if (subscriptions.length === 0) {
-      console.log("❌ No subscriptions found for target:", targetUserId || category || "All Users");
       return NextResponse.json({
         success: false,
-        message: 'No matching clients have enabled notifications yet.'
-      }, { status: 200 });
+        message: "No subscribers found. Ensure the user has 'Allowed' notifications on their device."
+      });
     }
 
+    // 3. Prepare the Notification Payload
     const payload = JSON.stringify({
-      title: title || "New Update",
-      body: message,
+      title: title || "Billzzy Lite Update",
+      body: message || "You have a new update.",
       url: url || "/dashboard",
       icon: icon || "/assets/icon-192.png",
-      image: image || null
+      badge: "/assets/icon-192.png",
     });
 
+    // 4. Send the Notifications
     await Promise.all(
       subscriptions.map(sub =>
         webpush.sendNotification(sub.subscription, payload)
-          .catch(err => {
-            console.error("Push delivery failed for one device", err.statusCode);
+          .catch(async (err) => {
+            console.error(`Push failed for ${sub.userId}:`, err.statusCode);
+            // If the subscription is no longer valid (expired), delete it from DB
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              await PushSubscription.deleteOne({ _id: sub._id });
+            }
           })
       )
     );
 
-    return NextResponse.json({ success: true, sentCount: subscriptions.length });
+    // 5. Return success with the count for the UI
+    return NextResponse.json({
+      success: true,
+      sentCount: subscriptions.length
+    });
+
   } catch (error) {
-    console.error("Critical Send Error:", error);
+    console.error("Notification API Error:", error);
     return NextResponse.json({ error: 'Server Error' }, { status: 500 });
   }
 }
