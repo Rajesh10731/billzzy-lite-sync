@@ -27,41 +27,42 @@ export async function subscribeUserToPush() {
 
     console.log("🔍 SW State:", registration.active ? "Active" : registration.installing ? "Installing" : "Waiting");
 
-    // 2. Ensure the Service Worker is ACTIVE before subscribing
-    const waitForActive = (reg: ServiceWorkerRegistration): Promise<ServiceWorkerRegistration> => {
-      if (reg.active) return Promise.resolve(reg);
-      return new Promise((resolve) => {
-        const worker = reg.installing || reg.waiting;
-        if (worker) {
-          worker.addEventListener('statechange', (e) => {
-            if ((e.target as ServiceWorker).state === 'activated') resolve(reg);
-          });
-        } else {
-          // If no worker is even installing, just wait for ready which usually works
-          navigator.serviceWorker.ready.then(resolve);
-        }
-      });
-    };
+    // 2. Hard Polling for Active Worker
+    // Standard .ready can sometimes resolve too early in production edge cases
+    console.log("⏳ Waiting for Service Worker to become ACTIVE...");
 
-    const timeout = (ms: number) => new Promise((_, rej) => setTimeout(() => rej(new Error("SW_TIMEOUT")), ms));
+    let attempts = 0;
+    while (!registration.active && attempts < 10) {
+      attempts++;
+      console.log(`🕒 Activation attempt ${attempts}/10...`);
 
-    try {
-      // Wait for either .ready OR our manual active check
-      registration = (await Promise.race([
-        navigator.serviceWorker.ready,
-        waitForActive(registration),
-        timeout(5000)
-      ])) as ServiceWorkerRegistration;
-    } catch (_e) {
-      console.warn("⚠️ SW Activation took too long, proceeding with current handle.");
+      // If there's an installing or waiting worker, try to wait for it
+      const pendingWorker = registration.installing || registration.waiting;
+      if (pendingWorker) {
+        await new Promise((resolve) => {
+          const handler = () => {
+            if (pendingWorker.state === 'activated') {
+              pendingWorker.removeEventListener('statechange', handler);
+              resolve(null);
+            }
+          };
+          pendingWorker.addEventListener('statechange', handler);
+          setTimeout(resolve, 1000); // Max wait 1s per poll
+        });
+      } else {
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // Refresh registration object handle
+      registration = await navigator.serviceWorker.getRegistration() || registration;
     }
 
     if (!registration.active) {
-      console.warn("🕒 SW still not active. Waiting one more second...");
-      await new Promise(r => setTimeout(r, 1000));
+      console.error("❌ SW Error: Service Worker never entered ACTIVE state.");
+      throw new Error("Service Worker activation timeout");
     }
 
-    if (!registration) throw new Error("Service Worker registration not available.");
+    console.log("✅ Service Worker is ACTIVE and ready:", registration.scope);
     console.log("✅ Using Registration Scope:", registration.scope, "Active:", !!registration.active);
 
     // Cast to unknown then type to avoid 'any' lint error
