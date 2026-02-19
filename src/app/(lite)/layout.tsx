@@ -35,11 +35,10 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react'; // check auth status
+import React, { useState } from 'react';
 import { Sidebar, MobileHeader } from '@/components/SideBar';
 import { BottomNavBar } from '@/components/BottomNav';
-import { subscribeUserToPush } from '@/lib/push-notifications'; // Import the helper
+import NotificationPrompt from '@/components/NotificationPrompt';
 
 export default function AppLayout({
   children,
@@ -48,29 +47,6 @@ export default function AppLayout({
 }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  // --- ADDED: Push Notification Subscription Logic ---
-  const { data: session, status } = useSession(); // Get session status
-
-  useEffect(() => {
-    const setupNotifications = async () => {
-      console.log("🔍 Checking Notification Setup. Status:", status, "User ID:", session?.user?.id);
-      // Only run if user is authenticated
-      if (status !== 'authenticated' || !session?.user?.id) return;
-
-      if ('Notification' in window && 'serviceWorker' in navigator) {
-        console.log("📱 SW and Notification supported. Permission:", Notification.permission);
-        // If they already granted permission, ensure they are subscribed in our DB
-        if (Notification.permission === 'granted') {
-          await subscribeUserToPush();
-        }
-      } else {
-        console.warn("❌ SW or Notification NOT supported in this browser.");
-      }
-    };
-
-    setupNotifications();
-  }, [status, session]); // Run when session status changes
-  // --------------------------------------------------
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -87,6 +63,7 @@ export default function AppLayout({
         </main>
       </div>
       <BottomNavBar />
+      <NotificationPrompt />
     </div>
   );
 }

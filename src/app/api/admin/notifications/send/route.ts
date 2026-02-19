@@ -132,18 +132,26 @@ export async function POST(req: Request) {
       icon: "/assets/icon-192.png"
     });
 
+    console.log(`[Push Send] Payload prepared:`, payload);
+
     // 3. Send Notifications
-    await Promise.all(
+    const results = await Promise.all(
       subscriptions.map((sub: SubscriptionDocument) =>
         webpush.sendNotification(sub.subscription as webpush.PushSubscription, payload)
+          .then(() => ({ success: true, userId: sub.userId }))
           .catch(async (err: { statusCode?: number; message?: string }) => {
-            console.error(`Push Error for ${sub.userId}:`, err.message || err.statusCode);
+            console.error(`❌ Push Error for ${sub.userId}:`, err.message || err.statusCode);
             if (err.statusCode === 410 || err.statusCode === 404) {
               await PushSubscription.deleteOne({ _id: sub._id });
+              return { success: false, userId: sub.userId, reason: 'Expired/Removed' };
             }
+            return { success: false, userId: sub.userId, reason: err.message || err.statusCode };
           })
       )
     );
+
+    const successful = results.filter(r => r.success).length;
+    console.log(`[Push Send] Finished. Successful: ${successful}, Failed: ${results.length - successful}`);
 
     return NextResponse.json({
       success: true,

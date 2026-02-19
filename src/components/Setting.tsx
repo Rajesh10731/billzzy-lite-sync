@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   User,
   Store,
-  AlertTriangle,
   QrCode,
   Edit2,
   Check,
@@ -14,11 +13,9 @@ import {
   Download,
   LogOut,
   Settings as SettingsIcon,
-  ChevronRight,
-  Info,
-  Bell
+  ChevronRight
 } from 'lucide-react';
-import { subscribeUserToPush } from '@/lib/push-notifications';
+import Modal from '@/components/ui/Modal';
 
 // --- TYPES ---
 type FormData = {
@@ -37,14 +34,6 @@ type SettingsFieldProps = {
   name: keyof FormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: string;
-};
-
-type ModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  message: string;
-  type?: 'success' | 'error' | 'info';
 };
 
 // --- COMPONENTS ---
@@ -75,29 +64,6 @@ const SettingsField = ({ label, value, isEditing, name, onChange, type = 'text' 
   </div>
 );
 
-const Modal = ({ isOpen, onClose, title, message, type = 'info' }: ModalProps) => {
-  if (!isOpen) return null;
-  const Icon = type === 'success' ? Check : type === 'error' ? AlertTriangle : Info;
-  const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-[320px] rounded-2xl bg-white p-5 shadow-2xl border border-gray-200">
-        <div className="flex flex-col items-center text-center">
-          <div className={`h-12 w-12 rounded-full flex items-center justify-center mb-4 ${bgColor} shadow-lg shadow-black/10`}>
-            <Icon className="h-6 w-6 text-white" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
-          <p className="text-sm text-gray-600 font-medium leading-relaxed">{message}</p>
-          <button onClick={onClose} className="w-full mt-6 bg-[#5a4fcf] text-white py-2.5 rounded-xl font-bold text-sm shadow-md transition-all hover:bg-[#4a3fb8]">
-            Got it
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function Settings() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -110,9 +76,9 @@ export default function Settings() {
   const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
     isOpen: false, title: '', message: '', type: 'info'
   });
-  const [notifStatus, setNotifStatus] = useState({ type: '', msg: '' });
 
   const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
+
   // --- HANDLERS ---
 
   const loadFormData = useCallback(async () => {
@@ -155,38 +121,10 @@ export default function Settings() {
     } catch (error) { console.error(error); }
   };
 
-  const handleSubscribe = async () => {
-    setNotifStatus({ type: 'info', msg: 'Subscribing...' });
-    try {
-      if (!('Notification' in window)) {
-        setModalState({ isOpen: true, title: 'Not Supported', message: 'Browser does not support notifications.', type: 'error' });
-        return;
-      }
-
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        setModalState({ isOpen: true, title: 'Permission Denied', message: 'Please enable notification permissions in your browser settings.', type: 'error' });
-        return;
-      }
-
-      await subscribeUserToPush();
-      setModalState({ isOpen: true, title: 'Subscribed!', message: 'You will now receive notifications even when the app is closed.', type: 'success' });
-    } catch (error) {
-      console.error(error);
-      setModalState({ isOpen: true, title: 'Error', message: 'Failed to subscribe to notifications.', type: 'error' });
-    } finally {
-      setNotifStatus({ type: '', msg: '' });
-    }
-  };
-
-
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-
-
 
   const SectionHeader = ({ title, sectionKey, icon: Icon, colorClass }: { title: string; sectionKey?: string; icon: React.ElementType; colorClass: string }) => (
     <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
@@ -276,26 +214,6 @@ export default function Settings() {
               </div>
             </div>
 
-
-
-            {/* 4. NOTIFICATIONS */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <SectionHeader title="Notifications" icon={Bell} colorClass="text-blue-600" />
-              <div className="px-4 py-4 space-y-3">
-                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-                  Enable push notifications to receive updates about your store even when the app is closed.
-                </p>
-                <button
-                  onClick={handleSubscribe}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 py-3 rounded-xl font-bold text-sm border border-blue-100 active:scale-95 transition-all hover:bg-blue-100 disabled:opacity-50"
-                  disabled={notifStatus.msg !== ''}
-                >
-                  <Bell size={16} />
-                  {notifStatus.msg || "Enable Notifications"}
-                </button>
-              </div>
-            </div>
-
             {/* 5. DOWNLOADS & ACTIONS */}
             <div className="grid grid-cols-1 gap-3 pt-2">
               <a href="/downloads/billzzylite.apk" download className="group flex items-center justify-between bg-[#5a4fcf] px-4 py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
@@ -319,7 +237,13 @@ export default function Settings() {
             </div>
           </div>
         </div>
-        <Modal isOpen={modalState.isOpen} onClose={closeModal} title={modalState.title} message={modalState.message} type={modalState.type} />
+        <Modal
+          isOpen={modalState.isOpen}
+          onClose={closeModal}
+          title={modalState.title}
+          message={modalState.message}
+          type={modalState.type}
+        />
       </div>
     );
   }
