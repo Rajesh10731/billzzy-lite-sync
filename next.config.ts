@@ -30,12 +30,23 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     VERCEL_URL: process.env.VERCEL_URL,
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+  },
+
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.watchOptions = {
+        ...(config.watchOptions || {}),
+        ignored: /public\/(sw\.js|workbox-.*\.js|sw\.js\.map)/,
+      };
+    }
+    return config;
   },
 };
 
 const pwaConfig = withPWA({
   dest: "public",
-  disable: false,
+  disable: false, // Re-enabled for testing push
   register: true,
   skipWaiting: true,
   // @ts-ignore - importScripts is supported by next-pwa but might not be in the type definition used

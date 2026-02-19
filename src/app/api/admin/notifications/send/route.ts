@@ -117,7 +117,9 @@ export async function POST(req: Request) {
     }
 
     // Use .lean<SubscriptionDocument[]>() to get plain objects with correct types
+    console.log(`[Push Send] Querying for subscribers:`, JSON.stringify(query));
     const subscriptions = await PushSubscription.find(query).lean<SubscriptionDocument[]>();
+    console.log(`[Push Send] Found ${subscriptions.length} subscribers.`);
 
     if (subscriptions.length === 0) {
       return NextResponse.json({ success: false, message: "No subscribers found." });
@@ -132,7 +134,7 @@ export async function POST(req: Request) {
 
     // 3. Send Notifications
     await Promise.all(
-      subscriptions.map((sub: SubscriptionDocument) => 
+      subscriptions.map((sub: SubscriptionDocument) =>
         webpush.sendNotification(sub.subscription as webpush.PushSubscription, payload)
           .catch(async (err: { statusCode?: number; message?: string }) => {
             console.error(`Push Error for ${sub.userId}:`, err.message || err.statusCode);

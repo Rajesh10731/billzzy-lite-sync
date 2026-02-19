@@ -19,9 +19,10 @@ export async function POST(req: Request) {
       { upsert: true, new: true }
     );
 
-    console.log(`✅ Push Token Saved for User: ${session.user.id} (${session.user.email})`);
+    console.log(`✅ Push Subscription Saved for User: ${session.user.id} (${session.user.email})`);
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    console.error('❌ Push Subscribe API Error:', error);
     return NextResponse.json({ error: 'Internal Error' }, { status: 500 });
   }
 }
