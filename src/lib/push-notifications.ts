@@ -27,26 +27,42 @@ export async function subscribeUserToPush() {
 
     console.log("🔍 SW State:", registration.active ? "Active" : registration.installing ? "Installing" : "Waiting");
 
-    // 2. Fallback for the .ready hang
-    const getReadyRegistration = async () => {
-      if (registration?.active) return registration;
-      try {
-        return await navigator.serviceWorker.ready;
-      } catch (_e) {
-        return registration;
-      }
+    // 2. Ensure the Service Worker is ACTIVE before subscribing
+    const waitForActive = (reg: ServiceWorkerRegistration): Promise<ServiceWorkerRegistration> => {
+      if (reg.active) return Promise.resolve(reg);
+      return new Promise((resolve) => {
+        const worker = reg.installing || reg.waiting;
+        if (worker) {
+          worker.addEventListener('statechange', (e) => {
+            if ((e.target as ServiceWorker).state === 'activated') resolve(reg);
+          });
+        } else {
+          // If no worker is even installing, just wait for ready which usually works
+          navigator.serviceWorker.ready.then(resolve);
+        }
+      });
     };
 
     const timeout = (ms: number) => new Promise((_, rej) => setTimeout(() => rej(new Error("SW_TIMEOUT")), ms));
 
     try {
-      registration = (await Promise.race([getReadyRegistration(), timeout(3000)])) as ServiceWorkerRegistration;
+      // Wait for either .ready OR our manual active check
+      registration = (await Promise.race([
+        navigator.serviceWorker.ready,
+        waitForActive(registration),
+        timeout(5000)
+      ])) as ServiceWorkerRegistration;
     } catch (_e) {
-      console.warn("⚠️ SW Ready took too long or failed, proceeding with current registration handle.");
+      console.warn("⚠️ SW Activation took too long, proceeding with current handle.");
+    }
+
+    if (!registration.active) {
+      console.warn("🕒 SW still not active. Waiting one more second...");
+      await new Promise(r => setTimeout(r, 1000));
     }
 
     if (!registration) throw new Error("Service Worker registration not available.");
-    console.log("✅ Using Registration Scope:", registration.scope);
+    console.log("✅ Using Registration Scope:", registration.scope, "Active:", !!registration.active);
 
     // Cast to unknown then type to avoid 'any' lint error
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || (window as unknown as { NEXT_PUBLIC_VAPID_PUBLIC_KEY?: string }).NEXT_PUBLIC_VAPID_PUBLIC_KEY;
