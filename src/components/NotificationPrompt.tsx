@@ -13,13 +13,33 @@ export default function NotificationPrompt() {
     const [isProcessing, setIsProcessing] = useState(false);
 
     const checkSubscription = useCallback(async () => {
-        if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) return;
+        if (typeof window === 'undefined') return;
 
-        // Only ask if permission is default (not yet asked or reset)
+        // 1. Basic Support Check
+        const isSupported = 'Notification' in window && 'serviceWorker' in navigator;
+        if (!isSupported) {
+            console.warn('Notifications not supported');
+            return;
+        }
+
+        // 2. Secret Check: Is the VAPID key even there?
+        const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!publicKey) {
+            console.error('VAPID Public Key is missing. Build issue?');
+        }
+
+        // 3. iOS Specific Check: PushManager is often missing if not "Added to Home Screen"
         if (Notification.permission === 'default') {
             try {
-                const registration = await navigator.serviceWorker.getRegistration();
-                const subscription = registration ? await registration.pushManager.getSubscription() : null;
+                // Use .ready as it's more stable for checking capabilities
+                const registration = await navigator.serviceWorker.ready;
+
+                if (!registration.pushManager) {
+                    console.warn("PushManager not found. If on iOS, please 'Add to Home Screen' first.");
+                    return;
+                }
+
+                const subscription = await registration.pushManager.getSubscription();
 
                 if (!subscription) {
                     setModalState({
@@ -48,6 +68,16 @@ export default function NotificationPrompt() {
     const handleSubscribe = async () => {
         setIsProcessing(true);
         try {
+            const registration = await navigator.serviceWorker.ready;
+
+            if (!registration.pushManager) {
+                throw new Error('Push messaging is not supported in this browser environment.');
+            }
+
+            if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+                throw new Error('Configuration error: VAPID Key is missing. Please check build environment.');
+            }
+
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
                 await subscribeUserToPush();
@@ -60,12 +90,13 @@ export default function NotificationPrompt() {
             } else {
                 setModalState({ isOpen: false, title: '', message: '', type: 'info' });
             }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error(error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to enable notifications. Please try again.';
             setModalState({
                 isOpen: true,
-                title: 'Error',
-                message: 'Failed to enable notifications.',
+                title: 'Setup Error',
+                message: errorMessage,
                 type: 'error'
             });
         } finally {

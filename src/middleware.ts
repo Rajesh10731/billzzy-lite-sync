@@ -89,6 +89,6 @@ export const config = {
   // ✅ FIXED: Added "|receipt" to the regex.
   // This forces Next.js to SKIP middleware entirely for these paths.
   matcher: [
-    '/((?!api|_next/static|_next/image|assets|images|favicon.ico|sw.js|workbox|manifest.json|receipt).*)',
+    '/((?!api|_next/static|_next/image|assets|images|favicon.ico|sw.js|push-sw.js|workbox|manifest.json|receipt).*)',
   ],
 };
