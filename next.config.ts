@@ -46,11 +46,13 @@ const nextConfig: NextConfig = {
 
 const pwaConfig = withPWA({
   dest: "public",
-  disable: false, // Re-enabled for testing push
+  disable: false,
   register: true,
   skipWaiting: true,
-  // @ts-ignore - importScripts is supported by next-pwa but might not be in the type definition used
+  // @ts-ignore
   importScripts: ['/push-sw.js'],
+  // Fix for: bad-precaching-response with app-build-manifest.json
+  buildExcludes: [/app-build-manifest\.json$/],
 });
 
 export default pwaConfig(nextConfig);
