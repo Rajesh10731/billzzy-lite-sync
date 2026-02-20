@@ -10,83 +10,57 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export async function subscribeUserToPush() {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    console.warn("⚠️ Push notifications not supported: No Service Worker in navigator");
+    return;
+  }
 
   try {
-    console.log("🛠️ Starting Push Subscription setup...");
+    console.log("🛠️ Starting Push Subscription phase...");
 
-    // 1. Get current registration or register immediately
-    let registration = await navigator.serviceWorker.getRegistration();
-
-    if (!registration) {
-      console.log("🛰️ No registration found. Registering /sw.js manually...");
-      registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      // Wait a bit for it to start installing
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    console.log("🔍 SW State:", registration.active ? "Active" : registration.installing ? "Installing" : "Waiting");
-
-    // 2. Hard Polling for Active Worker
-    // Standard .ready can sometimes resolve too early in production edge cases
-    console.log("⏳ Waiting for Service Worker to become ACTIVE...");
-
-    let attempts = 0;
-    while (!registration.active && attempts < 10) {
-      attempts++;
-      console.log(`🕒 Activation attempt ${attempts}/10...`);
-
-      // If there's an installing or waiting worker, try to wait for it
-      const pendingWorker = registration.installing || registration.waiting;
-      if (pendingWorker) {
-        await new Promise((resolve) => {
-          const handler = () => {
-            if (pendingWorker.state === 'activated') {
-              pendingWorker.removeEventListener('statechange', handler);
-              resolve(null);
-            }
-          };
-          pendingWorker.addEventListener('statechange', handler);
-          setTimeout(resolve, 1000); // Max wait 1s per poll
-        });
-      } else {
-        await new Promise(r => setTimeout(r, 500));
-      }
-
-      // Refresh registration object handle
-      registration = await navigator.serviceWorker.getRegistration() || registration;
-    }
+    // 1. Wait for the Service Worker to be READY
+    // Using .ready is much safer than getRegistration as it waits for activation
+    const registration = await navigator.serviceWorker.ready;
 
     if (!registration.active) {
-      console.error("❌ SW Error: Service Worker never entered ACTIVE state.");
-      throw new Error("Service Worker activation timeout");
+      console.error("❌ SW Error: Registration ready but No Active worker found.");
+      throw new Error("Service Worker not active");
     }
 
-    console.log("✅ Service Worker is ACTIVE and ready:", registration.scope);
-    console.log("✅ Using Registration Scope:", registration.scope, "Active:", !!registration.active);
+    console.log("✅ Service Worker active and ready at scope:", registration.scope);
 
-    // Cast to unknown then type to avoid 'any' lint error
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || (window as unknown as { NEXT_PUBLIC_VAPID_PUBLIC_KEY?: string }).NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    // 2. VAPID Key validation
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     console.log("🔑 VAPID Key Present:", !!publicKey, publicKey ? (publicKey.substring(0, 10) + "...") : "MISSING");
 
     if (!publicKey) {
-      console.error("❌ Push Sub Error: NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing in environment variables.");
-      throw new Error("VAPID Public Key missing");
+      console.error("❌ Push Sub Error: NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing.");
+      throw new Error("VAPID Public Key missing from environment");
     }
 
+    // 3. Subscription Management
     let subscription = await registration.pushManager.getSubscription();
-    console.log("📦 Existing Subscription:", subscription ? "Yes" : "No");
+    console.log("📦 Existing Subscription check:", subscription ? "Found" : "None");
 
     if (!subscription) {
-      console.log("🛰️ Creating new subscription...");
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey)
-      });
-      console.log("✅ New Subscription Created");
+      console.log("🛰️ Requesting new push subscription...");
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+        console.log("✅ New Subscription successfully created");
+      } catch (subErr: unknown) {
+        const subMessage = subErr instanceof Error ? subErr.message : 'Unknown reason';
+        console.error("❌ Failed to create new subscription:", subErr);
+        throw new Error(`Browser subscription failed: ${subMessage}`);
+      }
+    } else {
+      console.log("♻️ User already has a subscription. Synchronizing with server...");
     }
 
-    console.log("📡 Sending subscription to server...");
+    // 4. Server Sync
+    console.log("📡 Sending subscription snapshot to server...");
     const response = await fetch('/api/notifications/subscribe', {
       method: 'POST',
       body: JSON.stringify(subscription),
@@ -95,17 +69,17 @@ export async function subscribeUserToPush() {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("❌ Server rejected subscription:", errorData);
-      throw new Error(`Server error: ${response.status}`);
+      console.error("❌ Server sync failed:", response.status, errorData);
+      throw new Error(`Server failed to save subscription (Status: ${response.status})`);
     }
 
-    console.log("✅ Push Subscription Updated for this device.");
+    console.log("🎉 Push Subscription workflow complete.");
     return true;
   } catch (err: unknown) {
     if (err instanceof Error) {
-      console.error("❌ Push Sub Error:", err.message);
+      console.error("❌ subscribeUserToPush Critical Failure:", err.message);
       throw err;
     }
-    throw new Error("Unknown Push Error");
+    throw new Error("Unknown Push Error occurred during subscription sequence");
   }
 }

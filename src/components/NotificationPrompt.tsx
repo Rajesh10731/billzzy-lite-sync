@@ -28,25 +28,24 @@ export default function NotificationPrompt() {
             console.error('VAPID Public Key is missing. Build issue?');
         }
 
-        // 3. iOS Specific Check: PushManager is often missing if not "Added to Home Screen"
-        if (Notification.permission === 'default') {
+        // 3. Permission Check
+        if (Notification.permission === 'default' || Notification.permission === 'granted') {
             try {
-                // Use .ready as it's more stable for checking capabilities
                 const registration = await navigator.serviceWorker.ready;
-
-                if (!registration.pushManager) {
-                    console.warn("PushManager not found. If on iOS, please 'Add to Home Screen' first.");
-                    return;
-                }
+                if (!registration.pushManager) return;
 
                 const subscription = await registration.pushManager.getSubscription();
 
+                // If permission is already granted but no subscription exists, 
+                // we should still try to subscribe them (maybe the previous sync failed).
                 if (!subscription) {
                     setModalState({
                         isOpen: true,
                         type: 'ask',
-                        title: 'Enable Alerts?',
-                        message: 'Receive real-time updates about sales even when the app is closed.'
+                        title: Notification.permission === 'granted' ? 'Finalize Alerts' : 'Enable Alerts?',
+                        message: Notification.permission === 'granted'
+                            ? 'Permission is granted, but we need to link your device to receive updates.'
+                            : 'Receive real-time updates about sales even when the app is closed.'
                     });
                 }
             } catch (error) {

@@ -114,7 +114,11 @@ export async function POST(req: Request) {
     } else if (category === 'onboarded') {
       const onboardedUsers = await User.find({ onboarded: true }).select('_id');
       query.userId = { $in: onboardedUsers.map(u => u._id.toString()) };
+    } else if (category === 'unonboarded') {
+      const nonOnboardedUsers = await User.find({ onboarded: { $ne: true } }).select('_id');
+      query.userId = { $in: nonOnboardedUsers.map(u => u._id.toString()) };
     }
+    // Note: If category is 'all' or undefined, query stays {} which finds EVERYONE.
 
     // Use .lean<SubscriptionDocument[]>() to get plain objects with correct types
     console.log(`[Push Send] Querying for subscribers:`, JSON.stringify(query));
@@ -135,6 +139,7 @@ export async function POST(req: Request) {
     console.log(`[Push Send] Payload prepared:`, payload);
 
     // 3. Send Notifications
+    console.log(`[Push Send] Targeting User IDs:`, subscriptions.map(s => s.userId).join(', '));
     const results = await Promise.all(
       subscriptions.map((sub: SubscriptionDocument) =>
         webpush.sendNotification(sub.subscription as webpush.PushSubscription, payload)
