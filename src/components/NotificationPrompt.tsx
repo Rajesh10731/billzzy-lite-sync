@@ -22,30 +22,51 @@ export default function NotificationPrompt() {
             return;
         }
 
-        // 2. Secret Check: Is the VAPID key even there?
-        const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!publicKey) {
-            console.error('VAPID Public Key is missing. Build issue?');
-        }
-
-        // 3. Permission Check
-        if (Notification.permission === 'default' || Notification.permission === 'granted') {
+        // 2. Permission Check: Silent Auto-Subscription
+        if (Notification.permission === 'granted') {
             try {
                 const registration = await navigator.serviceWorker.ready;
-                if (!registration.pushManager) return;
-
                 const subscription = await registration.pushManager.getSubscription();
 
-                // If permission is already granted but no subscription exists, 
-                // we should still try to subscribe them (maybe the previous sync failed).
+                // If permission is already granted but no subscription exists (e.g. browser cleared it),
+                // we should still try to subscribe them silently in the background.
+                if (!subscription) {
+                    console.log('🔄 Notifications allowed but not active. Auto-subscribing in background...');
+                    await subscribeUserToPush();
+                }
+            } catch (error) {
+                console.error('Silent subscription failed:', error);
+            }
+            return; // Already granted, no need to show the modal
+        }
+
+        // 3. New User / Permission Default: Show Prompt
+        if (Notification.permission === 'default') {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+
+                // Mobile/iOS Standalone Check
+                // @ts-expect-error - standalone is a non-standard iOS property
+                const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+                if (isIOS && !isStandalone) {
+                    console.log("iOS detected but not in PWA standalone mode. Skipping prompt.");
+                    return;
+                }
+
+                if (!registration.pushManager) {
+                    console.warn("PushManager not found.");
+                    return;
+                }
+
+                const subscription = await registration.pushManager.getSubscription();
                 if (!subscription) {
                     setModalState({
                         isOpen: true,
                         type: 'ask',
-                        title: Notification.permission === 'granted' ? 'Finalize Alerts' : 'Enable Alerts?',
-                        message: Notification.permission === 'granted'
-                            ? 'Permission is granted, but we need to link your device to receive updates.'
-                            : 'Receive real-time updates about sales even when the app is closed.'
+                        title: 'Enable Alerts?',
+                        message: 'Receive real-time updates about sales even when the app is closed.'
                     });
                 }
             } catch (error) {
