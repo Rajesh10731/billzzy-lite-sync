@@ -251,9 +251,20 @@ export default function Settings() {
                         diagnosticMsg += `🔏 Permission: ${Notification.permission}\n`;
                         if (Notification.permission === 'denied') throw new Error("Notifications are blocked. Please reset permissions in browser settings.");
 
-                        // 4. Service Worker Check
-                        const registration = await navigator.serviceWorker.getRegistration();
-                        diagnosticMsg += `⚙️ Service Worker: ${registration ? 'Registered' : 'Missing'}\n`;
+                        // 4. Service Worker Check & Auto-fix
+                        let registration = await navigator.serviceWorker.getRegistration();
+                        if (!registration) {
+                          setModalState(s => ({ ...s, message: diagnosticMsg + "\n⚙️ Service Worker: Missing. Attempting manual registration..." }));
+                          try {
+                            registration = await navigator.serviceWorker.register('/sw.js');
+                            diagnosticMsg += `⚙️ Service Worker: Fixed (Manual)\n`;
+                          } catch (regErr) {
+                            diagnosticMsg += `⚙️ Service Worker: FAILED (${regErr instanceof Error ? regErr.message : 'Registration failed'})\n`;
+                            throw new Error("Could not register Service Worker. Check console for details.");
+                          }
+                        } else {
+                          diagnosticMsg += `⚙️ Service Worker: Registered\n`;
+                        }
 
                         // 5. VAPID Key Check
                         const hasVapid = !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
