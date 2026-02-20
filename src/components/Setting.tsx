@@ -234,13 +234,50 @@ export default function Settings() {
                   </div>
                   <button
                     onClick={async () => {
-                      setModalState({ isOpen: true, title: 'Syncing Alerts...', message: 'Connecting to push service...', type: 'info' });
+                      setModalState({ isOpen: true, title: 'Running Diagnostics...', message: '🔍 Checking device status...', type: 'info' });
+
+                      let diagnosticMsg = "";
                       try {
+                        // 1. Session Check
+                        diagnosticMsg += `👤 Session: ${status === 'authenticated' ? 'Connected' : 'Disconnected'}\n`;
+                        if (status !== 'authenticated') throw new Error("Please sign out and sign in again on this device.");
+
+                        // 2. Browser Support
+                        const isSupported = 'Notification' in window && 'serviceWorker' in navigator;
+                        diagnosticMsg += `🌐 Browser Support: ${isSupported ? 'OK' : 'Not Supported'}\n`;
+                        if (!isSupported) throw new Error("This browser does not support push notifications.");
+
+                        // 3. Permission State
+                        diagnosticMsg += `🔏 Permission: ${Notification.permission}\n`;
+                        if (Notification.permission === 'denied') throw new Error("Notifications are blocked. Please reset permissions in browser settings.");
+
+                        // 4. Service Worker Check
+                        const registration = await navigator.serviceWorker.getRegistration();
+                        diagnosticMsg += `⚙️ Service Worker: ${registration ? 'Registered' : 'Missing'}\n`;
+
+                        // 5. VAPID Key Check
+                        const hasVapid = !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                        diagnosticMsg += `🔑 Keys: ${hasVapid ? 'Valid' : 'MISSING'}\n`;
+                        if (!hasVapid) throw new Error("VAPID Public Key missing from environment. Rebuild required.");
+
+                        // 6. Attempt Subscription
+                        setModalState(s => ({ ...s, message: diagnosticMsg + "\n🛰️ Attempting subscription handshake..." }));
                         await subscribeUserToPush();
-                        setModalState({ isOpen: true, title: 'Sync Success!', message: 'This device is now linked to receive real-time updates.', type: 'success' });
+
+                        setModalState({
+                          isOpen: true,
+                          title: 'Sync Success!',
+                          message: diagnosticMsg + "\n✅ Device successfully linked to receive alerts!",
+                          type: 'success'
+                        });
                       } catch (err: unknown) {
-                        const errMsg = err instanceof Error ? err.message : 'Check your connection or VAPID keys.';
-                        setModalState({ isOpen: true, title: 'Sync Failed', message: errMsg, type: 'error' });
+                        const errMsg = err instanceof Error ? err.message : 'Unknown sync failure.';
+                        setModalState({
+                          isOpen: true,
+                          title: 'Sync Failed',
+                          message: diagnosticMsg + `\n❌ ERROR: ${errMsg}`,
+                          type: 'error'
+                        });
                       }
                     }}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 text-orange-600 text-xs font-bold transition-all active:scale-95"

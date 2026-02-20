@@ -62,7 +62,13 @@ export default function NotificationPrompt() {
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
                 if (isIOS && !isStandalone) {
-                    console.log("iOS detected but not in PWA standalone mode. Skipping prompt.");
+                    console.log("iOS detected but not in PWA standalone mode. Showing guidance modal.");
+                    setModalState({
+                        isOpen: true,
+                        type: 'info',
+                        title: 'Mobile Alerts',
+                        message: 'To receive alerts on iPhone, tap the "Share" icon in Safari and select "Add to Home Screen". Then open the app from your home screen.'
+                    });
                     return;
                 }
 
@@ -84,7 +90,7 @@ export default function NotificationPrompt() {
                 console.error('Error checking subscription:', error);
             }
         }
-    }, []);
+    }, [status]);
 
     useEffect(() => {
         if (status === 'authenticated') {

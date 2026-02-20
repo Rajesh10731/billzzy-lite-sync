@@ -18,13 +18,20 @@ export async function subscribeUserToPush() {
   try {
     console.log("🛠️ Starting Push Subscription phase...");
 
-    // 1. Wait for the Service Worker to be READY
-    // Using .ready is much safer than getRegistration as it waits for activation
-    const registration = await navigator.serviceWorker.ready;
+    // 1. Wait for the Service Worker to be READY with a timeout
+    // Mobile browsers can sometimes hang on .ready if the SW is in a weird state
+    const swTimeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Service Worker registration timed out (10s)")), 10000);
+    });
+
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      swTimeout
+    ]) as ServiceWorkerRegistration;
 
     if (!registration.active) {
       console.error("❌ SW Error: Registration ready but No Active worker found.");
-      throw new Error("Service Worker not active");
+      throw new Error("Service Worker not active - try reloading the app");
     }
 
     console.log("✅ Service Worker active and ready at scope:", registration.scope);
