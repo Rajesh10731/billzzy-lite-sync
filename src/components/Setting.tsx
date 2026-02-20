@@ -13,8 +13,11 @@ import {
   Download,
   LogOut,
   Settings as SettingsIcon,
-  ChevronRight
+  ChevronRight,
+  Bell,
+  RefreshCw
 } from 'lucide-react';
+import { subscribeUserToPush } from '@/lib/push-notifications';
 import Modal from '@/components/ui/Modal';
 
 // --- TYPES ---
@@ -211,6 +214,49 @@ export default function Settings() {
               <SectionHeader title="Payment" sectionKey="payment" icon={QrCode} colorClass="text-purple-600" />
               <div className="px-4 pb-2">
                 <SettingsField label="Merchant UPI ID" name="merchantUpiId" value={formData.merchantUpiId} isEditing={editingSection === 'payment'} onChange={handleChange} />
+              </div>
+            </div>
+
+            {/* 4. NOTIFICATIONS */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <SectionHeader title="Notifications" icon={Bell} colorClass="text-orange-500" />
+              <div className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">Push Alerts</p>
+                    <p className="text-[10px] text-gray-500 font-medium">
+                      {typeof window !== 'undefined' ? (
+                        'Notification' in window ?
+                          `Status: ${Notification.permission}` :
+                          'Not supported on this browser'
+                      ) : 'Checking...'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setModalState({ isOpen: true, title: 'Syncing Alerts...', message: 'Connecting to push service...', type: 'info' });
+                      try {
+                        await subscribeUserToPush();
+                        setModalState({ isOpen: true, title: 'Sync Success!', message: 'This device is now linked to receive real-time updates.', type: 'success' });
+                      } catch (err: unknown) {
+                        const errMsg = err instanceof Error ? err.message : 'Check your connection or VAPID keys.';
+                        setModalState({ isOpen: true, title: 'Sync Failed', message: errMsg, type: 'error' });
+                      }
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 text-orange-600 text-xs font-bold transition-all active:scale-95"
+                  >
+                    <RefreshCw size={14} />
+                    Sync Device
+                  </button>
+                </div>
+
+                {typeof window !== 'undefined' && Notification.permission === 'denied' && (
+                  <div className="p-3 bg-red-50 rounded-xl">
+                    <p className="text-[10px] text-red-600 font-bold leading-tight">
+                      Alerts are blocked in your browser. Click the lock/info icon in the address bar to &quot;Allow&quot; notifications.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

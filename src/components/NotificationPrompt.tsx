@@ -34,8 +34,19 @@ export default function NotificationPrompt() {
                     console.log('🔄 Notifications allowed but not active. Auto-subscribing in background...');
                     await subscribeUserToPush();
                 }
-            } catch (error) {
+            } catch (error: unknown) {
                 console.error('Silent subscription failed:', error);
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+                // If it's a configuration error (like missing VAPID key), we want to show it
+                if (errorMessage.includes('VAPID') || errorMessage.includes('Configuration')) {
+                    setModalState({
+                        isOpen: true,
+                        title: 'Auto-Setup Issue',
+                        message: `Notifications are allowed, but background setup failed: ${errorMessage}`,
+                        type: 'error'
+                    });
+                }
             }
             return; // Already granted, no need to show the modal
         }
