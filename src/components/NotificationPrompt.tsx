@@ -22,14 +22,12 @@ export default function NotificationPrompt() {
             return;
         }
 
-        // 2. Permission Check: Silent Auto-Subscription
+        // 2. Permission Check: Silent Auto-Subscription or Denied Guidance
         if (Notification.permission === 'granted') {
             try {
                 const registration = await navigator.serviceWorker.ready;
                 const subscription = await registration.pushManager.getSubscription();
 
-                // If permission is already granted but no subscription exists (e.g. browser cleared it),
-                // we should still try to subscribe them silently in the background.
                 if (!subscription) {
                     console.log('🔄 Notifications allowed but not active. Auto-subscribing in background...');
                     await subscribeUserToPush();
@@ -38,7 +36,6 @@ export default function NotificationPrompt() {
                 console.error('Silent subscription failed:', error);
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-                // If it's a configuration error (like missing VAPID key), we want to show it
                 if (errorMessage.includes('VAPID') || errorMessage.includes('Configuration')) {
                     setModalState({
                         isOpen: true,
@@ -48,7 +45,20 @@ export default function NotificationPrompt() {
                     });
                 }
             }
-            return; // Already granted, no need to show the modal
+            return;
+        }
+
+        if (Notification.permission === 'denied') {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            setModalState({
+                isOpen: true,
+                title: 'Alerts Blocked',
+                message: isIOS
+                    ? 'Notifications are blocked in your iOS settings. Go to Settings > Notifications > Billzzy to allow them.'
+                    : 'Notifications are blocked by your browser. Tap the "Lock" or "Info" icon in the address bar and select "Allow" or "Reset Permission".',
+                type: 'error'
+            });
+            return;
         }
 
         // 3. New User / Permission Default: Show Prompt
