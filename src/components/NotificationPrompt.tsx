@@ -64,68 +64,74 @@ export default function NotificationPrompt() {
         // 3. New User / Permission Default: Request Permission
         if (Notification.permission === 'default') {
             try {
+                // Wait for the SW to be ready, but without blocking the UI thread forever if it fails
                 const registration = await navigator.serviceWorker.ready;
 
-                if (!registration.pushManager) {
-                    console.warn("PushManager not found.");
+                if (!registration || !registration.pushManager) {
+                    console.warn("PushManager not found or SW not ready.");
                     return;
                 }
 
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                // @ts-expect-error - standalone is a non-standard iOS property
-                const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+                // Check for iOS (iPhone/iPad/iPod)
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+                // Check if it's running as a PWA (Standalone mode)
+                const nav = navigator as unknown as { standalone?: boolean };
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && nav.standalone === true);
 
-                // 🔴 SCENARIO 1: iOS Regular Browser (Safari)
-                // They CANNOT receive push notifications. They MUST install the PWA first.
-                if (isIOS && !isStandalone) {
-                    console.log("📱 iOS Safari detected. Showing guidance modal to install PWA.");
-                    setModalState({
-                        isOpen: true,
-                        type: 'info',
-                        title: 'Mobile Alerts',
-                        message: 'To receive alerts on iPhone, tap the "Share" icon in Safari and select "Add to Home Screen". Then open the app from your home screen to enable alerts.'
-                    });
-                    return;
+                if (isIOS) {
+                    if (!isStandalone) {
+                        // iOS Browser (Safari/Chrome) - Apple NEVER allows push here. Must install PWA.
+                        console.log("📱 iOS Browser detected. Must install PWA for push.");
+                        setModalState({
+                            isOpen: true,
+                            type: 'info',
+                            title: 'Mobile Alerts',
+                            message: 'To receive alerts on iPhone, tap the "Share" icon below and select "Add to Home Screen". Then open the app from your home screen.'
+                        });
+                        return;
+                    } else {
+                        // iOS PWA - Apple REQUIRES a user gesture (button click) to show the native prompt.
+                        console.log("📱 iOS PWA detected. Showing custom prompt to capture user gesture.");
+                        setModalState({
+                            isOpen: true,
+                            type: 'ask',
+                            title: 'Enable Alerts?',
+                            message: 'Receive real-time updates about sales even when the app is closed. Tap Enable to allow.'
+                        });
+                        return;
+                    }
                 }
 
-                // 🟡 SCENARIO 2: iOS PWA (Installed App)
-                // Apple requires a physical tap (user gesture) to trigger the native prompt in a PWA.
-                if (isIOS && isStandalone) {
-                    console.log("📱 iOS PWA detected. Showing custom prompt to capture user gesture...");
+                // For Android and Desktop: Auto-request usually works fine without a user gesture.
+                console.log("🔔 Auto-requesting notification permission (Android/Desktop)...");
+                // We wrap this in a try/catch because some older Android WebViews might throw if no user gesture
+                try {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        console.log('✅ Permission granted! Subscribing...');
+                        await subscribeUserToPush();
+                        setModalState({
+                            isOpen: true,
+                            title: 'Updates Active!',
+                            message: 'You are now ready to receive real-time notifications.',
+                            type: 'success'
+                        });
+                    } else {
+                        console.log('❌ Permission denied or dismissed.');
+                    }
+                } catch (permError) {
+                    console.error("Auto-request failed (likely needs user gesture on this specific Android browser):", permError);
+                    // Fallback for Android browsers that suddenly decide they need a user gesture
                     setModalState({
                         isOpen: true,
                         type: 'ask',
                         title: 'Enable Alerts?',
-                        message: 'Receive real-time updates about sales even when the app is closed. Tap Enable to allow.'
-                    });
-                    return;
-                }
-
-                // 🟢 SCENARIO 3: Android & Desktop browsers (Chrome/Edge/Firefox)
-                // These platforms happily allow the native prompt to appear automatically.
-                console.log("🔔 Automatic Notification Permission Request (Android/Desktop)...");
-                const permission = await Notification.requestPermission();
-
-                if (permission === 'granted') {
-                    console.log('✅ User granted permission. Subscribing to push...');
-                    await subscribeUserToPush();
-                    setModalState({
-                        isOpen: true,
-                        title: 'Updates Active!',
-                        message: 'You are now ready to receive real-time notifications.',
-                        type: 'success'
-                    });
-                } else if (permission === 'denied') {
-                    console.log('❌ User denied permission request.');
-                    setModalState({
-                        isOpen: true,
-                        title: 'Alerts Blocked',
-                        message: 'Notifications were denied. You will not receive real-time updates. You can enable them later in your browser settings.',
-                        type: 'info'
+                        message: 'Tap Enable to allow real-time notifications on this device.'
                     });
                 }
+
             } catch (error) {
-                console.error('Error checking subscription:', error);
+                console.error('Error during default permission check:', error);
             }
         }
     }, [status]);
