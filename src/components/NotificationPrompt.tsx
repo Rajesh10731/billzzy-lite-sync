@@ -49,13 +49,18 @@ export default function NotificationPrompt() {
         }
 
         if (Notification.permission === 'denied') {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+            const nav = navigator as unknown as { standalone?: boolean };
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && nav.standalone === true);
+
             setModalState({
                 isOpen: true,
-                title: 'Alerts Blocked',
+                title: 'Permissions Blocked',
                 message: isIOS
-                    ? 'Notifications are blocked in your iOS settings. Go to Settings > Notifications > Billzzy to allow them.'
-                    : 'Notifications are blocked by your browser. Tap the "Lock" or "Info" icon in the address bar and select "Allow" or "Reset Permission".',
+                    ? (isStandalone
+                        ? 'Notifications are blocked in your iOS settings. Please go to Settings > Notifications > Billzzy and set "Allow Notifications" to ON.'
+                        : 'Notifications are blocked in Safari. You must click the "Share" icon, Add to Home Screen, and then allow notifications from the home screen app.')
+                    : 'Your browser is blocking notifications. To fix this:\n1. Click the "Lock" icon in the address bar.\n2. Set "Notifications" to "Allow".\n3. Refresh this page.',
                 type: 'error'
             });
             return;
@@ -64,51 +69,60 @@ export default function NotificationPrompt() {
         // 3. New User / Permission Default: Request Permission
         if (Notification.permission === 'default') {
             try {
-                // Wait for the SW to be ready, but without blocking the UI thread forever if it fails
-                const registration = await navigator.serviceWorker.ready;
+                console.log("🔍 Checking first-time notification readiness...");
+
+                // Wait for the SW to be ready with a timeout to prevent hanging
+                const swTimeout = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error("Service Worker registration timed out (5s)")), 5000);
+                });
+
+                const registration = await Promise.race([
+                    navigator.serviceWorker.ready,
+                    swTimeout
+                ]) as ServiceWorkerRegistration;
 
                 if (!registration || !registration.pushManager) {
-                    console.warn("PushManager not found or SW not ready.");
+                    console.warn("⚠️ PushManager not found or SW not ready.");
                     return;
                 }
 
-                // Check for iOS (iPhone/iPad/iPod)
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
-                // Check if it's running as a PWA (Standalone mode)
+                const userAgent = navigator.userAgent || '';
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+                const isIOS = /iPad|iPhone|iPod/.test(userAgent);
                 const nav = navigator as unknown as { standalone?: boolean };
                 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && nav.standalone === true);
 
-                if (isIOS) {
-                    if (!isStandalone) {
-                        // iOS Browser (Safari/Chrome) - Apple NEVER allows push here. Must install PWA.
-                        console.log("📱 iOS Browser detected. Must install PWA for push.");
+                console.log(`📱 Device info: isMobile: ${isMobile}, isIOS: ${isIOS}, isStandalone: ${isStandalone}`);
+
+                // 🔴 ALL MOBILE DEVICES: Use custom prompt to capture user gesture
+                // Browsers are increasingly restrictive, so we force-opt-in via gesture.
+                if (isMobile) {
+                    if (isIOS && !isStandalone) {
+                        console.log("📱 iOS Safari: Showing installation guidance.");
                         setModalState({
                             isOpen: true,
                             type: 'info',
                             title: 'Mobile Alerts',
                             message: 'To receive alerts on iPhone, tap the "Share" icon below and select "Add to Home Screen". Then open the app from your home screen.'
                         });
-                        return;
                     } else {
-                        // iOS PWA - Apple REQUIRES a user gesture (button click) to show the native prompt.
-                        console.log("📱 iOS PWA detected. Showing custom prompt to capture user gesture.");
+                        console.log("📱 Mobile PWA/Browser: Showing custom prompt for gesture.");
                         setModalState({
                             isOpen: true,
                             type: 'ask',
                             title: 'Enable Alerts?',
                             message: 'Receive real-time updates about sales even when the app is closed. Tap Enable to allow.'
                         });
-                        return;
                     }
+                    return;
                 }
 
-                // For Android and Desktop: Auto-request usually works fine without a user gesture.
-                console.log("🔔 Auto-requesting notification permission (Android/Desktop)...");
-                // We wrap this in a try/catch because some older Android WebViews might throw if no user gesture
+                // 🟢 DESKTOP: Try auto-request
+                console.log("🔔 Desktop: Auto-requesting notification permission...");
                 try {
                     const permission = await Notification.requestPermission();
                     if (permission === 'granted') {
-                        console.log('✅ Permission granted! Subscribing...');
+                        console.log('✅ Desktop: Permission granted! Subscribing...');
                         await subscribeUserToPush();
                         setModalState({
                             isOpen: true,
@@ -117,11 +131,10 @@ export default function NotificationPrompt() {
                             type: 'success'
                         });
                     } else {
-                        console.log('❌ Permission denied or dismissed.');
+                        console.log(`❌ Desktop: Permission ${permission}.`);
                     }
                 } catch (permError) {
-                    console.error("Auto-request failed (likely needs user gesture on this specific Android browser):", permError);
-                    // Fallback for Android browsers that suddenly decide they need a user gesture
+                    console.error("❌ Desktop: Auto-request failed:", permError);
                     setModalState({
                         isOpen: true,
                         type: 'ask',
@@ -131,7 +144,7 @@ export default function NotificationPrompt() {
                 }
 
             } catch (error) {
-                console.error('Error during default permission check:', error);
+                console.error('❌ Error during notification readiness check:', error);
             }
         }
     }, [status]);
