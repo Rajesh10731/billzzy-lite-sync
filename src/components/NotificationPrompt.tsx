@@ -61,39 +61,35 @@ export default function NotificationPrompt() {
             return;
         }
 
-        // 3. New User / Permission Default: Show Prompt
+        // 3. New User / Permission Default: Request Directly
         if (Notification.permission === 'default') {
             try {
                 const registration = await navigator.serviceWorker.ready;
-
-                // Mobile/iOS Standalone Check
-                // @ts-expect-error - standalone is a non-standard iOS property
-                const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-                if (isIOS && !isStandalone) {
-                    console.log("iOS detected but not in PWA standalone mode. Showing guidance modal.");
-                    setModalState({
-                        isOpen: true,
-                        type: 'info',
-                        title: 'Mobile Alerts',
-                        message: 'To receive alerts on iPhone, tap the "Share" icon in Safari and select "Add to Home Screen". Then open the app from your home screen.'
-                    });
-                    return;
-                }
 
                 if (!registration.pushManager) {
                     console.warn("PushManager not found.");
                     return;
                 }
 
-                const subscription = await registration.pushManager.getSubscription();
-                if (!subscription) {
+                console.log("🔔 Automatic Notification Permission Request...");
+                const permission = await Notification.requestPermission();
+
+                if (permission === 'granted') {
+                    console.log('✅ User granted permission. Subscribing to push...');
+                    await subscribeUserToPush();
                     setModalState({
                         isOpen: true,
-                        type: 'ask',
-                        title: 'Enable Alerts?',
-                        message: 'Receive real-time updates about sales even when the app is closed.'
+                        title: 'Updates Active!',
+                        message: 'You are now ready to receive real-time notifications.',
+                        type: 'success'
+                    });
+                } else if (permission === 'denied') {
+                    console.log('❌ User denied permission request.');
+                    setModalState({
+                        isOpen: true,
+                        title: 'Alerts Blocked',
+                        message: 'Notifications were denied. You will not receive real-time updates. You can enable them later in your browser settings.',
+                        type: 'info'
                     });
                 }
             } catch (error) {
