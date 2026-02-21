@@ -25,15 +25,28 @@ export default function NotificationPrompt() {
         // 2. Permission Check: Silent Auto-Subscription or Denied Guidance
         if (Notification.permission === 'granted') {
             try {
-                const registration = await navigator.serviceWorker.ready;
+                console.log("💎 Notifications already granted. Checking subscription status...");
+
+                // Use a timeout for SW readiness here as well
+                const swTimeout = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error("Service Worker registration timed out (5s)")), 5000);
+                });
+
+                const registration = await Promise.race([
+                    navigator.serviceWorker.ready,
+                    swTimeout
+                ]) as ServiceWorkerRegistration;
+
                 const subscription = await registration.pushManager.getSubscription();
 
                 if (!subscription) {
-                    console.log('🔄 Notifications allowed but not active. Auto-subscribing in background...');
+                    console.log('🔄 Notifications allowed but no subscription found. Re-subscribing in background...');
                     await subscribeUserToPush();
+                } else {
+                    console.log('✅ User is already active and subscribed.');
                 }
             } catch (error: unknown) {
-                console.error('Silent subscription failed:', error);
+                console.error('❌ Background subscription check failed:', error);
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
                 if (errorMessage.includes('VAPID') || errorMessage.includes('Configuration')) {
