@@ -61,7 +61,7 @@ export default function NotificationPrompt() {
             return;
         }
 
-        // 3. New User / Permission Default: Request Directly
+        // 3. New User / Permission Default: Request Permission
         if (Notification.permission === 'default') {
             try {
                 const registration = await navigator.serviceWorker.ready;
@@ -71,7 +71,39 @@ export default function NotificationPrompt() {
                     return;
                 }
 
-                console.log("🔔 Automatic Notification Permission Request...");
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                // @ts-expect-error - standalone is a non-standard iOS property
+                const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+
+                // 🔴 SCENARIO 1: iOS Regular Browser (Safari)
+                // They CANNOT receive push notifications. They MUST install the PWA first.
+                if (isIOS && !isStandalone) {
+                    console.log("📱 iOS Safari detected. Showing guidance modal to install PWA.");
+                    setModalState({
+                        isOpen: true,
+                        type: 'info',
+                        title: 'Mobile Alerts',
+                        message: 'To receive alerts on iPhone, tap the "Share" icon in Safari and select "Add to Home Screen". Then open the app from your home screen to enable alerts.'
+                    });
+                    return;
+                }
+
+                // 🟡 SCENARIO 2: iOS PWA (Installed App)
+                // Apple requires a physical tap (user gesture) to trigger the native prompt in a PWA.
+                if (isIOS && isStandalone) {
+                    console.log("📱 iOS PWA detected. Showing custom prompt to capture user gesture...");
+                    setModalState({
+                        isOpen: true,
+                        type: 'ask',
+                        title: 'Enable Alerts?',
+                        message: 'Receive real-time updates about sales even when the app is closed. Tap Enable to allow.'
+                    });
+                    return;
+                }
+
+                // 🟢 SCENARIO 3: Android & Desktop browsers (Chrome/Edge/Firefox)
+                // These platforms happily allow the native prompt to appear automatically.
+                console.log("🔔 Automatic Notification Permission Request (Android/Desktop)...");
                 const permission = await Notification.requestPermission();
 
                 if (permission === 'granted') {
