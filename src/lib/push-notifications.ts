@@ -32,18 +32,39 @@ export async function subscribeUserToPush() {
 
     // 1. Wait for the Service Worker to be READY with a timeout
     // Mobile browsers can sometimes hang on .ready if the SW is in a weird state
-    const swTimeout = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Service Worker registration timed out (10s)")), 10000);
-    });
+    let registration: ServiceWorkerRegistration | undefined;
 
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      swTimeout
-    ]) as ServiceWorkerRegistration;
+    // TRY A QUICK CHECK FIRST: See if we ALREADY have an active registration
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      registration = registrations.find(r => r.active || r.waiting || r.installing);
+      if (registration) {
+        console.log("♻️ Found existing Service Worker registration:", registration.scope);
+      }
+    } catch (regErr) {
+      console.warn("⚠️ getRegistrations check failed, falling back to .ready:", regErr);
+    }
 
-    if (!registration.active) {
-      console.error("❌ SW Error: Registration ready but No Active worker found.");
-      throw new Error("Service Worker not active - try reloading the app");
+    if (!registration) {
+      console.log("⏳ No immediate registration found. Waiting for .ready with 20s timeout...");
+      const swTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Service Worker registration timed out (20s)")), 20000);
+      });
+
+      registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        swTimeout
+      ]) as ServiceWorkerRegistration;
+    }
+
+    if (!registration || !registration.active) {
+      console.warn("⚠️ Registration found but maybe not active yet. Waiting 1s for activation...");
+      // Give it one more tiny window to activate if it's there but cold
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!registration?.active) {
+        console.error("❌ SW Error: Registration ready but No Active worker found.");
+        throw new Error("Service Worker not active. Please refresh the page and try again.");
+      }
     }
 
     console.log("✅ Service Worker active and ready at scope:", registration.scope);
