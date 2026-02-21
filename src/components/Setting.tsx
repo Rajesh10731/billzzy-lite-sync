@@ -249,7 +249,14 @@ export default function Settings() {
 
                         // 3. Permission State
                         diagnosticMsg += `🔏 Permission: ${Notification.permission}\n`;
-                        if (Notification.permission === 'denied') throw new Error("Notifications are blocked. Please reset permissions in browser settings.");
+                        if (Notification.permission === 'default') {
+                          diagnosticMsg += `🔔 Requesting permission...\n`;
+                          const perm = await Notification.requestPermission();
+                          diagnosticMsg += `🔏 New Permission: ${perm}\n`;
+                          if (perm !== 'granted') throw new Error("Permission not granted by user.");
+                        } else if (Notification.permission === 'denied') {
+                          throw new Error("Notifications are blocked. Please reset permissions in browser settings.");
+                        }
 
                         // 4. Service Worker Check & Auto-fix
                         let registration = await navigator.serviceWorker.getRegistration();

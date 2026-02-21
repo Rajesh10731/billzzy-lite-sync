@@ -18,6 +18,18 @@ export async function subscribeUserToPush() {
   try {
     console.log("🛠️ Starting Push Subscription phase...");
 
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        console.log("🔔 Requesting notification permission...");
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          throw new Error("Notification permission was not granted.");
+        }
+      } else if (Notification.permission === 'denied') {
+        throw new Error("Notifications are blocked in browser settings.");
+      }
+    }
+
     // 1. Wait for the Service Worker to be READY with a timeout
     // Mobile browsers can sometimes hang on .ready if the SW is in a weird state
     const swTimeout = new Promise((_, reject) => {
