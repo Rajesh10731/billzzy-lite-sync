@@ -71,6 +71,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import PushSubscription from '@/models/PushSubscription';
 import User from '@/models/User';
+import Notification from '@/models/Notification';
+import { Types } from 'mongoose';
 import webpush from 'web-push';
 
 // 1. Define Interfaces to satisfy TypeScript
@@ -107,26 +109,53 @@ export async function POST(req: Request) {
 
     webpush.setVapidDetails(subject, pubKey, privKey);
 
-    // 2. Query Logic
-    const query: PushQuery = {};
-    if (targetUserId && targetUserId.trim() !== "") {
-      query.userId = targetUserId;
-    } else if (category === 'onboarded') {
-      const onboardedUsers = await User.find({ onboarded: true }).select('_id');
-      query.userId = { $in: onboardedUsers.map(u => u._id.toString()) };
-    } else if (category === 'unonboarded') {
-      const nonOnboardedUsers = await User.find({ onboarded: { $ne: true } }).select('_id');
-      query.userId = { $in: nonOnboardedUsers.map(u => u._id.toString()) };
-    }
-    // Note: If category is 'all' or undefined, query stays {} which finds EVERYONE.
+    // 2. Identify Target User IDs
+    let targetUserIds: string[] = [];
 
-    // Use .lean<SubscriptionDocument[]>() to get plain objects with correct types
-    console.log(`[Push Send] Querying for subscribers:`, JSON.stringify(query));
-    const subscriptions = await PushSubscription.find(query).lean<SubscriptionDocument[]>();
-    console.log(`[Push Send] Found ${subscriptions.length} subscribers.`);
+    if (targetUserId && targetUserId.trim() !== "") {
+      targetUserIds = [targetUserId];
+    } else {
+      const userQuery: Record<string, boolean | { $ne: boolean }> = {};
+      if (category === 'onboarded') {
+        userQuery.onboarded = true;
+      } else if (category === 'unonboarded') {
+        userQuery.onboarded = { $ne: true };
+      }
+
+      const targetUsers = await User.find(userQuery).select('_id').lean<{ _id: Types.ObjectId }[]>();
+      targetUserIds = targetUsers.map(u => u._id.toString());
+    }
+
+    console.log(`[Push Send] Targeting ${targetUserIds.length} users for history.`);
+
+    // 3. Save Notification History for ALL target users
+    if (targetUserIds.length > 0) {
+      try {
+        const historyData = targetUserIds.map(uid => ({
+          userId: uid,
+          title: title || "New Message",
+          message: message || "You have a new update",
+          url: url || "/dashboard",
+          isRead: false
+        }));
+        await Notification.insertMany(historyData);
+        console.log(`✅ History saved for ${targetUserIds.length} users.`);
+      } catch (histErr) {
+        console.error("❌ Failed to bulk save notification history:", histErr);
+      }
+    }
+
+    // 4. Send Push Notifications for Subscribed Users
+    const pushQuery = { userId: { $in: targetUserIds } };
+    const subscriptions = await PushSubscription.find(pushQuery).lean<SubscriptionDocument[]>();
+    console.log(`[Push Send] Found ${subscriptions.length} active push subscriptions.`);
 
     if (subscriptions.length === 0) {
-      return NextResponse.json({ success: false, message: "No subscribers found." });
+      return NextResponse.json({
+        success: true,
+        message: "Saved to history, but no active push subscribers found.",
+        sentCount: 0
+      });
     }
 
     const payload = JSON.stringify({
@@ -136,10 +165,6 @@ export async function POST(req: Request) {
       icon: "/assets/icon-192.png"
     });
 
-    console.log(`[Push Send] Payload prepared:`, payload);
-
-    // 3. Send Notifications
-    console.log(`[Push Send] Targeting User IDs:`, subscriptions.map(s => s.userId).join(', '));
     const results = await Promise.all(
       subscriptions.map((sub: SubscriptionDocument) =>
         webpush.sendNotification(sub.subscription as webpush.PushSubscription, payload)
