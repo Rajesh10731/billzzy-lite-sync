@@ -39,22 +39,9 @@ export default function NotificationPrompt() {
             return;
         }
 
-        // 2b. Permission Check: Blocked
+        // 2b. Permission Check: Blocked - DO NOT show automatically anymore
         if (Notification.permission === 'denied') {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
-            const nav = navigator as unknown as { standalone?: boolean };
-            const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || ('standalone' in navigator && nav.standalone === true);
-
-            setModalState({
-                isOpen: true,
-                title: 'Alerts Blocked',
-                message: isIOS
-                    ? (isStandalone
-                        ? 'Notifications are blocked in your iOS settings. Please go to Settings > Notifications > Billzzy and set "Allow Notifications" to ON.'
-                        : 'Notifications are blocked in Safari. You must click the "Share" icon, Add to Home Screen, and then allow notifications from the home screen app.')
-                    : 'Notifications are blocked by your browser. Tap the "Lock" or "Info" icon in the address bar and select "Allow" or "Reset Permission".',
-                type: 'error'
-            });
+            console.log("🚫 Notifications are blocked. Waiting for manual trigger.");
             return;
         }
 
@@ -130,6 +117,25 @@ export default function NotificationPrompt() {
             // Check for VAPID key first
             if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
                 throw new Error('Push configuration is missing (VAPID key).');
+            }
+
+            // Handle Blocked State Manually
+            if (Notification.permission === 'denied') {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+                const nav = navigator as unknown as { standalone?: boolean };
+                const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || ('standalone' in navigator && nav.standalone === true);
+
+                setModalState({
+                    isOpen: true,
+                    title: 'Alerts Blocked',
+                    message: isIOS
+                        ? (isStandalone
+                            ? 'Notifications are blocked in your iOS settings. Please go to Settings > Notifications > Billzzy and set "Allow Notifications" to ON.'
+                            : 'Notifications are blocked in Safari. You must click the "Share" icon, Add to Home Screen, and then allow notifications from the home screen app.')
+                        : 'Notifications are blocked by your browser. Tap the "Lock" or "Info" icon in the address bar and select "Allow" or "Reset Permission".',
+                    type: 'error'
+                });
+                return;
             }
 
             // Trigger system prompt
