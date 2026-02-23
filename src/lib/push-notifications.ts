@@ -45,7 +45,7 @@ export async function subscribeUserToPush() {
 
         // Final fallback: try native .ready with a shorter timeout
         const swTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings.")), 10000);
+          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.")), 20000);
         });
 
         return await Promise.race([navigator.serviceWorker.ready, swTimeout]) as ServiceWorkerRegistration;

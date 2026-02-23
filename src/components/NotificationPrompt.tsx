@@ -15,6 +15,13 @@ export default function NotificationPrompt() {
     const checkSubscription = useCallback(async () => {
         if (typeof window === 'undefined') return;
 
+        // 0. CHECK DISMISSAL - Don't show if dismissed within the last 7 days
+        const dismissedUntil = localStorage.getItem('notification_prompt_dismissed_until');
+        if (dismissedUntil && Date.now() < parseInt(dismissedUntil)) {
+            console.log("🤫 Notification prompt is currently silenced.");
+            return;
+        }
+
         // 1. Basic Support Check
         const isSupported = 'Notification' in window && 'serviceWorker' in navigator;
         if (!isSupported) {
@@ -118,22 +125,26 @@ export default function NotificationPrompt() {
         }
     }, [status, checkSubscription]);
 
+    const dismissForADay = () => {
+        const nextDay = Date.now() + 24 * 60 * 60 * 1000;
+        localStorage.setItem('notification_prompt_dismissed_until', nextDay.toString());
+    };
+
+    const handleClose = () => {
+        dismissForADay();
+        setModalState(prev => ({ ...prev, isOpen: false }));
+    };
+
     const handleSubscribe = async () => {
         setIsProcessing(true);
         try {
-            // Check for VAPID key first
             if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
                 throw new Error('Push configuration is missing (VAPID key).');
             }
 
-            // Handle Blocked State Manually - REMOVED RESTRICTIVE ALERT
-            // We just let the system prompt attempt to trigger if possible, or fail gracefully.
-
-            // Trigger system prompt
             const permission = await Notification.requestPermission();
 
             if (permission === 'granted') {
-                // Now wait for SW and subscribe
                 await subscribeUserToPush();
                 setModalState({
                     isOpen: true,
@@ -142,20 +153,19 @@ export default function NotificationPrompt() {
                     type: 'success'
                 });
             } else {
-                setModalState({ isOpen: false, title: '', message: '', type: 'info' });
+                handleClose();
             }
         } catch (error: unknown) {
             console.error(error);
             let errorMessage = error instanceof Error ? error.message : 'Setup failed. Please try again.';
 
-            // Add custom guidance for common mobile issues
             if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('activate')) {
-                errorMessage += " NOTE: On Redmi/Xiaomi, please ensure 'Battery Saver' is disabled and 'Auto-start' is enabled for your browser.";
+                errorMessage = "Wait! The system is taking longer than usual to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.";
             }
 
             setModalState({
                 isOpen: true,
-                title: 'Setup Error',
+                title: 'System Delay',
                 message: errorMessage,
                 type: 'error'
             });
@@ -167,7 +177,7 @@ export default function NotificationPrompt() {
     return (
         <Modal
             isOpen={modalState.isOpen}
-            onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+            onClose={handleClose}
             onAction={modalState.type === 'ask' ? handleSubscribe : undefined}
             actionLabel={modalState.type === 'ask' ? (isProcessing ? 'Enabling...' : 'Enable now') : undefined}
             title={modalState.title}
