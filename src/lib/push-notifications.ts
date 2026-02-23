@@ -20,21 +20,26 @@ export async function subscribeUserToPush() {
     console.log("🛠️ Preparing background worker...");
     const registrationPromise = (async () => {
       try {
-        // QUICK CHECK: See if we ALREADY have an active registration
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        const existing = registrations.find(r => r.active || r.waiting || r.installing);
-
-        if (existing?.active?.state === 'activated') {
-          console.log("⚡ Fast-Track: Active Worker found.");
-          return existing;
-        }
-
         console.log("🛠️ Registering/Activating Service Worker (/sw.js)...");
         const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
-        // Race between native .ready and a much shorter diagnostic timeout for Redmi
+        // RESILIENT CHECK: Instead of just waiting for .ready promise (which hangs),
+        // we poll the registration state for up to 10 seconds.
+        let checkCount = 0;
+        while (!reg.active && checkCount < 20) {
+          console.log(`⏳ Waiting for worker activation (Attempt ${checkCount + 1})...`);
+          await new Promise(resolve => setTimeout(resolve, 500));
+          checkCount++;
+        }
+
+        if (reg.active) {
+          console.log("✅ Worker is ACTIVE (Polled).");
+          return reg;
+        }
+
+        // Final fallback: try native .ready with a shorter timeout
         const swTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Activation timeout. Please ensure 'Background Sync' is allowed.")), 20000);
+          setTimeout(() => reject(new Error("Activation timeout. Note: On Redmi/Xiaomi, please ensure 'Battery Saver' is disabled and 'Auto-start' is enabled for your browser.")), 10000);
         });
 
         return await Promise.race([navigator.serviceWorker.ready, swTimeout]) as ServiceWorkerRegistration;

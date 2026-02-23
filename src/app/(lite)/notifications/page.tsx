@@ -34,6 +34,14 @@ export default function NotificationsPage() {
         // Check PWA status for guidance
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (!!('standalone' in navigator) && !!(navigator as { standalone?: boolean }).standalone);
+
+        // Pre-register Service Worker to speed up activation
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .then(() => console.log("📡 Service Worker pre-registered."))
+                .catch(err => console.warn("⚠️ SW Pre-reg failed:", err));
+        }
+
         setPwaStatus({ isIOS, isStandalone });
     }, []);
 
