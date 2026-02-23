@@ -49,7 +49,7 @@ const pwaConfig = withPWA({
   disable: false,
   register: true,
   skipWaiting: true,
-  // @ts-expect-error
+  // @ts-expect-error - importScripts is not in NextConfig type but required for next-pwa
   importScripts: ['/push-sw.js'],
   // Fix for: bad-precaching-response with app-build-manifest.json
   buildExcludes: [/app-build-manifest\.json$/],

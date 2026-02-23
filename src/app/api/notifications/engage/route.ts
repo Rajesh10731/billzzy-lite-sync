@@ -18,7 +18,7 @@ export async function POST() {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
 
-        const userId = session.user.email;
+        const userId = session.user.id;
         await dbConnect();
 
         // 1. Check if a greeting was already sent TODAY

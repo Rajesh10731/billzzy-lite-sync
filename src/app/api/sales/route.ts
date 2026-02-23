@@ -165,7 +165,7 @@ export async function POST(request: Request) {
 
       // 1. Save to Notification History
       await Notification.create({
-        userId: tenantId,
+        userId: session.user.id,
         title,
         message: celebrationMsg,
         url,
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
       });
 
       // 2. Send Live Push Alert
-      await sendPushNotification(tenantId, title, celebrationMsg, url);
+      await sendPushNotification(session.user.id, title, celebrationMsg, url);
       console.log(`✅ Automated Sale notification triggered for ${tenantId}`);
     } catch (pushErr) {
       console.error("❌ Failed to trigger automated sale notification:", pushErr);

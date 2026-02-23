@@ -3,6 +3,7 @@
 import dbConnect from "@/lib/mongodb";
 import Product from "@/models/Product";
 import Notification from "@/models/Notification";
+import User from "@/models/User";
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { sendPushNotification } from "@/lib/send-push";
@@ -113,7 +114,6 @@ export async function PUT(
     try {
       const threshold = updatedProduct.lowStockThreshold ?? 5;
       if (updatedProduct.quantity <= threshold) {
-        const tenantId = updatedProduct.tenantId; // Use tenantId from product
         const message = getRandomMessage('STOCK_ALERTS', {
           name: updatedProduct.name,
           quantity: updatedProduct.quantity
@@ -121,18 +121,22 @@ export async function PUT(
         const title = "Inventory Alert! ⚠️";
         const url = '/inventory';
 
-        // 1. Save to Notification History
+        // 1. Resolve true userId from tenantId (email)
+        const user = (await User.findOne({ email: updatedProduct.tenantId }).select('_id').lean()) as { _id: string } | null;
+        const trueUserId = user ? user._id.toString() : updatedProduct.tenantId;
+
+        // 2. Save to Notification History
         await Notification.create({
-          userId: tenantId,
+          userId: trueUserId,
           title,
           message,
           url,
           isRead: false
         });
 
-        // 2. Send Live Push Alert
-        await sendPushNotification(tenantId, title, message, url);
-        console.log(`✅ Low Stock notification triggered for ${tenantId} (Product: ${updatedProduct.name})`);
+        // 3. Send Live Push Alert
+        await sendPushNotification(trueUserId, title, message, url);
+        console.log(`✅ Low Stock notification triggered for ${trueUserId} (Product: ${updatedProduct.name})`);
       }
     } catch (pushErr) {
       console.error("❌ Failed to trigger low stock notification:", pushErr);
