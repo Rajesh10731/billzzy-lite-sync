@@ -19,14 +19,12 @@ export async function subscribeUserToPush() {
     console.log("🛠️ Starting Push Subscription phase...");
 
     if ('Notification' in window) {
-      if (Notification.permission === 'default') {
+      if (Notification.permission !== 'granted') {
         console.log("🔔 Requesting notification permission...");
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
           throw new Error("Notification permission was not granted.");
         }
-      } else if (Notification.permission === 'denied') {
-        throw new Error("Notifications are blocked in browser settings.");
       }
     }
 

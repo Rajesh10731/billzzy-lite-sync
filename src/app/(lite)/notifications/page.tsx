@@ -153,7 +153,7 @@ export default function NotificationsPage() {
                                             <span>Activating...</span>
                                         </>
                                     ) : (
-                                        <span>{permission === 'denied' ? 'Fix in Settings' : 'Enable Notifications'}</span>
+                                        <span>Enable Notifications</span>
                                     )}
                                 </button>
                             )}
