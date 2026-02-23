@@ -96,7 +96,7 @@ interface SubscriptionDocument {
 
 export async function POST(req: Request) {
   try {
-    const { title, message, url, category, targetUserId } = await req.json();
+    const { title, message, url, category, targetUserId, icon, image } = await req.json();
     await dbConnect();
 
     const subject = process.env.VAPID_SUBJECT || 'mailto:support@billzzy.com';
@@ -104,6 +104,7 @@ export async function POST(req: Request) {
     const privKey = process.env.VAPID_PRIVATE_KEY;
 
     if (!pubKey || !privKey) {
+      console.error("❌ VAPID keys missing in environment.");
       return NextResponse.json({ success: false, message: "VAPID keys missing." }, { status: 500 });
     }
 
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
     // 2. Identify Target User IDs
     let targetUserIds: string[] = [];
 
-    if (targetUserId && targetUserId.trim() !== "") {
+    if (targetUserId && targetUserId.trim() !== "" && category === 'single') {
       targetUserIds = [targetUserId];
     } else {
       const userQuery: Record<string, boolean | { $ne: boolean }> = {};
@@ -122,11 +123,12 @@ export async function POST(req: Request) {
         userQuery.onboarded = { $ne: true };
       }
 
-      const targetUsers = await User.find(userQuery).select('_id').lean<{ _id: Types.ObjectId }[]>();
+      const finalQuery = { ...userQuery, role: { $ne: 'admin' } };
+      const targetUsers = await User.find(finalQuery).select('_id').lean<{ _id: Types.ObjectId }[]>();
       targetUserIds = targetUsers.map(u => u._id.toString());
     }
 
-    console.log(`[Push Send] Targeting ${targetUserIds.length} users for history.`);
+    console.log(`[Push Send] Category: ${category}, Target User IDs: ${targetUserIds.length}`);
 
     // 3. Save Notification History for ALL target users
     if (targetUserIds.length > 0) {
@@ -148,12 +150,12 @@ export async function POST(req: Request) {
     // 4. Send Push Notifications for Subscribed Users
     const pushQuery = { userId: { $in: targetUserIds } };
     const subscriptions = await PushSubscription.find(pushQuery).lean<SubscriptionDocument[]>();
-    console.log(`[Push Send] Found ${subscriptions.length} active push subscriptions.`);
+    console.log(`[Push Send] Found ${subscriptions.length} active push subscriptions for targeted users.`);
 
     if (subscriptions.length === 0) {
       return NextResponse.json({
         success: true,
-        message: "Saved to history, but no active push subscribers found.",
+        message: "Saved to history, but no active push subscribers found for target.",
         sentCount: 0
       });
     }
@@ -162,7 +164,8 @@ export async function POST(req: Request) {
       title: title || "New Message",
       body: message || "You have a new update",
       url: url || "/dashboard",
-      icon: "/assets/icon-192.png"
+      icon: icon || "/assets/icon-192.png",
+      image: image || undefined
     });
 
     const results = await Promise.all(
@@ -172,6 +175,7 @@ export async function POST(req: Request) {
           .catch(async (err: { statusCode?: number; message?: string }) => {
             console.error(`❌ Push Error for ${sub.userId}:`, err.message || err.statusCode);
             if (err.statusCode === 410 || err.statusCode === 404) {
+              console.log(`🗑️ Removing expired subscription for ${sub.userId}`);
               await PushSubscription.deleteOne({ _id: sub._id });
               return { success: false, userId: sub.userId, reason: 'Expired/Removed' };
             }
@@ -185,7 +189,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      sentCount: subscriptions.length
+      sentCount: successful,
+      totalSubscriptions: subscriptions.length
     });
 
   } catch (error: unknown) {

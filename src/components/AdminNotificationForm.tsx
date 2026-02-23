@@ -210,7 +210,11 @@ export default function AdminNotificationForm() {
 
     const data = await res.json();
     if (res.ok && data.success) {
-      setStatus({ type: 'success', msg: `Sent to ${data.sentCount} device(s).` });
+      if (data.sentCount === 0 && data.totalSubscriptions === 0) {
+        setStatus({ type: 'info', msg: 'Saved to history, but no push subscriptions found for target.' });
+      } else {
+        setStatus({ type: 'success', msg: `Sent to ${data.sentCount}/${data.totalSubscriptions || data.sentCount} device(s).` });
+      }
       setMessage('');
       setImage('');
     } else {
