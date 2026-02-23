@@ -172,7 +172,6 @@ interface OnboardedClient {
 }
 
 export default function AdminNotificationForm() {
-  // 2. Type the state with the interface
   const [clients, setClients] = useState<OnboardedClient[]>([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [targetCategory, setTargetCategory] = useState('all');
@@ -181,6 +180,7 @@ export default function AdminNotificationForm() {
   const [url, setUrl] = useState('/dashboard');
   const [icon, setIcon] = useState('/assets/icon-192.png');
   const [image, setImage] = useState('');
+  const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: '', msg: '' });
 
   useEffect(() => {
@@ -192,6 +192,7 @@ export default function AdminNotificationForm() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     setStatus({ type: 'info', msg: 'Sending...' });
 
     const res = await fetch('/api/admin/notifications/send', {
@@ -210,8 +211,8 @@ export default function AdminNotificationForm() {
 
     const data = await res.json();
     if (res.ok && data.success) {
-      if (data.sentCount === 0 && data.totalSubscriptions === 0) {
-        setStatus({ type: 'info', msg: 'Saved to history, but no push subscriptions found for target.' });
+      if (data.sentCount === 0) {
+        setStatus({ type: 'info', msg: data.message || 'No push subscriptions found for target.' });
       } else {
         setStatus({ type: 'success', msg: `Sent to ${data.sentCount}/${data.totalSubscriptions || data.sentCount} device(s).` });
       }
@@ -220,6 +221,7 @@ export default function AdminNotificationForm() {
     } else {
       setStatus({ type: 'error', msg: data.message || 'Failed to send' });
     }
+    setLoading(false);
   };
 
   return (
@@ -323,8 +325,19 @@ export default function AdminNotificationForm() {
           />
         </div>
 
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 transition">
-          Send Notification
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {loading ? (
+            <>
+              <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+              Sending...
+            </>
+          ) : (
+            'Send Notification'
+          )}
         </button>
 
         {status.msg && (

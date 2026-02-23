@@ -113,8 +113,10 @@ export async function POST(req: Request) {
     // 2. Identify Target User IDs
     let targetUserIds: string[] = [];
 
-    if (targetUserId && targetUserId.trim() !== "" && category === 'single') {
+    // IMPROVED: If targetUserId is provided, assume it's a single send unless specifically told otherwise
+    if (targetUserId && targetUserId.trim() !== "") {
       targetUserIds = [targetUserId];
+      console.log(`[Push Send] Targeting specific user ID: ${targetUserId}`);
     } else {
       const userQuery: Record<string, boolean | { $ne: boolean }> = {};
       if (category === 'onboarded') {
@@ -124,11 +126,10 @@ export async function POST(req: Request) {
       }
 
       const finalQuery = { ...userQuery, role: { $ne: 'admin' } };
-      const targetUsers = await User.find(finalQuery).select('_id').lean<{ _id: Types.ObjectId }[]>();
-      targetUserIds = targetUsers.map(u => u._id.toString());
+      const targetUsers = await User.find(finalQuery).select('_id').lean();
+      targetUserIds = targetUsers.map(u => (u._id as Types.ObjectId).toString());
+      console.log(`[Push Send] Broadcast mode. Category: ${category || 'all'}, Total matched users: ${targetUserIds.length}`);
     }
-
-    console.log(`[Push Send] Category: ${category}, Target User IDs: ${targetUserIds.length}`);
 
     // 3. Save Notification History for ALL target users
     if (targetUserIds.length > 0) {
@@ -150,13 +151,22 @@ export async function POST(req: Request) {
     // 4. Send Push Notifications for Subscribed Users
     const pushQuery = { userId: { $in: targetUserIds } };
     const subscriptions = await PushSubscription.find(pushQuery).lean<SubscriptionDocument[]>();
-    console.log(`[Push Send] Found ${subscriptions.length} active push subscriptions for targeted users.`);
+
+    // DIAGNOSTIC: Check total system subscriptions if target matches 0
+    let totalInSystem = 0;
+    if (subscriptions.length === 0) {
+      totalInSystem = await PushSubscription.countDocuments();
+      console.log(`[Push Send] ⚠️ No subscriptions found for target IDs. Total subscriptions in database: ${totalInSystem}`);
+    } else {
+      console.log(`[Push Send] Found ${subscriptions.length} active push subscriptions for targeted users.`);
+    }
 
     if (subscriptions.length === 0) {
       return NextResponse.json({
         success: true,
-        message: "Saved to history, but no active push subscribers found for target.",
-        sentCount: 0
+        message: totalInSystem === 0 ? "No users have enabled notifications yet." : "None of your target users have enabled notifications.",
+        sentCount: 0,
+        totalInSystem
       });
     }
 

@@ -16,8 +16,35 @@ export async function subscribeUserToPush() {
   }
 
   try {
-    console.log("🛠️ Starting Push Subscription phase...");
+    // 1. START Service Worker registration IMMEDIATELY (Parallel path)
+    console.log("🛠️ Preparing background worker...");
+    const registrationPromise = (async () => {
+      try {
+        // QUICK CHECK: See if we ALREADY have an active registration
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        const existing = registrations.find(r => r.active || r.waiting || r.installing);
 
+        if (existing?.active?.state === 'activated') {
+          console.log("⚡ Fast-Track: Active Worker found.");
+          return existing;
+        }
+
+        console.log("🛠️ Registering/Activating Service Worker (/sw.js)...");
+        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+
+        // Race between native .ready and a much shorter diagnostic timeout for Redmi
+        const swTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Activation timeout. Please ensure 'Background Sync' is allowed.")), 20000);
+        });
+
+        return await Promise.race([navigator.serviceWorker.ready, swTimeout]) as ServiceWorkerRegistration;
+      } catch (err) {
+        console.error("❌ Worker setup failed:", err);
+        throw err;
+      }
+    })();
+
+    // 2. WHILE worker is waking up, ask for permission (User Interaction path)
     if ('Notification' in window) {
       if (Notification.permission !== 'granted') {
         console.log("🔔 Requesting notification permission...");
@@ -28,58 +55,12 @@ export async function subscribeUserToPush() {
       }
     }
 
-    // 1. Wait for the Service Worker to be READY with a timeout
-    let registration: ServiceWorkerRegistration | undefined;
-
-    // TRY A QUICK CHECK FIRST: See if we ALREADY have an active registration
-    try {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      registration = registrations.find(r => r.active || r.waiting || r.installing);
-      if (registration) {
-        console.log("♻️ Existing Service Worker found:", registration.scope);
-      }
-    } catch (regErr) {
-      console.warn("⚠️ getRegistrations check failed:", regErr);
-    }
-
-    // IF NO REGISTRATION OR NOT ACTIVE, ATTEMPT REGISTRATION IMMEDIATELY
-    if (!registration || !registration.active) {
-      console.log("🛠️ Registering/Activating Service Worker (/sw.js)...");
-      try {
-        registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        console.log("✅ Registration object obtained.");
-      } catch (regErr) {
-        console.error("❌ Registration failed:", regErr);
-        throw new Error("Failed to register Service Worker. Ensure you are not in Incognito mode.");
-      }
-    }
-
-    // CRITICAL: If the worker is already active, we DON'T need to wait for .ready (which can hang)
-    if (registration?.active?.state === 'activated') {
-      console.log("⚡ Service Worker is already ACTIVE. Bypassing .ready wait.");
-    } else {
-      console.log("⏳ Waiting for .ready with 30s timeout...");
-      const swTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Setup Timeout (30s). This usually happens on Android (Redmi/Realme) if 'Battery Saver' is on or 'Background Data' is restricted for your browser.")), 30000);
-      });
-
-      try {
-        registration = await Promise.race([
-          navigator.serviceWorker.ready,
-          swTimeout
-        ]) as ServiceWorkerRegistration;
-      } catch (timeoutErr) {
-        console.error("❌ SW Ready timeout:", timeoutErr);
-        throw timeoutErr;
-      }
-    }
+    // 3. WAIT for the worker to finish its setup
+    console.log("⏳ Syncing with background worker...");
+    const registration = await registrationPromise;
 
     if (!registration || !registration.active) {
-      console.warn("⚠️ Registration found but not active. Waiting for activation...");
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      if (!registration?.active) {
-        throw new Error("Service Worker failed to activate. If you are on a Redmi phone, please disable 'Battery Saver' for this browser.");
-      }
+      throw new Error("Service Worker failed to activate. If you are on a Redmi phone, please disable 'Battery Saver' for this browser.");
     }
 
     console.log("✅ Service Worker active and ready at scope:", registration.scope);
