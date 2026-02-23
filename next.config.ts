@@ -49,7 +49,7 @@ const pwaConfig = withPWA({
   disable: false,
   register: true,
   skipWaiting: true,
-  // @ts-ignore
+  // @ts-expect-error
   importScripts: ['/push-sw.js'],
   // Fix for: bad-precaching-response with app-build-manifest.json
   buildExcludes: [/app-build-manifest\.json$/],

@@ -31,6 +31,7 @@ export default function NotificationsPage() {
     const [permission, setPermission] = useState<NotificationPermission>('default');
     const [isSubscribing, setIsSubscribing] = useState(false);
     const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+    const [errorTip, setErrorTip] = useState<string | null>(null);
     const [pwaStatus, setPwaStatus] = useState({ isIOS: false, isStandalone: false });
     const router = useRouter();
 
@@ -72,23 +73,22 @@ export default function NotificationsPage() {
 
     const handleEnableNotifications = async () => {
         setIsSubscribing(true);
+        setErrorTip(null); // Reset tip on new attempt
         try {
-            // Handle blocked state explicitly - REMOVED RESTRICTIVE ALERT
-            // We let the native prompt handle it or fail gracefully.
-
             const success = await subscribeUserToPush();
             if (success) {
                 setPermission('granted');
             }
         } catch (err: unknown) {
-            let errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
-            // ... (keep existing timeout guidance)
+            const errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
+
             if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('activate')) {
-                errorMessage += "\n\nTip: On Redmi/Xiaomi, go to Settings > Apps > Manage Apps > [Your Browser] and ensure 'Auto-start' is ON and 'Battery Saver' is set to 'No Restrictions'.";
+                setErrorTip("Tip: On Redmi/Xiaomi, go to Settings > Apps > Manage Apps > [Your Browser] and ensure 'Auto-start' is ON and 'Battery Saver' is set to 'No Restrictions'.");
             } else if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
-                errorMessage += "\n\nTip: If you see 'This site can't ask for your permission', please close any floating bubbles or screen overlays from other apps (like messenger bubbles or toolbars) and try again.";
+                setErrorTip("Important: If you see 'This site can't ask for your permission', please close any floating bubbles or blue buttons (like the + / - on your screen) and try again.");
+            } else {
+                setErrorTip(errorMessage);
             }
-            alert(errorMessage);
         } finally {
             setIsSubscribing(false);
         }
@@ -138,6 +138,33 @@ export default function NotificationsPage() {
             </header>
 
             <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
+                {/* Error Tip Guidance Box */}
+                {errorTip && (
+                    <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 relative shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                        <button
+                            onClick={() => setErrorTip(null)}
+                            className="absolute right-3 top-3 p-1 hover:bg-red-100 rounded-full transition-colors"
+                        >
+                            <X size={16} className="text-red-500" />
+                        </button>
+                        <div className="flex gap-3">
+                            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+                            <div>
+                                <h3 className="text-sm font-bold text-red-800 mb-1">Action Required to fix</h3>
+                                <p className="text-sm text-red-700 leading-relaxed font-medium">
+                                    {errorTip}
+                                </p>
+                                <button
+                                    onClick={handleEnableNotifications}
+                                    className="mt-3 text-xs font-bold text-red-800 underline underline-offset-2 hover:text-red-900"
+                                >
+                                    I&apos;ve closed them, try again
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Enable Notifications Banner */}
                 {permission !== 'granted' && !loading && !isBannerDismissed && (
                     <div className="mb-6 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-4 text-white shadow-lg overflow-hidden relative">
