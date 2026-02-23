@@ -54,21 +54,8 @@ export default function NotificationsPage() {
     const handleEnableNotifications = async () => {
         setIsSubscribing(true);
         try {
-            // Handle blocked state explicitly
-            if (Notification.permission === 'denied') {
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (!!('standalone' in navigator) && !!(navigator as { standalone?: boolean }).standalone);
-
-                let msg = isIOS
-                    ? (isStandalone ? "Notifications are blocked in iOS Settings. Go to Settings > Notifications > Billzzy." : "Add to Home Screen first to enable notifications.")
-                    : "Notifications are blocked by your browser. Please tap the lock icon in the address bar to allow permissions.";
-
-                if (!isIOS) {
-                    msg += "\n\nTip: On Redmi/Xiaomi, also check if 'Auto-start' is enabled for your browser in App Settings.";
-                }
-                alert(msg);
-                return;
-            }
+            // Handle blocked state explicitly - REMOVED RESTRICTIVE ALERT
+            // We let the native prompt handle it or fail gracefully.
 
             const success = await subscribeUserToPush();
             if (success) {
