@@ -114,7 +114,7 @@ export default function NotificationPrompt() {
                 });
             }
         }
-    }, [status]);
+    }, []);
 
     useEffect(() => {
         if (status === 'authenticated') {

@@ -75,6 +75,14 @@ export default function Dashboard() {
     fetchInventorySummary();
   }, [status]);
 
+  // SMART ENGAGEMENT: Trigger "Alive" notifications when landing on dashboard
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetch('/api/notifications/engage', { method: 'POST' })
+        .catch(err => console.error("Engagement Trigger Failed:", err));
+    }
+  }, [status]);
+
   return (
     <div className="h-full bg-gray-50 overflow-y-auto p-2.5 pb-20">
       <div className="max-w-2xl mx-auto space-y-4"> {/* Increased spacing slightly */}

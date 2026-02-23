@@ -1,72 +1,3 @@
-// import { NextResponse } from 'next/server';
-// import dbConnect from '@/lib/mongodb';
-// import PushSubscription from '@/models/PushSubscription';
-// import User from '@/models/User';
-// import webpush from 'web-push';
-
-// // Define a proper interface for the query to avoid 'any'
-// interface PushQuery {
-//   userId?: string | { $in: string[] };
-// }
-// export async function POST(req: Request) {
-//   try {
-//     const { title, message, url, category, targetUserId } = await req.json();
-//     await dbConnect();
-
-//     const subject = process.env.VAPID_SUBJECT || 'mailto:support@billzzy.com';
-//     const pubKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-//     const privKey = process.env.VAPID_PRIVATE_KEY;
-
-//     if (!pubKey || !privKey) {
-//       return NextResponse.json({ success: false, message: "VAPID keys missing." }, { status: 500 });
-//     }
-
-//     webpush.setVapidDetails(subject, pubKey, privKey);
-
-//     const query: PushQuery = {};
-//     if (targetUserId && targetUserId.trim() !== "") {
-//       query.userId = targetUserId;
-//     } else if (category === 'onboarded') {
-//       const onboardedUsers = await User.find({ onboarded: true }).select('_id');
-//       query.userId = { $in: onboardedUsers.map(u => u._id.toString()) };
-//     }
-
-//     // ADD .lean() HERE to fix the "endpoint" error
-//     const subscriptions = await PushSubscription.find(query).lean();
-
-//     if (subscriptions.length === 0) {
-//       return NextResponse.json({ success: false, message: "No subscribers found." });
-//     }
-
-//     const payload = JSON.stringify({
-//       title: title || "New Message",
-//       body: message || "You have a new update",
-//       url: url || "/dashboard",
-//       icon: "/assets/icon-192.png"
-//     });
-
-//     await Promise.all(
-//       subscriptions.map((sub: any) => 
-//         // sub.subscription is now a plain object because of .lean()
-//         webpush.sendNotification(sub.subscription, payload)
-//           .catch(async (err: { statusCode?: number; message?: string }) => {
-//             console.error(`Push Error for ${sub.userId}:`, err.message || err.statusCode);
-//             if (err.statusCode === 410 || err.statusCode === 404) {
-//               await PushSubscription.deleteOne({ _id: sub._id });
-//             }
-//           })
-//       )
-//     );
-
-//     return NextResponse.json({ success: true, sentCount: subscriptions.length });
-//   } catch (error: unknown) {
-//     const errorMessage = error instanceof Error ? error.message : "Unknown Error";
-//     console.error("Critical Send Error:", errorMessage);
-//     return NextResponse.json({ error: 'Server Error' }, { status: 500 });
-//   }
-// }
-
-
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import PushSubscription from '@/models/PushSubscription';
@@ -74,11 +5,6 @@ import User from '@/models/User';
 import Notification from '@/models/Notification';
 import { Types } from 'mongoose';
 import webpush from 'web-push';
-
-// 1. Define Interfaces to satisfy TypeScript
-interface PushQuery {
-  userId?: string | { $in: string[] };
-}
 
 interface SubscriptionData {
   endpoint: string;
@@ -113,12 +39,11 @@ export async function POST(req: Request) {
     // 2. Identify Target User IDs
     let targetUserIds: string[] = [];
 
-    // IMPROVED: If targetUserId is provided, assume it's a single send unless specifically told otherwise
     if (targetUserId && targetUserId.trim() !== "") {
       targetUserIds = [targetUserId];
       console.log(`[Push Send] Targeting specific user ID: ${targetUserId}`);
     } else {
-      const userQuery: Record<string, boolean | { $ne: boolean }> = {};
+      const userQuery: Record<string, boolean | { $ne: boolean } | { $in: string[] } | unknown> = {};
       if (category === 'onboarded') {
         userQuery.onboarded = true;
       } else if (category === 'unonboarded') {
@@ -131,7 +56,7 @@ export async function POST(req: Request) {
       console.log(`[Push Send] Broadcast mode. Category: ${category || 'all'}, Total matched users: ${targetUserIds.length}`);
     }
 
-    // 3. Save Notification History for ALL target users
+    // 3. Save Notification History
     if (targetUserIds.length > 0) {
       try {
         const historyData = targetUserIds.map(uid => ({
@@ -142,31 +67,20 @@ export async function POST(req: Request) {
           isRead: false
         }));
         await Notification.insertMany(historyData);
-        console.log(`✅ History saved for ${targetUserIds.length} users.`);
       } catch (histErr) {
         console.error("❌ Failed to bulk save notification history:", histErr);
       }
     }
 
-    // 4. Send Push Notifications for Subscribed Users
+    // 4. Send Push Notifications
     const pushQuery = { userId: { $in: targetUserIds } };
     const subscriptions = await PushSubscription.find(pushQuery).lean<SubscriptionDocument[]>();
-
-    // DIAGNOSTIC: Check total system subscriptions if target matches 0
-    let totalInSystem = 0;
-    if (subscriptions.length === 0) {
-      totalInSystem = await PushSubscription.countDocuments();
-      console.log(`[Push Send] ⚠️ No subscriptions found for target IDs. Total subscriptions in database: ${totalInSystem}`);
-    } else {
-      console.log(`[Push Send] Found ${subscriptions.length} active push subscriptions for targeted users.`);
-    }
 
     if (subscriptions.length === 0) {
       return NextResponse.json({
         success: true,
-        message: totalInSystem === 0 ? "No users have enabled notifications yet." : "None of your target users have enabled notifications.",
-        sentCount: 0,
-        totalInSystem
+        message: "No subscriptions found for target users.",
+        sentCount: 0
       });
     }
 
@@ -185,9 +99,8 @@ export async function POST(req: Request) {
           .catch(async (err: { statusCode?: number; message?: string }) => {
             console.error(`❌ Push Error for ${sub.userId}:`, err.message || err.statusCode);
             if (err.statusCode === 410 || err.statusCode === 404) {
-              console.log(`🗑️ Removing expired subscription for ${sub.userId}`);
               await PushSubscription.deleteOne({ _id: sub._id });
-              return { success: false, userId: sub.userId, reason: 'Expired/Removed' };
+              return { success: false, userId: sub.userId, reason: 'Expired' };
             }
             return { success: false, userId: sub.userId, reason: err.message || err.statusCode };
           })
@@ -195,8 +108,6 @@ export async function POST(req: Request) {
     );
 
     const successful = results.filter(r => r.success).length;
-    console.log(`[Push Send] Finished. Successful: ${successful}, Failed: ${results.length - successful}`);
-
     return NextResponse.json({
       success: true,
       sentCount: successful,

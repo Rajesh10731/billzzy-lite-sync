@@ -2,8 +2,11 @@
 
 import dbConnect from "@/lib/mongodb";
 import Product from "@/models/Product";
+import Notification from "@/models/Notification";
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
+import { sendPushNotification } from "@/lib/send-push";
+import { getRandomMessage } from "@/lib/notifications/messages";
 
 // 1. Configure Cloudinaryall 
 cloudinary.config({
@@ -88,16 +91,51 @@ export async function PUT(
       updateOperation = { $set: body };
     }
 
-    const updatedProduct = await Product.findOneAndUpdate(query, updateOperation, {
+    const updatedProduct = (await Product.findOneAndUpdate(query, updateOperation, {
       new: true,
       runValidators: true,
-    }).lean();
+    }).lean()) as {
+      _id: string;
+      tenantId: string;
+      name: string;
+      quantity: number;
+      lowStockThreshold?: number;
+    } | null;
 
     if (!updatedProduct) {
       return NextResponse.json(
         { message: "Product not found." },
         { status: 404 }
       );
+    }
+
+    // Trigger Automated "Alive" Notification for Low Stock
+    try {
+      const threshold = updatedProduct.lowStockThreshold ?? 5;
+      if (updatedProduct.quantity <= threshold) {
+        const tenantId = updatedProduct.tenantId; // Use tenantId from product
+        const message = getRandomMessage('STOCK_ALERTS', {
+          name: updatedProduct.name,
+          quantity: updatedProduct.quantity
+        });
+        const title = "Inventory Alert! ⚠️";
+        const url = '/inventory';
+
+        // 1. Save to Notification History
+        await Notification.create({
+          userId: tenantId,
+          title,
+          message,
+          url,
+          isRead: false
+        });
+
+        // 2. Send Live Push Alert
+        await sendPushNotification(tenantId, title, message, url);
+        console.log(`✅ Low Stock notification triggered for ${tenantId} (Product: ${updatedProduct.name})`);
+      }
+    } catch (pushErr) {
+      console.error("❌ Failed to trigger low stock notification:", pushErr);
     }
 
     return NextResponse.json(updatedProduct);

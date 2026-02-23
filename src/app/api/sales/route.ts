@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import dbConnect from "@/lib/mongodb";
 import Sale from "@/models/Sales";
+import Notification from "@/models/Notification";
 import { authOptions } from "@/lib/auth";
+import { sendPushNotification } from "@/lib/send-push";
+import { getRandomMessage } from "@/lib/notifications/messages";
 
 /**
  * GET: Securely fetches sales summary data for the dashboard
@@ -153,6 +156,29 @@ export async function POST(request: Request) {
     });
 
     await newSale.save();
+
+    // Trigger Automated "Alive" Notification
+    try {
+      const celebrationMsg = getRandomMessage('SALE_CELEBRATIONS', { amount });
+      const title = "New Sale recorded! 💰";
+      const url = '/billing-history';
+
+      // 1. Save to Notification History
+      await Notification.create({
+        userId: tenantId,
+        title,
+        message: celebrationMsg,
+        url,
+        isRead: false
+      });
+
+      // 2. Send Live Push Alert
+      await sendPushNotification(tenantId, title, celebrationMsg, url);
+      console.log(`✅ Automated Sale notification triggered for ${tenantId}`);
+    } catch (pushErr) {
+      console.error("❌ Failed to trigger automated sale notification:", pushErr);
+    }
+
     return NextResponse.json({ message: "Sale created successfully", sale: newSale }, { status: 201 });
   } catch (error) {
     console.error("Failed to create sale:", error);
