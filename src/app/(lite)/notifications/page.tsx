@@ -59,7 +59,10 @@ export default function NotificationsPage() {
                 setPermission('granted');
             }
         } catch (err: unknown) {
-            const errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
+            let errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
+            if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('activate')) {
+                errorMessage += "\n\nTip: On Redmi/Xiaomi, go to Settings > Apps > Manage Apps > [Your Browser] and ensure 'Auto-start' is ON and 'Battery Saver' is set to 'No Restrictions'.";
+            }
             alert(errorMessage);
         } finally {
             setIsSubscribing(false);

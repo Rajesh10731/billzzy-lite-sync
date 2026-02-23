@@ -149,7 +149,13 @@ export default function NotificationPrompt() {
             }
         } catch (error: unknown) {
             console.error(error);
-            const errorMessage = error instanceof Error ? error.message : 'Setup failed. Please try again.';
+            let errorMessage = error instanceof Error ? error.message : 'Setup failed. Please try again.';
+
+            // Add custom guidance for common mobile issues
+            if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('activate')) {
+                errorMessage += " NOTE: On Redmi/Xiaomi, please ensure 'Battery Saver' is disabled and 'Auto-start' is enabled for your browser.";
+            }
+
             setModalState({
                 isOpen: true,
                 title: 'Setup Error',

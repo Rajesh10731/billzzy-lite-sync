@@ -48,20 +48,21 @@ export async function subscribeUserToPush() {
     if (!registration || !registration.active) {
       console.log("🛠️ Registering/Activating Service Worker (/sw.js)...");
       try {
-        registration = await navigator.serviceWorker.register('/sw.js');
+        registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
         console.log("✅ Registration object obtained.");
       } catch (regErr) {
         console.error("❌ Registration failed:", regErr);
+        throw new Error("Failed to register Service Worker. Ensure you are not in Incognito mode.");
       }
     }
 
     // CRITICAL: If the worker is already active, we DON'T need to wait for .ready (which can hang)
-    if (registration?.active) {
+    if (registration?.active?.state === 'activated') {
       console.log("⚡ Service Worker is already ACTIVE. Bypassing .ready wait.");
     } else {
-      console.log("⏳ Waiting for .ready with 20s timeout...");
+      console.log("⏳ Waiting for .ready with 30s timeout...");
       const swTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Setup Timeout (20s). This usually happens in Incognito mode, or if your phone's 'Battery Saver' is blocking background tasks.")), 20000);
+        setTimeout(() => reject(new Error("Setup Timeout (30s). This usually happens on Android (Redmi/Realme) if 'Battery Saver' is on or 'Background Data' is restricted for your browser.")), 30000);
       });
 
       try {
@@ -77,9 +78,9 @@ export async function subscribeUserToPush() {
 
     if (!registration || !registration.active) {
       console.warn("⚠️ Registration found but not active. Waiting for activation...");
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       if (!registration?.active) {
-        throw new Error("Service Worker failed to activate. Please ensure you are not in Incognito/Private mode and have a stable connection.");
+        throw new Error("Service Worker failed to activate. If you are on a Redmi phone, please disable 'Battery Saver' for this browser.");
       }
     }
 
