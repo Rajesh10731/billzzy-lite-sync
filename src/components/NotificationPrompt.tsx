@@ -26,15 +26,22 @@ export default function NotificationPrompt() {
         if (Notification.permission === 'granted') {
             try {
                 console.log("💎 Notifications already granted. Checking subscription status in background...");
-                const registration = await navigator.serviceWorker.ready;
-                const subscription = await registration.pushManager.getSubscription();
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                const registration = registrations.find(r => r.active || r.waiting || r.installing);
 
+                if (!registration?.active) {
+                    console.log("⏳ Worker not active yet. Skipping background sync.");
+                    return;
+                }
+
+                const subscription = await registration.pushManager.getSubscription();
                 if (!subscription) {
-                    console.log('🔄 No subscription found. Re-subscribing...');
-                    await subscribeUserToPush();
+                    console.log('🔄 No subscription found. Attempting silent re-subscribe...');
+                    // SILENT re-subscribe in background
+                    await subscribeUserToPush().catch(e => console.warn("⚠️ Background re-subscribe failed:", e));
                 }
             } catch (error: unknown) {
-                console.error('❌ Background subscription check failed:', error);
+                console.warn('⚠️ Background subscription check skipped:', error);
             }
             return;
         }

@@ -23,23 +23,29 @@ export async function subscribeUserToPush() {
         console.log("🛠️ Registering/Activating Service Worker (/sw.js)...");
         const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
-        // RESILIENT CHECK: Instead of just waiting for .ready promise (which hangs),
-        // we poll the registration state for up to 10 seconds.
+        // RESILIENT CHECK: Polling loop to detect activation
         let checkCount = 0;
-        while (!reg.active && checkCount < 20) {
-          console.log(`⏳ Waiting for worker activation (Attempt ${checkCount + 1})...`);
+        const maxChecks = 30; // 15 seconds max
+        while (checkCount < maxChecks) {
+          if (reg.active) {
+            console.log("✅ Worker is ACTIVE (Polled).");
+            return reg;
+          }
+
+          // If there's a worker waiting, try to skip waiting to force activation
+          if (reg.waiting) {
+            console.log("⏳ Worker is WAITING. Attempting to force activation...");
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
+          // Small delay between checks
           await new Promise(resolve => setTimeout(resolve, 500));
           checkCount++;
         }
 
-        if (reg.active) {
-          console.log("✅ Worker is ACTIVE (Polled).");
-          return reg;
-        }
-
         // Final fallback: try native .ready with a shorter timeout
         const swTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Activation timeout. Note: On Redmi/Xiaomi, please ensure 'Battery Saver' is disabled and 'Auto-start' is enabled for your browser.")), 10000);
+          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings.")), 10000);
         });
 
         return await Promise.race([navigator.serviceWorker.ready, swTimeout]) as ServiceWorkerRegistration;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Bell, ArrowLeft, Loader2, MessageSquare, AlertCircle, Sparkles } from 'lucide-react';
+import { Bell, ArrowLeft, Loader2, MessageSquare, AlertCircle, Sparkles, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { subscribeUserToPush } from '@/lib/push-notifications';
@@ -20,6 +20,7 @@ export default function NotificationsPage() {
     const [loading, setLoading] = useState(true);
     const [permission, setPermission] = useState<NotificationPermission>('default');
     const [isSubscribing, setIsSubscribing] = useState(false);
+    const [isBannerDismissed, setIsBannerDismissed] = useState(false);
     const [pwaStatus, setPwaStatus] = useState({ isIOS: false, isStandalone: false });
     const router = useRouter();
 
@@ -49,7 +50,7 @@ export default function NotificationsPage() {
         try {
             const res = await fetch('/api/notifications/history');
             if (res.ok) {
-                const data = await res.ok ? await res.json() : [];
+                const data = await res.json();
                 setNotifications(data);
             }
         } catch {
@@ -126,8 +127,16 @@ export default function NotificationsPage() {
 
             <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
                 {/* Enable Notifications Banner */}
-                {permission !== 'granted' && !loading && (
+                {permission !== 'granted' && !loading && !isBannerDismissed && (
                     <div className="mb-6 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-4 text-white shadow-lg overflow-hidden relative">
+                        {/* Dismiss Button */}
+                        <button
+                            onClick={() => setIsBannerDismissed(true)}
+                            className="absolute right-3 top-3 p-1 hover:bg-white/10 rounded-full transition-colors z-20"
+                        >
+                            <X size={18} />
+                        </button>
+
                         <div className="absolute -right-4 -top-4 opacity-20 transform rotate-12">
                             <Sparkles size={100} />
                         </div>
@@ -139,7 +148,7 @@ export default function NotificationsPage() {
                             </div>
 
                             <h2 className="text-lg font-bold mb-1 leading-tight">Enable Live Alerts</h2>
-                            <p className="text-sm text-indigo-50 mb-4 font-medium opacity-90">
+                            <p className="text-sm text-indigo-50 mb-4 font-medium opacity-90 pr-6">
                                 {pwaStatus.isIOS && !pwaStatus.isStandalone
                                     ? "To get alerts on iPhone, you must first add this app to your Home Screen."
                                     : "Don't miss out on sales updates. Turn on system alerts now."}
