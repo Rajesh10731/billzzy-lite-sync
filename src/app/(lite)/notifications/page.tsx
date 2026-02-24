@@ -269,12 +269,12 @@ export default function NotificationsPage() {
                                                     minute: '2-digit'
                                                 })}
                                             </span>
-                                            {notif.url && (
+                                            {notif.url && notif.url !== '/dashboard' && (
                                                 <Link
                                                     href={notif.url}
-                                                    className="text-xs font-bold text-indigo-600 hover:indigo-700 flex items-center gap-1"
+                                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
                                                 >
-                                                    View Details
+                                                    {notif.url.includes('billId') ? 'View Bill Details' : 'View Details'}
                                                 </Link>
                                             )}
                                         </div>

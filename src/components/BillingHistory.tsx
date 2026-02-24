@@ -9,6 +9,7 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format } from 'date-fns';
 import { motion, LayoutGroup } from "framer-motion";
+import { useSearchParams } from 'next/navigation';
 
 interface BillItem {
   name: string;
@@ -32,6 +33,9 @@ interface Bill {
 type TimeFilter = 'today' | 'weekly' | 'monthly' | 'custom';
 
 export default function BillingHistory() {
+  const searchParams = useSearchParams();
+  const billIdFromUrl = searchParams.get('billId');
+
   const [bills, setBills] = useState<Bill[]>([]);
   const [activeTab, setActiveTab] = useState<TimeFilter>('today');
 
@@ -53,6 +57,24 @@ export default function BillingHistory() {
     const today = getToday();
     fetchHistory(today, today, 'today');
   }, []);
+
+  // AUTO-EXPAND Bill from Notification Link
+  useEffect(() => {
+    if (billIdFromUrl && bills.length > 0) {
+      console.log("🔍 Deep Link detected for Bill ID:", billIdFromUrl);
+      const targetBill = bills.find(b => (b._id === billIdFromUrl || b.id === billIdFromUrl));
+      if (targetBill) {
+        setExpandedBillId(billIdFromUrl);
+        // Optional: Scroll to the expanded bill
+        setTimeout(() => {
+          const element = document.getElementById(`bill-${billIdFromUrl}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
+      }
+    }
+  }, [billIdFromUrl, bills]);
 
   const fetchHistory = async (from: string, to: string, tab: TimeFilter = 'custom') => {
     try {
@@ -301,7 +323,11 @@ export default function BillingHistory() {
           const subtotal = bill.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
           return (
-            <div key={bill._id || index} className={`rounded-xl border transition-all ${bill.isEdited ? 'bg-red-50/50 border-red-100' : 'bg-white border-gray-100'}`}>
+            <div
+              key={bill._id || index}
+              id={`bill-${bill._id || bill.id}`}
+              className={`rounded-xl border transition-all ${bill.isEdited ? 'bg-red-50/50 border-red-100' : 'bg-white border-gray-100'}`}
+            >
               <div className="p-2.5" onClick={() => setExpandedBillId(isOpen ? null : (bill._id || bill.id || ""))}>
                 <div className="flex justify-between items-start">
                   <div className="flex gap-2.5 overflow-hidden">

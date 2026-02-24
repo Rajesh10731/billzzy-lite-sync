@@ -161,7 +161,7 @@ export async function POST(request: Request) {
     try {
       const celebrationMsg = getRandomMessage('SALE_CELEBRATIONS', { amount });
       const title = "New Sale recorded! 💰";
-      const url = '/billing-history';
+      const url = `/billing-history?billId=${newSale._id}`;
 
       // 1. Save to Notification History
       await Notification.create({
