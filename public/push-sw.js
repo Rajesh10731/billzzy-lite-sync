@@ -1,34 +1,40 @@
 // public/push-sw.js
 self.addEventListener('push', function (event) {
   console.log('📡 Push received:', event);
+
+  let data = {};
   if (event.data) {
     try {
-      const data = event.data.json();
-      console.log('📦 Push data payload:', data);
-
-      const options = {
-        body: data.body || 'New message from Billzzy',
-        icon: data.icon || '/assets/icon-192.png',
-        badge: '/assets/icon-192.png',
-        vibrate: [100, 50, 100],
-        timestamp: Date.now(),
-        data: {
-          url: data.url || '/dashboard'
-        },
-        actions: [
-          { action: 'open', title: 'View Update' }
-        ]
-      };
-
-      event.waitUntil(
-        self.registration.showNotification(data.title || 'Billzzy Lite', options)
-      );
+      data = event.data.json();
     } catch (err) {
-      console.error('❌ Push data parsing error:', err);
+      console.warn('⚠️ Push data is not JSON, treating as text');
+      data = { body: event.data.text() };
     }
-  } else {
-    console.warn('⚠️ Push received with no data payload.');
   }
+
+  console.log('📦 Push data payload:', data);
+
+  const options = {
+    body: data.body || 'New message from Billzzy',
+    icon: data.icon || '/assets/icon-192.png',
+    badge: '/assets/icon-192.png',
+    vibrate: [100, 50, 100],
+    timestamp: Date.now(),
+    data: {
+      url: data.url || '/dashboard'
+    },
+    // CRITICAL for "floating" behavior:
+    tag: 'billzzy-notification',
+    renotify: true,
+    requireInteraction: false, // Set to true if you want it to stay until clicked
+    actions: [
+      { action: 'open', title: 'View Update' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Billzzy Lite', options)
+  );
 });
 
 self.addEventListener('notificationclick', function (event) {
