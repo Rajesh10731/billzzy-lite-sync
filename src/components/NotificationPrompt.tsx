@@ -16,9 +16,13 @@ export default function NotificationPrompt() {
         if (typeof window === 'undefined') return;
 
         // 0. CHECK DISMISSAL - Don't show if dismissed within the last 7 days
+        const nav = navigator as unknown as { standalone?: boolean };
+        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || ('standalone' in navigator && nav.standalone === true);
         const dismissedUntil = localStorage.getItem('notification_prompt_dismissed_until');
-        if (dismissedUntil && Date.now() < parseInt(dismissedUntil)) {
-            console.log("🤫 Notification prompt is currently silenced.");
+
+        // PWA Users: Bypass dismissal logic so the button is always available in the UI if not enabled
+        if (!isStandalone && dismissedUntil && Date.now() < parseInt(dismissedUntil)) {
+            console.log("🤫 Notification prompt is currently silenced (Non-PWA).");
             return;
         }
 
@@ -53,9 +57,17 @@ export default function NotificationPrompt() {
             return;
         }
 
-        // 2b. Permission Check: Blocked - DO NOT show automatically anymore
+        // 2b. Permission Check: Blocked - Show instructions for PWA users
         if (Notification.permission === 'denied') {
-            console.log("🚫 Notifications are blocked. Waiting for manual trigger.");
+            console.log("🚫 Notifications are blocked.");
+            if (isStandalone) {
+                setModalState({
+                    isOpen: true,
+                    type: 'info',
+                    title: 'Notifications Blocked',
+                    message: 'Alerts are disabled in your device settings. Please go to your browser/app settings and allow notifications for this app to receive updates.'
+                });
+            }
             return;
         }
 

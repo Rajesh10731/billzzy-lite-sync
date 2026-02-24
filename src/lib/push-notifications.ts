@@ -35,13 +35,28 @@ export async function subscribeUserToPush() {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
 
-        // Wait for it to become ready with a reasonable timeout (e.g., 5 seconds)
+        // Increased timeout (15s) and added a polling fallback to catch activation
         const swTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("Service Worker activation timeout (5s)")), 5000);
+          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.")), 15000);
         });
 
         console.log("⏳ Waiting for activation...");
-        return await Promise.race([navigator.serviceWorker.ready, swTimeout]) as ServiceWorkerRegistration;
+
+        // Polling fallback in parallel with native .ready
+        const pollingCheck = new Promise<ServiceWorkerRegistration>((resolve) => {
+          const interval = setInterval(() => {
+            if (reg.active) {
+              clearInterval(interval);
+              console.log("✅ Worker is ACTIVE (Caught by poll).");
+              resolve(reg);
+            }
+          }, 500);
+
+          // Cleanup interval after timeout
+          setTimeout(() => clearInterval(interval), 15000);
+        });
+
+        return await Promise.race([navigator.serviceWorker.ready, swTimeout, pollingCheck]) as ServiceWorkerRegistration;
       } catch (err) {
         console.error("❌ Worker setup failed:", err);
         throw err;
