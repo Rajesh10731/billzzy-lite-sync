@@ -25,14 +25,14 @@ export async function subscribeUserToPush() {
     // 1. Prepare Background Worker (Promise, DO NOT await yet)
     console.log("🛠️ Preparing background system...");
 
-    // SHORT-CIRCUIT: If we already have an active controller, we can skip waiting
+    // RELAXED SHORT-CIRCUIT: If we have ANY active registration, we can try to use it
     const existingReg = await navigator.serviceWorker.getRegistration('/');
-    const canShortCircuit = existingReg?.active && navigator.serviceWorker.controller;
+    const canShortCircuit = existingReg?.active;
 
     const registrationPromise = (async () => {
       try {
         if (canShortCircuit) {
-          console.log("⚡ Short-circuiting: Active worker already controlling page.");
+          console.log("⚡ Short-circuit: Active worker found.");
           return existingReg;
         }
 
@@ -46,9 +46,14 @@ export async function subscribeUserToPush() {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
 
-        // 30s Timeout + Polling Fallback (Slow assets/precaching can delay activation)
-        const swTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.")), 30000);
+        // Optimistic Activation Check
+        console.log("⏳ Waiting for activation...");
+
+        // 5s Soft Timeout: Try to proceed even if not "fully" ready
+        // 15s Hard Timeout: Error out
+        const softTimeout = new Promise<void>(resolve => setTimeout(resolve, 5000));
+        const hardTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("SYSTEM_DELAY")), 15000);
         });
 
         const pollingCheck = new Promise<ServiceWorkerRegistration>((resolve) => {
@@ -58,11 +63,19 @@ export async function subscribeUserToPush() {
               console.log("✅ Worker is ACTIVE (Poll).");
               resolve(reg);
             }
-          }, 100); // Aggressive check (100ms)
-          setTimeout(() => clearInterval(interval), 30000);
+          }, 100);
+          setTimeout(() => clearInterval(interval), 15000);
         });
 
-        return await Promise.race([navigator.serviceWorker.ready, swTimeout, pollingCheck]) as ServiceWorkerRegistration;
+        await Promise.race([
+          navigator.serviceWorker.ready,
+          pollingCheck,
+          softTimeout
+        ]);
+
+        // If we reach here (via ready, poll, or soft timeout), return the registration
+        // Even if soft timeout hit, we attempt to use the registration object
+        return reg;
       } catch (err) {
         console.error("❌ Worker setup failed:", err);
         throw err;

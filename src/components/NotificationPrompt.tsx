@@ -7,7 +7,14 @@ import Modal, { ModalType } from '@/components/ui/Modal';
 
 export default function NotificationPrompt() {
     const { status } = useSession();
-    const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; type: ModalType }>({
+    const [modalState, setModalState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        type: ModalType;
+        onAction?: () => void;
+        actionLabel?: string;
+    }>({
         isOpen: false, title: '', message: '', type: 'info'
     });
     const [isProcessing, setIsProcessing] = useState(false);
@@ -183,27 +190,49 @@ export default function NotificationPrompt() {
             }
         } catch (error: unknown) {
             console.error("❌ Subscription Error:", error);
-            let errorMessage = error instanceof Error ? error.message : 'Setup failed. Please try again.';
+            const isDelay = error instanceof Error && (error.message.includes('SYSTEM_DELAY') || error.message.toLowerCase().includes('timeout'));
+
+            let errorMessage = "Setup failed. Please try again.";
             let title = 'System Delay';
 
-            if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('activate')) {
-                errorMessage = "The background system is taking longer than usual to wake up. This often happens on first launch while the app is optimizing. Please try once more.";
-            } else if (errorMessage.toLowerCase().includes('permission')) {
-                title = 'Permission Needed';
-                errorMessage = "Notifications are blocked. Please allow them in your browser settings to receive updates.";
-            } else if (errorMessage.toLowerCase().includes('vapid')) {
-                title = 'Config Error';
-                errorMessage = "Push notification keys are missing. Please contact support.";
-            } else if (errorMessage.toLowerCase().includes('server')) {
-                title = 'Connection Error';
-                errorMessage = "We couldn't sync your device with our server. Please check your internet and try again.";
+            if (isDelay) {
+                const ua = navigator.userAgent.toLowerCase();
+                const isXiaomi = /xiaomi|redmi|miui/.test(ua);
+                const isOppo = /oppo|realme/.test(ua);
+                const isVivo = /vivo/.test(ua);
+                const isSamsung = /samsung/.test(ua);
+
+                if (isXiaomi || isOppo || isVivo) {
+                    errorMessage = "Your device background system is restricted. Please enable 'Auto-start' or 'Background Activity' for this browser in your phone's Settings and try again.";
+                } else if (isSamsung) {
+                    errorMessage = "The app preparation is taking a moment. Please ensure 'Background Data' is enabled for this browser in Settings and try again.";
+                } else {
+                    errorMessage = "The system is taking longer than usual to wake up. This often happens on first launch. Please wait a second and try again.";
+                }
+            } else {
+                errorMessage = error instanceof Error ? error.message : errorMessage;
+                if (errorMessage.toLowerCase().includes('permission')) {
+                    title = 'Permission Needed';
+                    errorMessage = "Notifications are blocked. Please allow them in your browser settings to receive updates.";
+                } else if (errorMessage.toLowerCase().includes('vapid')) {
+                    title = 'Config Error';
+                    errorMessage = "Push notification keys are missing. Please contact support.";
+                } else if (errorMessage.toLowerCase().includes('server')) {
+                    title = 'Connection Error';
+                    errorMessage = "We couldn't sync your device with our server. Please check your internet and try again.";
+                }
             }
 
             setModalState({
                 isOpen: true,
                 title: title,
                 message: errorMessage,
-                type: 'error'
+                type: 'error',
+                onAction: isDelay ? () => {
+                    setModalState(prev => ({ ...prev, isOpen: false }));
+                    handleSubscribe();
+                } : undefined,
+                actionLabel: isDelay ? "Try Again" : undefined
             });
         } finally {
             setIsProcessing(false);
@@ -213,9 +242,9 @@ export default function NotificationPrompt() {
     return (
         <Modal
             isOpen={modalState.isOpen}
-            onClose={handleClose}
-            onAction={modalState.type === 'ask' ? handleSubscribe : undefined}
-            actionLabel={modalState.type === 'ask' ? (isProcessing ? 'Enabling...' : 'Enable now') : undefined}
+            onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+            onAction={modalState.onAction}
+            actionLabel={modalState.actionLabel}
             title={modalState.title}
             message={modalState.message}
             type={modalState.type}
