@@ -1,4 +1,8 @@
+const VAPID_KEY_CACHE = new Map<string, Uint8Array>();
+
 function urlBase64ToUint8Array(base64String: string) {
+  if (VAPID_KEY_CACHE.has(base64String)) return VAPID_KEY_CACHE.get(base64String)!;
+
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
@@ -6,6 +10,8 @@ function urlBase64ToUint8Array(base64String: string) {
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
+
+  VAPID_KEY_CACHE.set(base64String, outputArray);
   return outputArray;
 }
 
@@ -16,44 +22,44 @@ export async function subscribeUserToPush() {
   }
 
   try {
-    // 1. Register and Wait for Service Worker Activation
-    console.log("🛠️ Preparing background worker...");
-    const registration = await (async () => {
-      try {
-        console.log("🛠️ Registering Service Worker (/sw.js)...");
-        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    // 1. Prepare Background Worker (Promise, DO NOT await yet)
+    console.log("🛠️ Preparing background system...");
 
-        // If it's already active, return immediately
-        if (reg.active) {
-          console.log("✅ Worker is already ACTIVE.");
-          return reg;
+    // SHORT-CIRCUIT: If we already have an active controller, we can skip waiting
+    const existingReg = await navigator.serviceWorker.getRegistration('/');
+    const canShortCircuit = existingReg?.active && navigator.serviceWorker.controller;
+
+    const registrationPromise = (async () => {
+      try {
+        if (canShortCircuit) {
+          console.log("⚡ Short-circuiting: Active worker already controlling page.");
+          return existingReg;
         }
 
-        // If there's a worker waiting, force activation
+        console.log("🛠️ Registering/Waking Service Worker...");
+        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+
+        if (reg.active) return reg;
+
         if (reg.waiting) {
-          console.log("⏳ Worker is WAITING. Forcing activation...");
+          console.log("⏳ Worker waiting, forcing activation...");
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
 
-        // Increased timeout (15s) and added a polling fallback to catch activation
+        // 30s Timeout + Polling Fallback (Slow assets/precaching can delay activation)
         const swTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.")), 15000);
+          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.")), 30000);
         });
 
-        console.log("⏳ Waiting for activation...");
-
-        // Polling fallback in parallel with native .ready
         const pollingCheck = new Promise<ServiceWorkerRegistration>((resolve) => {
           const interval = setInterval(() => {
             if (reg.active) {
               clearInterval(interval);
-              console.log("✅ Worker is ACTIVE (Caught by poll).");
+              console.log("✅ Worker is ACTIVE (Poll).");
               resolve(reg);
             }
-          }, 500);
-
-          // Cleanup interval after timeout
-          setTimeout(() => clearInterval(interval), 15000);
+          }, 100); // Aggressive check (100ms)
+          setTimeout(() => clearInterval(interval), 30000);
         });
 
         return await Promise.race([navigator.serviceWorker.ready, swTimeout, pollingCheck]) as ServiceWorkerRegistration;
@@ -63,17 +69,18 @@ export async function subscribeUserToPush() {
       }
     })();
 
-    // 2. WHILE worker is waking up, ask for permission (User Interaction path)
-    if ('Notification' in window) {
-      if (Notification.permission !== 'granted') {
-        console.log("🔔 Requesting notification permission...");
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          throw new Error("Notification permission was not granted.");
-        }
+    // 2. WHILE worker prepares, ask for permission (Parallel)
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      console.log("🔔 Asking for permission in parallel...");
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error("Notification permission was not granted.");
       }
     }
 
+    // 3. NOW wait for the worker to be ready
+    console.log("⏳ Finalizing background sync...");
+    const registration = await registrationPromise;
     if (!registration || !registration.active) {
       throw new Error("Service Worker failed to activate. If you are on a restricted device, please ensure battery optimizations are disabled for this browser.");
     }
@@ -98,7 +105,8 @@ export async function subscribeUserToPush() {
       try {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          applicationServerKey: urlBase64ToUint8Array(publicKey) as any
         });
         console.log("✅ New Subscription successfully created");
       } catch (subErr: unknown) {
@@ -110,21 +118,24 @@ export async function subscribeUserToPush() {
       console.log("♻️ User already has a subscription. Synchronizing with server...");
     }
 
-    // 4. Server Sync
-    console.log("📡 Sending subscription snapshot to server...");
-    const response = await fetch('/api/notifications/subscribe', {
+    // 4. Server Sync (NON-BLOCKING for UI speed)
+    console.log("📡 Triggering server synchronization (background)...");
+    fetch('/api/notifications/subscribe', {
       method: 'POST',
       body: JSON.stringify(subscription),
       headers: { 'Content-Type': 'application/json' },
+    }).then(async (response) => {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("❌ Server sync failed in background:", response.status, errorData);
+      } else {
+        console.log("📡 Server sync complete.");
+      }
+    }).catch(err => {
+      console.error("❌ Network error during background sync:", err);
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("❌ Server sync failed:", response.status, errorData);
-      throw new Error(`Server failed to save subscription (Status: ${response.status})`);
-    }
-
-    console.log("🎉 Push Subscription workflow complete.");
+    console.log("🎉 Push Subscription logic triggered.");
     return true;
   } catch (err: unknown) {
     if (err instanceof Error) {

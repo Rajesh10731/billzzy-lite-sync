@@ -140,7 +140,7 @@ export default function NotificationPrompt() {
 
             const timer = setTimeout(() => {
                 checkSubscription();
-            }, 2000);
+            }, 500); // 500ms initial delay instead of 2000ms
             return () => clearTimeout(timer);
         }
     }, [status, checkSubscription]);
@@ -182,16 +182,26 @@ export default function NotificationPrompt() {
                 handleClose();
             }
         } catch (error: unknown) {
-            console.error(error);
+            console.error("❌ Subscription Error:", error);
             let errorMessage = error instanceof Error ? error.message : 'Setup failed. Please try again.';
+            let title = 'System Delay';
 
             if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('activate')) {
-                errorMessage = "Wait! The system is taking longer than usual to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.";
+                errorMessage = "The background system is taking longer than usual to wake up. This often happens on first launch while the app is optimizing. Please try once more.";
+            } else if (errorMessage.toLowerCase().includes('permission')) {
+                title = 'Permission Needed';
+                errorMessage = "Notifications are blocked. Please allow them in your browser settings to receive updates.";
+            } else if (errorMessage.toLowerCase().includes('vapid')) {
+                title = 'Config Error';
+                errorMessage = "Push notification keys are missing. Please contact support.";
+            } else if (errorMessage.toLowerCase().includes('server')) {
+                title = 'Connection Error';
+                errorMessage = "We couldn't sync your device with our server. Please check your internet and try again.";
             }
 
             setModalState({
                 isOpen: true,
-                title: 'System Delay',
+                title: title,
                 message: errorMessage,
                 type: 'error'
             });
