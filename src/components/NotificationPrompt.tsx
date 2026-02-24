@@ -136,18 +136,22 @@ export default function NotificationPrompt() {
     }, []);
 
     useEffect(() => {
-        if (status === 'authenticated') {
-            // Pre-register Service Worker in background for faster enablement
-            if ('serviceWorker' in navigator) {
-                console.log("🛠️ Pre-registering Service Worker...");
-                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(err => {
-                    console.warn("⚠️ Service Worker pre-registration failed:", err);
-                });
+        if (status === 'authenticated' && typeof window !== 'undefined' && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+                console.log("💎 Permission granted. Syncing subscription in background...");
+                // Silent sync after a short delay to ensure SW is ready
+                const timer = setTimeout(() => {
+                    subscribeUserToPush().catch(err => {
+                        console.warn("⚠️ Silent auto-sync failed:", err);
+                    });
+                }, 3000);
+                return () => clearTimeout(timer);
             }
 
+            // For not-yet-granted, show prompt after delay
             const timer = setTimeout(() => {
                 checkSubscription();
-            }, 500); // 500ms initial delay instead of 2000ms
+            }, 500);
             return () => clearTimeout(timer);
         }
     }, [status, checkSubscription]);

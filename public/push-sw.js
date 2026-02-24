@@ -23,10 +23,11 @@ self.addEventListener('push', function (event) {
     data: {
       url: data.url || '/dashboard'
     },
-    // CRITICAL for "floating" behavior:
+    // CRITICAL for "floating" (Heads-up) behavior:
     tag: 'billzzy-notification',
     renotify: true,
-    requireInteraction: false, // Set to true if you want it to stay until clicked
+    requireInteraction: true, // Forces "floating" heads-up on many mobiles
+    vibrate: [200, 100, 200],
     actions: [
       { action: 'open', title: 'View Update' }
     ]
