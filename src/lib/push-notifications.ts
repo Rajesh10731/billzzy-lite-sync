@@ -16,38 +16,31 @@ export async function subscribeUserToPush() {
   }
 
   try {
-    // 1. START Service Worker registration IMMEDIATELY (Parallel path)
+    // 1. Register and Wait for Service Worker Activation
     console.log("🛠️ Preparing background worker...");
-    const registrationPromise = (async () => {
+    const registration = await (async () => {
       try {
-        console.log("🛠️ Registering/Activating Service Worker (/sw.js)...");
+        console.log("🛠️ Registering Service Worker (/sw.js)...");
         const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
-        // RESILIENT CHECK: Polling loop to detect activation
-        let checkCount = 0;
-        const maxChecks = 30; // 15 seconds max
-        while (checkCount < maxChecks) {
-          if (reg.active) {
-            console.log("✅ Worker is ACTIVE (Polled).");
-            return reg;
-          }
-
-          // If there's a worker waiting, try to skip waiting to force activation
-          if (reg.waiting) {
-            console.log("⏳ Worker is WAITING. Attempting to force activation...");
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-
-          // Small delay between checks
-          await new Promise(resolve => setTimeout(resolve, 500));
-          checkCount++;
+        // If it's already active, return immediately
+        if (reg.active) {
+          console.log("✅ Worker is already ACTIVE.");
+          return reg;
         }
 
-        // Final fallback: try native .ready with a shorter timeout
+        // If there's a worker waiting, force activation
+        if (reg.waiting) {
+          console.log("⏳ Worker is WAITING. Forcing activation...");
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        // Wait for it to become ready with a reasonable timeout (e.g., 5 seconds)
         const swTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("The background system is taking too long to wake up. Please ensure your browser has 'Auto-start' enabled in system settings and try again.")), 20000);
+          setTimeout(() => reject(new Error("Service Worker activation timeout (5s)")), 5000);
         });
 
+        console.log("⏳ Waiting for activation...");
         return await Promise.race([navigator.serviceWorker.ready, swTimeout]) as ServiceWorkerRegistration;
       } catch (err) {
         console.error("❌ Worker setup failed:", err);
@@ -66,15 +59,11 @@ export async function subscribeUserToPush() {
       }
     }
 
-    // 3. WAIT for the worker to finish its setup
-    console.log("⏳ Syncing with background worker...");
-    const registration = await registrationPromise;
-
     if (!registration || !registration.active) {
-      throw new Error("Service Worker failed to activate. If you are on a Redmi phone, please disable 'Battery Saver' for this browser.");
+      throw new Error("Service Worker failed to activate. If you are on a restricted device, please ensure battery optimizations are disabled for this browser.");
     }
 
-    console.log("✅ Service Worker active and ready at scope:", registration.scope);
+    console.log("✅ Service Worker active and ready.");
 
     // 2. VAPID Key validation
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;

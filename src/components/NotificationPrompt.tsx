@@ -118,6 +118,14 @@ export default function NotificationPrompt() {
 
     useEffect(() => {
         if (status === 'authenticated') {
+            // Pre-register Service Worker in background for faster enablement
+            if ('serviceWorker' in navigator) {
+                console.log("🛠️ Pre-registering Service Worker...");
+                navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(err => {
+                    console.warn("⚠️ Service Worker pre-registration failed:", err);
+                });
+            }
+
             const timer = setTimeout(() => {
                 checkSubscription();
             }, 2000);
@@ -142,10 +150,16 @@ export default function NotificationPrompt() {
                 throw new Error('Push configuration is missing (VAPID key).');
             }
 
-            const permission = await Notification.requestPermission();
+            // Parallelize permission request with SW ready check (optimistic)
+            const permissionPromise = Notification.requestPermission();
+
+            // Trigger pre-registration again just in case (fast if already done)
+            const subscribePromise = subscribeUserToPush();
+
+            const permission = await permissionPromise;
 
             if (permission === 'granted') {
-                await subscribeUserToPush();
+                await subscribePromise;
                 setModalState({
                     isOpen: true,
                     title: 'Updates Active!',
