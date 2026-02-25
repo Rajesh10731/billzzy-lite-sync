@@ -64,36 +64,25 @@ export async function subscribeUserToPush() {
       }
     }
 
-    // Wait for the worker to be ready (which means active)
-    console.log("⏳ Waiting for Service Worker to be ready...");
-
-    // Wait for the worker to be truly ACTIVE (not just installing/waiting)
+    // Wait for the worker to be truly ACTIVE (native Promise)
     console.log("⏳ Waiting for Service Worker to be fully ACTIVE...");
 
-    const waitForActiveWorker = (registration: ServiceWorkerRegistration): Promise<ServiceWorkerRegistration> => {
-      return new Promise((resolve) => {
-        if (registration.active) {
-          return resolve(registration);
-        }
-        const worker = registration.installing || registration.waiting;
-        if (worker) {
-          worker.addEventListener('statechange', (e) => {
-            if ((e.target as ServiceWorker).state === 'activated') {
-              resolve(registration);
-            }
-          });
-        } else {
-          // Fallback if we somehow missed the states
-          navigator.serviceWorker.ready.then(resolve);
-        }
-      });
-    };
+    // Strictly wait for the native 'ready' promise, which guarantees an active worker.
+    // If it takes longer than 15 seconds, we intentionally throw a clear error 
+    // instead of returning an inactive registration (which causes the PushManager crash).
+    const readyRegistration = await new Promise<ServiceWorkerRegistration>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Service Worker took too long to activate. Please refresh the page and try again."));
+      }, 15000);
 
-    // Give it a generous 10 seconds. If not, fallback to whatever is ready.
-    const readyRegistration = await Promise.race([
-      waitForActiveWorker(reg),
-      new Promise<ServiceWorkerRegistration>(resolve => setTimeout(() => resolve(reg), 10000))
-    ]);
+      navigator.serviceWorker.ready.then((r) => {
+        clearTimeout(timeout);
+        resolve(r);
+      }).catch((err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
 
     if (!readyRegistration.pushManager) {
       throw new Error("Push notifications are not supported by your browser's current configuration.");
