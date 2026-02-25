@@ -25,6 +25,11 @@ export async function subscribeUserToPush() {
     console.log("🛠️ Registering/Waking Service Worker...");
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
+    if (reg.waiting) {
+      console.log("⏳ Forcing waiting Service Worker to activate...");
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+
     // While worker prepares, ask for permission (Parallel)
     if ('Notification' in window && Notification.permission !== 'granted') {
       console.log("🔔 Asking for permission...");
@@ -47,6 +52,10 @@ export async function subscribeUserToPush() {
       readyPromise,
       new Promise<ServiceWorkerRegistration>(resolve => setTimeout(() => resolve(fallbackRegistration), 10000))
     ]);
+
+    if (!readyRegistration.pushManager) {
+      throw new Error("Push notifications are not supported by your browser's current configuration.");
+    }
 
     console.log("✅ Worker prepared. Checking VAPID key...");
 

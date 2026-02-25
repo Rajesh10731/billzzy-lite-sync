@@ -229,8 +229,8 @@ export default function NotificationPrompt() {
         <Modal
             isOpen={modalState.isOpen}
             onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
-            onAction={modalState.onAction}
-            actionLabel={modalState.actionLabel}
+            onAction={modalState.type === 'ask' ? handleSubscribe : modalState.onAction}
+            actionLabel={modalState.type === 'ask' ? 'Enable' : modalState.actionLabel}
             title={modalState.title}
             message={modalState.message}
             type={modalState.type}

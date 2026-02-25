@@ -136,6 +136,27 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 }
 
 export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
+  const [hasUnread, setHasUnread] = React.useState(false);
+
+  React.useEffect(() => {
+    // Check if unread on load
+    const checkUnread = async () => {
+      try {
+        const res = await fetch('/api/notifications/history');
+        if (res.ok) {
+          const data = await res.json();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (Array.isArray(data) && data.some((n: any) => !n.isRead)) {
+            setHasUnread(true);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch unread notifications", err);
+      }
+    };
+    checkUnread();
+  }, []);
+
   return (
     <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-white px-4 shadow-sm lg:hidden">
       <div className="flex items-center gap-3">
@@ -149,7 +170,12 @@ export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
           aria-label="Notifications"
         >
           <Bell size={22} strokeWidth={2.3} />
-          {/* Unread dot placeholder - can be improved with a counts API later */}
+          {hasUnread && (
+            <span className="absolute top-1 right-2 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+            </span>
+          )}
         </Link>
         <button
           onClick={onMenuClick}
