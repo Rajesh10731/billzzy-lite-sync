@@ -159,15 +159,11 @@ export default function NotificationPrompt() {
         }
     }, [status, checkSubscription]);
 
-    const dismissForADay = () => {
+    const handleClose = useCallback(() => {
         const nextDay = Date.now() + 24 * 60 * 60 * 1000;
         localStorage.setItem('notification_prompt_dismissed_until', nextDay.toString());
-    };
-
-    const handleClose = () => {
-        dismissForADay();
         setModalState(prev => ({ ...prev, isOpen: false }));
-    };
+    }, []);
 
     const handleSubscribe = async () => {
         setIsProcessing(true);
@@ -176,25 +172,15 @@ export default function NotificationPrompt() {
                 throw new Error('Push configuration is missing (VAPID key).');
             }
 
-            // Parallelize permission request with SW ready check (optimistic)
-            const permissionPromise = Notification.requestPermission();
+            // Delegate everything to subscribeUserToPush
+            await subscribeUserToPush();
 
-            // Trigger pre-registration again just in case (fast if already done)
-            const subscribePromise = subscribeUserToPush();
-
-            const permission = await permissionPromise;
-
-            if (permission === 'granted') {
-                await subscribePromise;
-                setModalState({
-                    isOpen: true,
-                    title: 'Updates Active!',
-                    message: 'You are now ready to receive real-time notifications.',
-                    type: 'success'
-                });
-            } else {
-                handleClose();
-            }
+            setModalState({
+                isOpen: true,
+                title: 'Updates Active!',
+                message: 'You are now ready to receive real-time notifications.',
+                type: 'success'
+            });
         } catch (error: unknown) {
             console.error("❌ Subscription Error:", error);
 
@@ -210,9 +196,9 @@ export default function NotificationPrompt() {
                     title = 'Not Supported Here';
                     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
                     if (isIOS) {
-                        errorMessage = "Your current browser setup doesn't support background alerts yet. On iPhone/iPad, you MUST open Safari and tap 'Share' then 'Add to Home Screen' first.";
+                        errorMessage = `Your current browser setup doesn't support background alerts yet. On iPhone/iPad, you MUST open Safari and tap 'Share' then 'Add to Home Screen' first. (Error: ${errorMessage})`;
                     } else {
-                        errorMessage = "Your current browser (or in-app browser) doesn't support notifications. Please open this app in a standard browser like Chrome or Edge.";
+                        errorMessage = `Your current browser (or in-app browser) lacks push support. Please open this app in Chrome. (Error: ${errorMessage})`;
                     }
                 } else if (errorMessage.toLowerCase().includes('vapid')) {
                     title = 'Config Error';
@@ -239,7 +225,7 @@ export default function NotificationPrompt() {
     return (
         <Modal
             isOpen={modalState.isOpen}
-            onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+            onClose={handleClose}
             onAction={modalState.type === 'ask' ? handleSubscribe : modalState.onAction}
             actionLabel={modalState.type === 'ask' ? 'Enable' : modalState.actionLabel}
             title={modalState.title}

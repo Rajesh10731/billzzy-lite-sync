@@ -32,7 +32,9 @@ export default function NotificationsPage() {
     const [isSubscribing, setIsSubscribing] = useState(false);
     const [isBannerDismissed, setIsBannerDismissed] = useState(false);
     const [errorTip, setErrorTip] = useState<string | null>(null);
-    const [pwaStatus, setPwaStatus] = useState({ isIOS: false, isStandalone: false });
+    const [isIOS, setIsIOS] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
+    const [isSupported, setIsSupported] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
@@ -43,9 +45,15 @@ export default function NotificationsPage() {
             setPermission(Notification.permission);
         }
 
-        // Check PWA status for guidance
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (!!('standalone' in navigator) && !!(navigator as { standalone?: boolean }).standalone);
+        // Check PWA status and Support
+        const iosCheck = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const standaloneCheck = window.matchMedia('(display-mode: standalone)').matches || (!!('standalone' in navigator) && !!(navigator as { standalone?: boolean }).standalone);
+
+        setIsIOS(iosCheck);
+        setIsStandalone(standaloneCheck);
+
+        const supported = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+        setIsSupported(supported);
 
         // Pre-register Service Worker to speed up activation
         if ('serviceWorker' in navigator) {
@@ -53,8 +61,6 @@ export default function NotificationsPage() {
                 .then(() => console.log("📡 Service Worker pre-registered."))
                 .catch(err => console.warn("⚠️ SW Pre-reg failed:", err));
         }
-
-        setPwaStatus({ isIOS, isStandalone });
     }, []);
 
     const fetchNotifications = async () => {
@@ -83,9 +89,19 @@ export default function NotificationsPage() {
             const errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
 
             if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
-                setErrorTip("Important: If you see 'This site can't ask for your permission', please check your device's notification settings and try again.");
+                setErrorTip("Important: If you see 'This site can't ask for your permission', please check your browser settings to allow notifications.");
+            } else if (errorMessage.toLowerCase().includes('not supported') || errorMessage.toLowerCase().includes('pushmanager')) {
+                if (isIOS) {
+                    setErrorTip(`Your current browser doesn't support background alerts yet. On iPhone/iPad, you MUST use Safari and tap 'Share' then 'Add to Home Screen' first. (Error: ${errorMessage})`);
+                } else {
+                    setErrorTip(`Your current browser (or in-app browser) lacks push support. Please open this app in Chrome. (Error: ${errorMessage})`);
+                }
+            } else if (errorMessage.toLowerCase().includes('vapid')) {
+                setErrorTip("Push notification keys are missing. Please contact support.");
+            } else if (errorMessage.toLowerCase().includes('server')) {
+                setErrorTip("We couldn't sync your device with our server. Please check your internet and try again.");
             } else {
-                setErrorTip("We couldn't activate notifications right now. Please ensure your internet connection is stable and try again.");
+                setErrorTip(`We couldn't activate notifications (${errorMessage}). Please check your connection and try again.`);
             }
         } finally {
             setIsSubscribing(false);
@@ -125,14 +141,22 @@ export default function NotificationsPage() {
                     <h1 className="text-lg font-bold text-gray-900">Notifications</h1>
                 </div>
 
-                {notifications.some(n => !n.isRead) && (
-                    <button
-                        onClick={() => markAsRead('all')}
-                        className="text-sm font-medium text-indigo-600 hover:text-indigo-700 active:scale-95 transition-all"
-                    >
-                        Mark all Read
-                    </button>
-                )}
+                <div className="flex items-center gap-4">
+                    {isSupported && permission === 'granted' && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-100 rounded-full">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Alerts ON</span>
+                        </div>
+                    )}
+                    {notifications.some(n => !n.isRead) && (
+                        <button
+                            onClick={() => markAsRead('all')}
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 active:scale-95 transition-all"
+                        >
+                            Mark all Read
+                        </button>
+                    )}
+                </div>
             </header>
 
             <main className="flex-1 p-4 max-w-2xl mx-auto w-full">
@@ -164,7 +188,7 @@ export default function NotificationsPage() {
                 )}
 
                 {/* Enable Notifications Banner */}
-                {permission !== 'granted' && !loading && !isBannerDismissed && (
+                {isSupported && permission !== 'granted' && !loading && !isBannerDismissed && (
                     <div className="mb-6 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-4 text-white shadow-lg overflow-hidden relative">
                         {/* Dismiss Button */}
                         <button
@@ -186,12 +210,12 @@ export default function NotificationsPage() {
 
                             <h2 className="text-lg font-bold mb-1 leading-tight">Enable Live Alerts</h2>
                             <p className="text-sm text-indigo-50 mb-4 font-medium opacity-90 pr-6">
-                                {pwaStatus.isIOS && !pwaStatus.isStandalone
+                                {isIOS && !isStandalone
                                     ? "To get alerts on iPhone, you must first add this app to your Home Screen."
                                     : "Don't miss out on sales updates. Turn on system alerts now."}
                             </p>
 
-                            {pwaStatus.isIOS && !pwaStatus.isStandalone ? (
+                            {isIOS && !isStandalone ? (
                                 <div className="text-xs bg-black/20 backdrop-blur-sm p-3 rounded-xl border border-white/10 font-medium">
                                     Tap the <span className="font-bold underline">Share Icon</span> below and select <span className="font-bold underline">&quot;Add to Home Screen&quot;</span>.
                                 </div>
