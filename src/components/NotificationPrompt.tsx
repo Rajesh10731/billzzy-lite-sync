@@ -167,6 +167,19 @@ export default function NotificationPrompt() {
 
     const handleSubscribe = async () => {
         setIsProcessing(true);
+
+        // Immediate check for explicitly blocked permissions
+        if ('Notification' in window && Notification.permission === 'denied') {
+            setModalState({
+                isOpen: true,
+                title: 'Permission Blocked',
+                message: "Notifications are BLOCKED. You must tap the lock icon 🔒 in your browser address bar, go to Site Settings, and change Notifications to 'Allow'.",
+                type: 'error'
+            });
+            setIsProcessing(false);
+            return;
+        }
+
         try {
             if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
                 throw new Error('Push configuration is missing (VAPID key).');
@@ -190,8 +203,8 @@ export default function NotificationPrompt() {
             if (error instanceof Error) {
                 errorMessage = error.message;
                 if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
-                    title = 'Permission Needed';
-                    errorMessage = "Notifications are blocked. Please allow them in your browser settings to receive updates.";
+                    title = 'Action Required';
+                    errorMessage = "Your browser blocked the request. You must go to your browser settings to manually Allow notifications for this site.";
                 } else if (errorMessage.toLowerCase().includes('not supported') || errorMessage.toLowerCase().includes('pushmanager')) {
                     title = 'Not Supported Here';
                     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);

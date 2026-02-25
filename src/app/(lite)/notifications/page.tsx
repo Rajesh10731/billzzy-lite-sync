@@ -80,6 +80,14 @@ export default function NotificationsPage() {
     const handleEnableNotifications = async () => {
         setIsSubscribing(true);
         setErrorTip(null); // Reset tip on new attempt
+
+        // Immediate check for explicitly blocked permissions
+        if ('Notification' in window && Notification.permission === 'denied') {
+            setErrorTip("Notifications are BLOCKED. You must tap the lock icon 🔒 in your browser address bar, go to Site Settings, and change Notifications to 'Allow'.");
+            setIsSubscribing(false);
+            return;
+        }
+
         try {
             const success = await subscribeUserToPush();
             if (success) {
@@ -89,7 +97,7 @@ export default function NotificationsPage() {
             const errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
 
             if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
-                setErrorTip("Important: If you see 'This site can't ask for your permission', please check your browser settings to allow notifications.");
+                setErrorTip("Action Required: Your browser blocked the request. You must go to your browser settings to manually Allow notifications for this site.");
             } else if (errorMessage.toLowerCase().includes('not supported') || errorMessage.toLowerCase().includes('pushmanager')) {
                 if (isIOS) {
                     setErrorTip(`Your current browser doesn't support background alerts yet. On iPhone/iPad, you MUST use Safari and tap 'Share' then 'Add to Home Screen' first. (Error: ${errorMessage})`);
