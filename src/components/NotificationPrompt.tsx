@@ -234,6 +234,7 @@ export default function NotificationPrompt() {
             title={modalState.title}
             message={modalState.message}
             type={modalState.type}
+            isLoading={isProcessing}
         />
     );
 }
