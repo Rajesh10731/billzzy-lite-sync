@@ -64,24 +64,53 @@ export async function subscribeUserToPush() {
       }
     }
 
-    // Wait for the worker to be truly ACTIVE (native Promise)
+    // Wait for the worker to be truly ACTIVE
     console.log("⏳ Waiting for Service Worker to be fully ACTIVE...");
 
-    // Strictly wait for the native 'ready' promise, which guarantees an active worker.
-    // If it takes longer than 15 seconds, we intentionally throw a clear error 
-    // instead of returning an inactive registration (which causes the PushManager crash).
+    // We update the registration to ensure we aren't stuck on a stale worker
+    try { await reg.update(); } catch (e) { console.warn("SW Update failed (ignored)", e); }
+
     const readyRegistration = await new Promise<ServiceWorkerRegistration>((resolve, reject) => {
+      // 1. Fast path: already active
+      if (reg.active) {
+        return resolve(reg);
+      }
+
+      let hasResolved = false;
+
+      // 2. Setup a clear timeout
       const timeout = setTimeout(() => {
+        if (hasResolved) return;
+        clearInterval(interval);
         reject(new Error("Service Worker took too long to activate. Please refresh the page and try again."));
       }, 15000);
 
-      navigator.serviceWorker.ready.then((r) => {
+      const finish = (r: ServiceWorkerRegistration) => {
+        if (hasResolved) return;
+        hasResolved = true;
+        clearInterval(interval);
         clearTimeout(timeout);
         resolve(r);
-      }).catch((err) => {
-        clearTimeout(timeout);
-        reject(err);
-      });
+      };
+
+      // 3. Aggressively poll for activation
+      const interval = setInterval(() => {
+        // Kick any waiting worker to skip waiting
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        if (reg.active) {
+          finish(reg);
+        }
+      }, 250);
+
+      // 4. Also listen to native ready as a fallback
+      navigator.serviceWorker.ready.then((r) => {
+        if (r.active) {
+          finish(r);
+        }
+      }).catch(() => { });
     });
 
     if (!readyRegistration.pushManager) {

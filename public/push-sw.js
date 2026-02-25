@@ -1,4 +1,11 @@
 // public/push-sw.js
+self.addEventListener('message', function (event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log("🚀 Forced SKIP_WAITING received! Force activating...");
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('push', function (event) {
   console.log('📡 Push received:', event);
 
