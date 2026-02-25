@@ -205,7 +205,12 @@ export default function NotificationPrompt() {
                     errorMessage = "Notifications are blocked. Please allow them in your browser settings to receive updates.";
                 } else if (errorMessage.toLowerCase().includes('not supported') || errorMessage.toLowerCase().includes('pushmanager')) {
                     title = 'Not Supported Here';
-                    errorMessage = "Your current browser setup doesn't support background alerts yet. On iPhone/iPad, you MUST use Safari and tap 'Share' then 'Add to Home Screen' first.";
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    if (isIOS) {
+                        errorMessage = "Your current browser setup doesn't support background alerts yet. On iPhone/iPad, you MUST open Safari and tap 'Share' then 'Add to Home Screen' first.";
+                    } else {
+                        errorMessage = "Your current browser (or in-app browser) doesn't support notifications. Please open this app in a standard browser like Chrome or Edge.";
+                    }
                 } else if (errorMessage.toLowerCase().includes('vapid')) {
                     title = 'Config Error';
                     errorMessage = "Push notification keys are missing. Please contact support.";
