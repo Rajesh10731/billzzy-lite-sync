@@ -67,14 +67,32 @@ export async function subscribeUserToPush() {
     // Wait for the worker to be ready (which means active)
     console.log("⏳ Waiting for Service Worker to be ready...");
 
-    // We add a tiny safety race in case `ready` never resolves, but mostly trust it
-    const readyPromise = navigator.serviceWorker.ready;
-    const fallbackRegistration = reg;
+    // Wait for the worker to be truly ACTIVE (not just installing/waiting)
+    console.log("⏳ Waiting for Service Worker to be fully ACTIVE...");
 
-    // Give it a generous 10 seconds. If not, use the fallback registration.
+    const waitForActiveWorker = (registration: ServiceWorkerRegistration): Promise<ServiceWorkerRegistration> => {
+      return new Promise((resolve) => {
+        if (registration.active) {
+          return resolve(registration);
+        }
+        const worker = registration.installing || registration.waiting;
+        if (worker) {
+          worker.addEventListener('statechange', (e) => {
+            if ((e.target as ServiceWorker).state === 'activated') {
+              resolve(registration);
+            }
+          });
+        } else {
+          // Fallback if we somehow missed the states
+          navigator.serviceWorker.ready.then(resolve);
+        }
+      });
+    };
+
+    // Give it a generous 10 seconds. If not, fallback to whatever is ready.
     const readyRegistration = await Promise.race([
-      readyPromise,
-      new Promise<ServiceWorkerRegistration>(resolve => setTimeout(() => resolve(fallbackRegistration), 10000))
+      waitForActiveWorker(reg),
+      new Promise<ServiceWorkerRegistration>(resolve => setTimeout(() => resolve(reg), 10000))
     ]);
 
     if (!readyRegistration.pushManager) {
