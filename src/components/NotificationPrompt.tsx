@@ -194,27 +194,12 @@ export default function NotificationPrompt() {
             }
         } catch (error: unknown) {
             console.error("❌ Subscription Error:", error);
-            const isDelay = error instanceof Error && (error.message.includes('SYSTEM_DELAY') || error.message.toLowerCase().includes('timeout'));
 
             let errorMessage = "Setup failed. Please try again.";
-            let title = 'System Delay';
+            let title = 'Setup Error';
 
-            if (isDelay) {
-                const ua = navigator.userAgent.toLowerCase();
-                const isXiaomi = /xiaomi|redmi|miui/.test(ua);
-                const isOppo = /oppo|realme/.test(ua);
-                const isVivo = /vivo/.test(ua);
-                const isSamsung = /samsung/.test(ua);
-
-                if (isXiaomi || isOppo || isVivo) {
-                    errorMessage = "Your device background system is restricted. Please enable 'Auto-start' or 'Background Activity' for this browser in your phone's Settings and try again.";
-                } else if (isSamsung) {
-                    errorMessage = "The app preparation is taking a moment. Please ensure 'Background Data' is enabled for this browser in Settings and try again.";
-                } else {
-                    errorMessage = "The system is taking longer than usual to wake up. This often happens on first launch. Please wait a second and try again.";
-                }
-            } else {
-                errorMessage = error instanceof Error ? error.message : errorMessage;
+            if (error instanceof Error) {
+                errorMessage = error.message;
                 if (errorMessage.toLowerCase().includes('permission')) {
                     title = 'Permission Needed';
                     errorMessage = "Notifications are blocked. Please allow them in your browser settings to receive updates.";
@@ -224,6 +209,8 @@ export default function NotificationPrompt() {
                 } else if (errorMessage.toLowerCase().includes('server')) {
                     title = 'Connection Error';
                     errorMessage = "We couldn't sync your device with our server. Please check your internet and try again.";
+                } else {
+                    errorMessage = "We couldn't set up notifications right now. Please check your connection and try again.";
                 }
             }
 
@@ -231,12 +218,7 @@ export default function NotificationPrompt() {
                 isOpen: true,
                 title: title,
                 message: errorMessage,
-                type: 'error',
-                onAction: isDelay ? () => {
-                    setModalState(prev => ({ ...prev, isOpen: false }));
-                    handleSubscribe();
-                } : undefined,
-                actionLabel: isDelay ? "Try Again" : undefined
+                type: 'error'
             });
         } finally {
             setIsProcessing(false);

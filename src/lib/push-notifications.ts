@@ -22,101 +22,48 @@ export async function subscribeUserToPush() {
   }
 
   try {
-    // 1. Prepare Background Worker (Promise, DO NOT await yet)
-    console.log("🛠️ Preparing background system...");
+    console.log("🛠️ Registering/Waking Service Worker...");
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
-    // RELAXED SHORT-CIRCUIT: If we have ANY active registration, we can try to use it
-    const existingReg = await navigator.serviceWorker.getRegistration('/');
-    const canShortCircuit = existingReg?.active;
-
-    const registrationPromise = (async () => {
-      try {
-        if (canShortCircuit) {
-          console.log("⚡ Short-circuit: Active worker found.");
-          return existingReg;
-        }
-
-        console.log("🛠️ Registering/Waking Service Worker...");
-        const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-
-        if (reg.active) return reg;
-
-        if (reg.waiting) {
-          console.log("⏳ Worker waiting, forcing activation...");
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-
-        // Optimistic Activation Check
-        console.log("⏳ Waiting for activation...");
-
-        // 5s Soft Timeout: Try to proceed even if not "fully" ready
-        // 15s Hard Timeout: Error out
-        const softTimeout = new Promise<void>(resolve => setTimeout(resolve, 5000));
-        const hardTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("SYSTEM_DELAY")), 15000);
-        });
-
-        const pollingCheck = new Promise<ServiceWorkerRegistration>((resolve) => {
-          const interval = setInterval(() => {
-            if (reg.active) {
-              clearInterval(interval);
-              console.log("✅ Worker is ACTIVE (Poll).");
-              resolve(reg);
-            }
-          }, 100);
-          setTimeout(() => clearInterval(interval), 15000);
-        });
-
-        await Promise.race([
-          navigator.serviceWorker.ready,
-          pollingCheck,
-          softTimeout
-        ]);
-
-        // If we reach here (via ready, poll, or soft timeout), return the registration
-        // Even if soft timeout hit, we attempt to use the registration object
-        return reg;
-      } catch (err) {
-        console.error("❌ Worker setup failed:", err);
-        throw err;
-      }
-    })();
-
-    // 2. WHILE worker prepares, ask for permission (Parallel)
+    // While worker prepares, ask for permission (Parallel)
     if ('Notification' in window && Notification.permission !== 'granted') {
-      console.log("🔔 Asking for permission in parallel...");
+      console.log("🔔 Asking for permission...");
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         throw new Error("Notification permission was not granted.");
       }
     }
 
-    // 3. NOW wait for the worker to be ready
-    console.log("⏳ Finalizing background sync...");
-    const registration = await registrationPromise;
-    if (!registration || !registration.active) {
-      throw new Error("Service Worker failed to activate. If you are on a restricted device, please ensure battery optimizations are disabled for this browser.");
-    }
+    // Wait for the worker to be ready (which means active)
+    console.log("⏳ Waiting for Service Worker to be ready...");
 
-    console.log("✅ Service Worker active and ready.");
+    // Instead of complex polling, we simply wait for the worker to be ready
+    // We add a tiny safety race in case `ready` never resolves, but mostly trust it
+    const readyPromise = navigator.serviceWorker.ready;
+    const fallbackRegistration = reg;
 
-    // 2. VAPID Key validation
+    // Give it a generous 10 seconds. If not, use the fallback registration.
+    const readyRegistration = await Promise.race([
+      readyPromise,
+      new Promise<ServiceWorkerRegistration>(resolve => setTimeout(() => resolve(fallbackRegistration), 10000))
+    ]);
+
+    console.log("✅ Worker prepared. Checking VAPID key...");
+
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    console.log("🔑 VAPID Key Present:", !!publicKey, publicKey ? (publicKey.substring(0, 10) + "...") : "MISSING");
-
     if (!publicKey) {
       console.error("❌ Push Sub Error: NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing.");
       throw new Error("VAPID Public Key missing from environment");
     }
 
-    // 3. Subscription Management
-    let subscription = await registration.pushManager.getSubscription();
+    // Subscription Management
+    let subscription = await readyRegistration.pushManager.getSubscription();
     console.log("📦 Existing Subscription check:", subscription ? "Found" : "None");
 
     if (!subscription) {
       console.log("🛰️ Requesting new push subscription...");
       try {
-        subscription = await registration.pushManager.subscribe({
+        subscription = await readyRegistration.pushManager.subscribe({
           userVisibleOnly: true,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           applicationServerKey: urlBase64ToUint8Array(publicKey) as any
@@ -131,7 +78,7 @@ export async function subscribeUserToPush() {
       console.log("♻️ User already has a subscription. Synchronizing with server...");
     }
 
-    // 4. Server Sync (NON-BLOCKING for UI speed)
+    // Server Sync (NON-BLOCKING for UI speed)
     console.log("📡 Triggering server synchronization (background)...");
     fetch('/api/notifications/subscribe', {
       method: 'POST',

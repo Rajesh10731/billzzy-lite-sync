@@ -82,12 +82,10 @@ export default function NotificationsPage() {
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
 
-            if (errorMessage.toLowerCase().includes('timeout') || errorMessage.toLowerCase().includes('activate')) {
-                setErrorTip("Tip: On Redmi/Xiaomi, go to Settings > Apps > Manage Apps > [Your Browser] and ensure 'Auto-start' is ON and 'Battery Saver' is set to 'No Restrictions'.");
-            } else if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
-                setErrorTip("Important: If you see 'This site can't ask for your permission', please close any floating bubbles or blue buttons (like the + / - on your screen) and try again.");
+            if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
+                setErrorTip("Important: If you see 'This site can't ask for your permission', please check your device's notification settings and try again.");
             } else {
-                setErrorTip(errorMessage);
+                setErrorTip("We couldn't activate notifications right now. Please ensure your internet connection is stable and try again.");
             }
         } finally {
             setIsSubscribing(false);
