@@ -34,15 +34,31 @@ export async function subscribeUserToPush() {
     console.log("🛠️ Registering/Waking Service Worker...");
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
+    // Aggressively force any waiting or installing worker to become active
     if (reg.waiting) {
       console.log("⏳ Forcing waiting Service Worker to activate...");
       reg.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
 
+    if (reg.installing) {
+      console.log("⏳ Worker is installing. Waiting for it to finish and forcing activation...");
+      reg.installing.addEventListener('statechange', (e) => {
+        if ((e.target as ServiceWorker).state === 'installed') {
+          (e.target as ServiceWorker).postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    }
+
     // While worker prepares, ask for permission (Parallel)
     if ('Notification' in window && Notification.permission !== 'granted') {
       console.log("🔔 Asking for permission...");
-      const permission = await Notification.requestPermission();
+      // Wrap requestPermission to handle both Promise (modern) and Callback (legacy Safari) APIs
+      const permission = await new Promise<NotificationPermission>((resolve) => {
+        const promise = Notification.requestPermission((result) => resolve(result));
+        if (promise) {
+          promise.then(resolve);
+        }
+      });
       if (permission !== 'granted') {
         throw new Error("Notification permission was not granted.");
       }
@@ -51,7 +67,6 @@ export async function subscribeUserToPush() {
     // Wait for the worker to be ready (which means active)
     console.log("⏳ Waiting for Service Worker to be ready...");
 
-    // Instead of complex polling, we simply wait for the worker to be ready
     // We add a tiny safety race in case `ready` never resolves, but mostly trust it
     const readyPromise = navigator.serviceWorker.ready;
     const fallbackRegistration = reg;
