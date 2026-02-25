@@ -200,9 +200,12 @@ export default function NotificationPrompt() {
 
             if (error instanceof Error) {
                 errorMessage = error.message;
-                if (errorMessage.toLowerCase().includes('permission')) {
+                if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
                     title = 'Permission Needed';
                     errorMessage = "Notifications are blocked. Please allow them in your browser settings to receive updates.";
+                } else if (errorMessage.toLowerCase().includes('not supported') || errorMessage.toLowerCase().includes('pushmanager')) {
+                    title = 'Not Supported Here';
+                    errorMessage = "Your current browser setup doesn't support background alerts yet. On iPhone/iPad, you MUST use Safari and tap 'Share' then 'Add to Home Screen' first.";
                 } else if (errorMessage.toLowerCase().includes('vapid')) {
                     title = 'Config Error';
                     errorMessage = "Push notification keys are missing. Please contact support.";
@@ -210,7 +213,7 @@ export default function NotificationPrompt() {
                     title = 'Connection Error';
                     errorMessage = "We couldn't sync your device with our server. Please check your internet and try again.";
                 } else {
-                    errorMessage = "We couldn't set up notifications right now. Please check your connection and try again.";
+                    errorMessage = `We couldn't set up notifications right now (${errorMessage}). Please check your connection and try again.`;
                 }
             }
 

@@ -3,22 +3,31 @@ const VAPID_KEY_CACHE = new Map<string, Uint8Array>();
 function urlBase64ToUint8Array(base64String: string) {
   if (VAPID_KEY_CACHE.has(base64String)) return VAPID_KEY_CACHE.get(base64String)!;
 
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+  try {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    VAPID_KEY_CACHE.set(base64String, outputArray);
+    return outputArray;
+  } catch (error) {
+    console.error("VAPID Key Conversion Error:", error);
+    throw new Error("Failed to parse push notification key.");
   }
-
-  VAPID_KEY_CACHE.set(base64String, outputArray);
-  return outputArray;
 }
 
 export async function subscribeUserToPush() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     console.warn("⚠️ Push notifications not supported: No Service Worker in navigator");
-    return;
+    throw new Error("Push notifications are not supported on this browser.");
+  }
+
+  if (!('PushManager' in window)) {
+    console.warn("⚠️ PushManager not available");
+    throw new Error("Your browser does not support receiving push messages.");
   }
 
   try {
@@ -72,14 +81,20 @@ export async function subscribeUserToPush() {
     if (!subscription) {
       console.log("🛰️ Requesting new push subscription...");
       try {
+        const convertedVapidKey = urlBase64ToUint8Array(publicKey);
         subscription = await readyRegistration.pushManager.subscribe({
           userVisibleOnly: true,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          applicationServerKey: urlBase64ToUint8Array(publicKey) as any
+          applicationServerKey: convertedVapidKey as any
         });
         console.log("✅ New Subscription successfully created");
       } catch (subErr: unknown) {
-        const subMessage = subErr instanceof Error ? subErr.message : 'Unknown reason';
+        let subMessage = "Unknown reason";
+        if (subErr instanceof Error) {
+          subMessage = subErr.message;
+        } else if (typeof subErr === 'string') {
+          subMessage = subErr;
+        }
         console.error("❌ Failed to create new subscription:", subErr);
         throw new Error(`Browser subscription failed: ${subMessage}`);
       }
@@ -111,6 +126,8 @@ export async function subscribeUserToPush() {
       console.error("❌ subscribeUserToPush Critical Failure:", err.message);
       throw err;
     }
-    throw new Error("Unknown Push Error occurred during subscription sequence");
+    const unknownErrorMsg = typeof err === 'string' ? err : JSON.stringify(err);
+    console.error("❌ subscribeUserToPush Unknown Failure:", unknownErrorMsg);
+    throw new Error(`Unknown Push Error: ${unknownErrorMsg}`);
   }
 }
