@@ -153,6 +153,12 @@ export default function AdminDashboard() {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => router.push('/admin/subscribed')}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              View Subscribed Users
+            </button>
+            <button
               onClick={() => router.push('/admin/onboard')}
               className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >

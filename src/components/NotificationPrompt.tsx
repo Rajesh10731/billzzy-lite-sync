@@ -139,6 +139,11 @@ export default function NotificationPrompt() {
     }, []);
 
     useEffect(() => {
+        // PRE-REGISTER Service Worker early for speed on older devices!
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(e => console.warn('Early SW registration failed', e));
+        }
+
         if (status === 'authenticated' && typeof window !== 'undefined' && 'Notification' in window) {
             if (Notification.permission === 'granted') {
                 console.log("💎 Permission granted. Syncing subscription in background...");
@@ -185,15 +190,32 @@ export default function NotificationPrompt() {
                 throw new Error('Push configuration is missing (VAPID key).');
             }
 
-            // Delegate everything to subscribeUserToPush
-            await subscribeUserToPush();
+            // Immediately ask for permission if not already granted so we can optimistically show success
+            let permissionGranted = Notification.permission === 'granted';
+            if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                const permission = await Notification.requestPermission();
+                permissionGranted = permission === 'granted';
+            }
 
+            if (!permissionGranted) {
+                throw new Error("Notification permission was not granted.");
+            }
+
+            // OPTIMISTIC UI: Show success instantly while working in background
             setModalState({
                 isOpen: true,
                 title: 'Updates Active!',
                 message: 'You are now ready to receive real-time notifications.',
                 type: 'success'
             });
+
+            // Delegate everything to subscribeUserToPush in background (Non-blocking)
+            subscribeUserToPush().catch(bgError => {
+                console.error("❌ Background Subscription Error:", bgError);
+            });
+
+            // We return early so the catch block below only catches permission errors
+            return;
         } catch (error: unknown) {
             console.error("❌ Subscription Error:", error);
 
