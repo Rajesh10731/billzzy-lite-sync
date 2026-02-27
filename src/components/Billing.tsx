@@ -7,9 +7,11 @@ import QRCode from 'react-qr-code';
 import {
   Scan, Trash2, Edit2, Check, X, AlertTriangle,
   CreditCard, CheckCircle, DollarSign, MessageSquare,
-  Nfc
+  Nfc, ChevronRight
 } from 'lucide-react';
 import SuccessTick from './ui/SuccessTick';
+import CountryCodeSelector from './ui/CountryCodeSelector';
+import { countries } from '@/lib/countries';
 
 // --- HELPER FUNCTIONS ---
 const formatCurrency = (amount: number): string => {
@@ -106,6 +108,7 @@ export default function BillingPage() {
   const [merchantUpi, setMerchantUpi] = React.useState('');
   const [merchantName, setMerchantName] = React.useState('Billzzy Lite');
   const [whatsAppNumber, setWhatsAppNumber] = React.useState('');
+  const [customerCountryCode, setCustomerCountryCode] = React.useState('IN');
   const [customerName, setCustomerName] = React.useState('');
   const [amountGiven, setAmountGiven] = React.useState<number | ''>('');
 
@@ -173,6 +176,7 @@ export default function BillingPage() {
             setSettingsComplete(true);
             setMerchantUpi(localData.merchantUpiId);
             setMerchantName(localData.shopName || 'Billzzy Lite');
+            setCustomerCountryCode(data.defaultCountryCode || 'IN');
             return true;
           }
         }
@@ -198,6 +202,7 @@ export default function BillingPage() {
         }
       } else if (session.user.phoneNumber) {
         setSettingsComplete(true);
+        // We don't have defaultCountryCode in session usually, so keep 'IN' or fetch again
         return true;
       }
 
@@ -244,11 +249,11 @@ export default function BillingPage() {
 
   // --- WHATSAPP LOGIC ---
   const sendWhatsAppMessage = React.useCallback(async (phoneNumber: string, messageType: string) => {
-    if (!phoneNumber.trim() || !/^\d{10,15}$/.test(phoneNumber)) {
+    if (!phoneNumber.trim() || phoneNumber.length < 7 || phoneNumber.length > 15) {
       setModal({
         isOpen: true,
         title: 'Invalid Number',
-        message: 'Please enter a valid WhatsApp number including the country code (e.g., 919876543210).',
+        message: 'Please enter a valid phone number (7-15 digits).',
         showCancel: false,
         confirmText: 'Got it',
       });
@@ -256,7 +261,10 @@ export default function BillingPage() {
     }
 
     try {
-      const formattedPhone = phoneNumber.startsWith('91') ? phoneNumber : `91${phoneNumber}`;
+      const dialCode = countries.find(c => c.code === customerCountryCode)?.dialCode || '+91';
+      const cleanDialCode = dialCode.replace('+', '');
+      // If the number already starts with the dial code, don't prepend it
+      const formattedPhone = phoneNumber.startsWith(cleanDialCode) ? phoneNumber : `${cleanDialCode}${phoneNumber}`;
       const orderId = `INV-${Date.now().toString().slice(-6)}`;
       const itemsList = cart.map((item) => `${item.name} (x${item.quantity})`).join(', ');
 
@@ -421,6 +429,8 @@ export default function BillingPage() {
     setShowWhatsAppSharePanel(false);
     setShowPaymentOptions(false);
     setWhatsAppNumber('');
+    // Revert to default country code after transaction
+    checkPhoneNumber();
     setCustomerName('');
     setAmountGiven('');
     setDiscountInput('');
@@ -430,9 +440,9 @@ export default function BillingPage() {
   const handleProceedToPayment = React.useCallback(async () => {
     if (showWhatsAppSharePanel && cart.length > 0) {
       if (whatsAppNumber.trim() !== '') {
-        const phoneRegex = /^\d{10,15}$/;
+        const phoneRegex = /^\d{7,15}$/;
         if (!phoneRegex.test(whatsAppNumber)) {
-          alert("Please enter a valid phone number (10-15 digits)");
+          alert("Please enter a valid phone number (7-15 digits)");
           return;
         }
       }
@@ -518,7 +528,7 @@ export default function BillingPage() {
             paymentMethod: selectedPayment,
             profit: totalProfit,
             items: safeCart,
-            customerPhone: whatsAppNumber,
+            customerPhone: whatsAppNumber ? `${countries.find(c => c.code === customerCountryCode)?.dialCode.replace('+', '')}${whatsAppNumber}` : '',
             customerName: customerName,
             merchantName: merchantName,
             discount: discountAmount
@@ -727,69 +737,170 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="flex-shrink-0 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.1)] border-t-2 border-gray-200">
-          <div className="p-2.5 space-y-2 max-h-[45vh] overflow-y-auto">
+        <div className="flex-shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-gray-100/50">
+          <div className="p-2 space-y-2 max-h-[50vh] overflow-y-auto">
 
-            <div className="space-y-2"><div className="relative"><input type="number" placeholder="Discount" value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} className="w-full rounded-lg border-2 border-gray-300 p-2 text-sm focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all pr-12" disabled={cart.length === 0 || !settingsComplete} /><div className="absolute inset-y-0 right-0 flex items-center"><button onClick={() => setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')} className="h-full rounded-r-lg px-3 text-sm font-bold text-white bg-[#5a4fcf] hover:bg-[#4c42b8] transition-colors" disabled={cart.length === 0 || !settingsComplete}>{discountType === 'percentage' ? '%' : '₹'}</button></div></div><div className="space-y-1 text-sm rounded-lg bg-gray-50 p-2 border"><div className="flex justify-between items-center text-gray-600"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>{discountAmount > 0 && (<div className="flex justify-between items-center text-green-600"><span>Discount</span><span>- {formatCurrency(discountAmount)}</span></div>)}<div className="flex justify-between items-center text-gray-900 font-bold border-t pt-1 mt-1"><span className="text-base">Total</span><span className="text-xl">{formatCurrency(totalAmount)}</span></div></div></div>
+            <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : 'hover:border-[#1D4ED8]'}`}>
+              <input
+                type="number"
+                placeholder="Enter Discount"
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value)}
+                className="flex-1 bg-transparent px-3 py-2 text-xs font-medium outline-none placeholder:text-gray-400 text-gray-700"
+                disabled={cart.length === 0 || !settingsComplete}
+              />
+              <button
+                onClick={() => setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')}
+                className="bg-[#5a4fcf] px-4 text-[9px] font-black uppercase tracking-widest text-white transition-all hover:bg-[#4c42b8] active:bg-[#3d34a4] disabled:bg-gray-400"
+                disabled={cart.length === 0 || !settingsComplete}
+              >
+                {discountType === 'percentage' ? '%' : '₹'}
+              </button>
+            </div>
 
+            {/* --- SUMMARY TABLE --- */}
+            <div className="space-y-1 px-1">
+              <div className="flex justify-between items-center text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                <span>Subtotal</span>
+                <span className="text-gray-600 font-black">{formatCurrency(subtotal)}</span>
+              </div>
+
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-[9px] font-bold text-emerald-600 animate-in slide-in-from-top-1 duration-200">
+                  <span className="uppercase tracking-widest">Discount ({discountType === 'percentage' ? `${discountInput}%` : 'Fixed'})</span>
+                  <span className="font-black">-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+
+              <div className="h-[1px] w-full bg-gray-50 my-0.5" />
+
+              <div className="flex justify-between items-end">
+                <span className="text-xs font-black text-gray-900 tracking-tight uppercase">Total Due</span>
+                <span className="text-base font-black text-[#5a4fcf] tracking-tighter leading-none">
+                  {formatCurrency(totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            {/* --- ACTION BUTTONS --- */}
             {!showWhatsAppSharePanel && !showPaymentOptions && (
-              <button onClick={() => { if (cart.length === 0) { setModal({ isOpen: true, title: 'Cart Empty', message: 'Please add items to the cart before finalizing.', confirmText: 'OK', showCancel: false }); return; } setShowWhatsAppSharePanel(true); setShowPaymentOptions(false); }} className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#5a4fcf] py-2.5 font-bold text-white hover:bg-[#4c42b8] disabled:bg-gray-400 transition-colors shadow-lg text-sm" disabled={cart.length === 0 || !settingsComplete}><CreditCard size={16} /><span>Proceed to Payment</span></button>
+              <button
+                onClick={() => {
+                  if (cart.length === 0) {
+                    setModal({ isOpen: true, title: 'Cart Empty', message: 'Please add items to the cart before finalizing.', confirmText: 'OK', showCancel: false });
+                    return;
+                  }
+                  setShowWhatsAppSharePanel(true);
+                  setShowPaymentOptions(false);
+                }}
+                className="w-full group relative flex items-center justify-center gap-2 rounded-lg bg-[#5a4fcf] py-2 text-[13px] font-bold text-white shadow-md shadow-indigo-100 transition-all hover:bg-[#4c42b8] active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
+                disabled={cart.length === 0 || !settingsComplete}
+              >
+                <span>Proceed to Payment</span>
+                <ChevronRight size={14} className="transition-transform group-hover:translate-x-1" />
+              </button>
             )}
 
             {/* --- CUSTOMER PANEL --- */}
             {showWhatsAppSharePanel && cart.length > 0 && settingsComplete && (
-              <div className="space-y-2 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 p-2.5 border-2 border-green-200">
-                <p className="text-xs font-semibold text-gray-700 text-center">Customer Details & Sharing</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="col-span-1"><input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer Name (Optional)" className="w-full rounded-lg border-2 border-green-300 p-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200" /></div>
-                  <div className="col-span-1"><input type="tel" value={whatsAppNumber} onChange={(e) => setWhatsAppNumber(e.target.value)} placeholder="91XXXXXXXXXX" className="w-full rounded-lg border-2 border-green-300 p-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200" /></div>
+              <div className="space-y-3 rounded-2xl bg-gradient-to-br from-green-50/50 to-emerald-50/50 p-3 border border-green-100 animate-in fade-in zoom-in-95 duration-300">
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 items-center">
+                    <div className="w-[85px] shrink-0">
+                      <CountryCodeSelector
+                        selectedCountryCode={customerCountryCode}
+                        onSelect={(c) => setCustomerCountryCode(c.code)}
+                      />
+                    </div>
+                    <input
+                      type="tel"
+                      value={whatsAppNumber}
+                      onChange={(e) => setWhatsAppNumber(e.target.value)}
+                      placeholder="Phone Number"
+                      className="flex-1 rounded-xl border border-green-200 p-2.5 text-sm font-medium outline-none focus:border-green-500 bg-white transition-all shadow-sm"
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Customer Name (Optional)"
+                    className="w-full rounded-xl border border-green-200 p-2.5 text-sm font-medium outline-none focus:border-green-500 bg-white transition-all shadow-sm"
+                  />
                 </div>
-                <button onClick={handleProceedToPayment} disabled={isMessaging} className="w-full flex items-center justify-center gap-2 rounded-lg bg-green-600 py-2 font-semibold text-white hover:bg-green-700 disabled:bg-gray-400 transition-colors shadow-md text-sm">
+                <button onClick={handleProceedToPayment} disabled={isMessaging} className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-bold text-white hover:bg-green-700 transition-all shadow-lg shadow-green-100 active:scale-[0.98]">
                   {isMessaging ? (
-                    <div className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div><span className="text-xs">Processing...</span></div>
+                    <div className="flex items-center gap-2 font-medium">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span className="text-sm">Processing...</span>
+                    </div>
                   ) : (
-                    <><MessageSquare size={14} /><span className="text-xs">{whatsAppNumber.trim() ? 'Next: Payment' : 'Skip & Continue'}</span></>
+                    <><MessageSquare size={16} /><span className="text-sm">{whatsAppNumber.trim() ? 'Continue to Payment' : 'Skip & Continue'}</span></>
                   )}
                 </button>
               </div>
             )}
 
             {showPaymentOptions && cart.length > 0 && settingsComplete && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-700 text-center">Select Payment Method</p>
-                <div className="grid grid-cols-2 gap-1.5">{[{ method: 'cash', label: 'Cash', color: 'green' }, { method: 'qr-code', label: 'QR/UPI', color: 'blue' }].map(({ method, label }) => (<button key={method} onClick={() => setSelectedPayment(method)} className={`rounded-lg px-2 py-2 text-xs font-bold capitalize transition-all ${selectedPayment === method ? 'bg-[#5a4fcf] text-white shadow-lg scale-105' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>{label}</button>))}</div>
+              <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <p className="text-[10px] font-black text-gray-400 text-center uppercase tracking-widest">Select Payment Method</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[{ method: 'cash', label: 'Cash' }, { method: 'qr-code', label: 'QR/UPI' }].map(({ method, label }) => (
+                    <button
+                      key={method}
+                      onClick={() => setSelectedPayment(method)}
+                      className={`rounded-lg py-2 text-xs font-bold capitalize transition-all border ${selectedPayment === method ? 'bg-[#5a4fcf] text-white border-transparent shadow-md shadow-indigo-100 -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
                 {selectedPayment === 'cash' && (
-                  <div className="rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 p-2.5 border-2 border-green-200">
-                    <p className="text-xs text-center font-medium text-gray-700 mb-2">Cash Payment</p>
-                    <div className="grid grid-cols-2 gap-2 mb-2"><input type="number" placeholder="Amount Given" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))} className="rounded-lg border-2 border-green-300 p-1.5 text-sm focus:ring-2 focus:ring-green-500 outline-none" /><div className="rounded-lg bg-white border-2 border-green-300 p-1.5 flex flex-col items-center justify-center"><span className="text-xs text-gray-500">Balance</span><span className={`font-bold text-sm ${balance < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(balance)}</span></div></div>
-                    <div className="flex gap-2">
-                      {/* NFC Button - SAVES as CASH */}
-                      <button onClick={() => handlePaymentSuccess(true)} disabled={isCreatingLink || isMessaging} className="flex-1 rounded-lg bg-indigo-600 py-2 font-bold text-white hover:bg-indigo-700 flex items-center justify-center shadow-md">
-                        {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>) : (<div className="flex items-center gap-1"><Nfc size={18} /><span className="text-[10px]">Tap</span></div>)}
+                  <div className="rounded-2xl bg-emerald-50 p-3 border border-emerald-100 animate-in zoom-in-95 duration-200">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider ml-1">Received</label>
+                        <input type="number" placeholder="0.00" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full rounded-xl border border-emerald-200 p-2.5 text-sm font-bold focus:ring-1 focus:ring-emerald-500 outline-none bg-white shadow-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider ml-1">Balance</label>
+                        <div className="w-full rounded-xl bg-white border border-emerald-200 p-2.5 flex items-center justify-center shadow-sm">
+                          <span className={`font-black text-sm ${balance < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{formatCurrency(balance)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => handlePaymentSuccess(true)} disabled={isCreatingLink || isMessaging} className="flex-1 rounded-lg bg-indigo-600 py-2.5 font-bold text-white hover:bg-indigo-700 flex items-center justify-center shadow-md active:scale-95">
+                        {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>) : (<Nfc size={18} />)}
                       </button>
-                      {/* Complete Button - SAVES as CASH */}
-                      <button onClick={() => handlePaymentSuccess(false)} disabled={isMessaging || isCreatingLink} className="flex-[3] flex items-center justify-center gap-2 rounded-lg bg-green-600 py-2 font-bold text-white disabled:bg-gray-400 hover:bg-green-700 transition-colors shadow-md text-xs">
-                        {isMessaging ? (<div className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div><span>Processing...</span></div>) : (<><DollarSign size={16} /><span>Confirm Cash Payment</span></>)}
+                      <button onClick={() => handlePaymentSuccess(false)} disabled={isMessaging || isCreatingLink} className="flex-[3] flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2.5 font-bold text-white hover:bg-emerald-700 transition-all shadow-md active:scale-[0.98]">
+                        {isMessaging ? (<div className="flex items-center gap-1.5 text-xs"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div><span>Saving...</span></div>) : (<><DollarSign size={16} /><span className="text-sm">Confirm Cash</span></>)}
                       </button>
                     </div>
                   </div>
                 )}
 
                 {selectedPayment === 'qr-code' && (
-                  <div className="rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 p-2.5 border-2 border-blue-200">
-                    {upiQR ? (<><p className="text-xs text-center font-medium text-gray-700 mb-2">Scan QR to Pay</p><div className="bg-white p-2 rounded-lg mx-auto max-w-[140px] border-2 border-blue-300"><QRCode value={upiQR} style={{ height: 'auto', width: '100%' }} /></div><p className="mt-1.5 text-xs text-center text-gray-600">Pay to: <span className="font-semibold">{merchantUpi}</span></p>
-                      <div className="flex gap-2 mt-2">
-                        {/* NFC Button - SAVES as QR/UPI */}
-                        <button onClick={() => handlePaymentSuccess(true)} disabled={isCreatingLink || isMessaging} className="flex-1 rounded-lg bg-indigo-600 py-2 font-bold text-white hover:bg-indigo-700 flex items-center justify-center shadow-md">
-                          {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>) : (<div className="flex items-center gap-1"><Nfc size={18} /><span className="text-[10px]">Tap</span></div>)}
-                        </button>
-                        {/* Complete Button - SAVES as QR/UPI */}
-                        <button onClick={() => handlePaymentSuccess(false)} disabled={isMessaging || isCreatingLink} className="flex-[3] flex items-center justify-center gap-2 rounded-lg bg-blue-600 py-2 font-bold text-white disabled:bg-gray-400 hover:bg-blue-700 transition-colors shadow-md text-xs">
-                          {isMessaging ? (<div className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div><span>Processing...</span></div>) : (<><CheckCircle size={16} /><span>Confirm Payment Received</span></>)}
-                        </button>
+                  <div className="rounded-2xl bg-blue-50 p-4 border border-blue-100 animate-in zoom-in-95 duration-200">
+                    {upiQR ? (
+                      <div className="flex flex-col items-center">
+                        <div className="bg-white p-3 rounded-2xl shadow-xl border border-blue-100 mb-4 transition-transform hover:scale-105">
+                          <QRCode value={upiQR} size={140} style={{ height: 'auto', width: '100%' }} />
+                        </div>
+                        <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-4">Pay to: {merchantUpi}</p>
+                        <div className="flex w-full gap-2">
+                          <button onClick={() => handlePaymentSuccess(true)} disabled={isCreatingLink || isMessaging} className="flex-1 rounded-lg bg-indigo-600 py-2.5 font-bold text-white hover:bg-indigo-700 flex items-center justify-center shadow-md active:scale-95">
+                            {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>) : (<Nfc size={18} />)}
+                          </button>
+                          <button onClick={() => handlePaymentSuccess(false)} disabled={isMessaging || isCreatingLink} className="flex-[3] flex items-center justify-center gap-1.5 rounded-lg bg-[#5a4fcf] py-2.5 font-bold text-white hover:bg-[#4c42b8] transition-all shadow-md active:scale-[0.98]">
+                            {isMessaging ? (<div className="flex items-center gap-1.5 text-xs"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div><span>Saving...</span></div>) : (<><CheckCircle size={16} /><span className="text-sm">Payment Received</span></>)}
+                          </button>
+                        </div>
                       </div>
-                    </>) : (<p className="text-center text-xs font-semibold text-red-600 py-4">UPI ID not configured. Please update settings.</p>)}
+                    ) : (
+                      <p className="text-center text-xs font-bold text-red-500 py-4 italic">UPI ID not configured in settings.</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -797,7 +908,16 @@ export default function BillingPage() {
           </div>
         </div>
       </div>
-      <Modal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false, message: '' })} title={modal.title} onConfirm={modal.onConfirm} confirmText={modal.confirmText} showCancel={modal.showCancel}>{modal.message}</Modal>
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false, message: '' })}
+        title={modal.title}
+        onConfirm={modal.onConfirm}
+        confirmText={modal.confirmText}
+        showCancel={modal.showCancel}
+      >
+        {modal.message}
+      </Modal>
     </>
   );
 }

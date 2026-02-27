@@ -16,34 +16,32 @@ export async function POST(request: Request) {
         hasToken: !!ACCESS_TOKEN,
         hasBusinessAccountId: !!BUSINESS_ACCOUNT_ID
       });
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         message: 'WhatsApp API credentials not configured.'
       }, { status: 500 });
     }
 
     const messageData = await request.json();
-    
+
     // Validate required fields
     if (!messageData.to) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Recipient phone number is required.' 
+      return NextResponse.json({
+        success: false,
+        message: 'Recipient phone number is required.'
       }, { status: 400 });
     }
 
     if (!messageData.template?.name) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Template name is required.' 
+      return NextResponse.json({
+        success: false,
+        message: 'Template name is required.'
       }, { status: 400 });
     }
 
-    // Format phone number
-    let to = messageData.to.replace(/\D/g, '');
-    if (to.length === 10) {
-      to = '91' + to;
-    }
+    // Format phone number: just keep digits. 
+    // The frontend now provides the full number including dial code.
+    const to = messageData.to.replace(/\D/g, '');
 
     // Construct the payload according to WhatsApp Business API format
     const payload = {
@@ -75,7 +73,7 @@ export async function POST(request: Request) {
     );
 
     const data = await response.json();
-    
+
     if (!response.ok) {
       console.error('WhatsApp API error:', {
         status: response.status,
@@ -83,9 +81,9 @@ export async function POST(request: Request) {
         code: data.error?.code,
         businessAccountId: BUSINESS_ACCOUNT_ID
       });
-      
-      return NextResponse.json({ 
-        success: false, 
+
+      return NextResponse.json({
+        success: false,
         message: data.error?.message || 'Failed to send message',
         error: data.error,
         businessAccountId: BUSINESS_ACCOUNT_ID
@@ -96,9 +94,9 @@ export async function POST(request: Request) {
       messageId: data.messages?.[0]?.id,
       businessAccountId: BUSINESS_ACCOUNT_ID
     });
-    
-    return NextResponse.json({ 
-      success: true, 
+
+    return NextResponse.json({
+      success: true,
       message: 'Message sent successfully',
       data: data,
       businessAccountId: BUSINESS_ACCOUNT_ID
@@ -109,9 +107,9 @@ export async function POST(request: Request) {
       error: error instanceof Error ? error.message : 'Unknown error',
       businessAccountId: BUSINESS_ACCOUNT_ID
     });
-    
-    return NextResponse.json({ 
-      success: false, 
+
+    return NextResponse.json({
+      success: false,
       message: 'Internal server error',
       error: error instanceof Error ? error.message : 'Unknown error',
       businessAccountId: BUSINESS_ACCOUNT_ID

@@ -15,7 +15,7 @@ export async function GET() {
         await dbConnect();
 
         const user = await User.findOne({ email: (session.user as { email: string }).email })
-            .select('name email phoneNumber address shopName shopAddress merchantUpiId');
+            .select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode');
 
         if (!user) {
             return NextResponse.json({ message: 'User not found' }, { status: 404 });
@@ -44,7 +44,7 @@ export async function PUT(request: Request) {
         console.log("PUT /api/users/settings - Body:", JSON.stringify(body, null, 2));
 
         // Whitelist allowed fields to update
-        const { name, phoneNumber, address, shopName, shopAddress, merchantUpiId } = body;
+        const { name, phoneNumber, address, shopName, shopAddress, merchantUpiId, defaultCountryCode } = body;
 
         // Update the user
         const updatedUser = await User.findOneAndUpdate(
@@ -55,10 +55,11 @@ export async function PUT(request: Request) {
                 address,
                 shopName,
                 shopAddress,
-                merchantUpiId
+                merchantUpiId,
+                defaultCountryCode
             },
             { new: true }
-        ).select('name email phoneNumber address shopName shopAddress merchantUpiId');
+        ).select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode');
 
         console.log("PUT /api/users/settings - Updated User:", JSON.stringify(updatedUser, null, 2));
 

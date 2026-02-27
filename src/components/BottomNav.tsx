@@ -24,9 +24,8 @@ function NavLink({ href, icon: Icon, label }: { href: string; icon: React.Elemen
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors duration-300 ${
-        isActive ? 'text-white scale-105' : 'text-indigo-200 hover:text-white'
-      }`}
+      className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors duration-300 ${isActive ? 'text-white scale-105' : 'text-indigo-200 hover:text-white'
+        }`}
     >
       <Icon className="w-6 h-6" />
       <span className="text-[11px] font-medium mt-1">{label}</span>
@@ -55,9 +54,8 @@ export function BottomNavBar() {
       {/* Center big scanner button */}
       <Link
         href="/billing"
-        className={`relative bg-white text-[#5a4fcf] rounded-full p-4 shadow-xl transform transition-all duration-300 -translate-y-2 ${
-          isBilling ? 'scale-110' : 'hover:scale-105'
-        }`}
+        className={`relative bg-white text-[#5a4fcf] rounded-full p-4 shadow-xl transform transition-all duration-300 -translate-y-2 ${isBilling ? 'scale-110' : 'hover:scale-105'
+          }`}
       >
         <ScanLine className="w-8 h-8" />
       </Link>

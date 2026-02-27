@@ -16,6 +16,7 @@ export interface IUser extends Document {
   shopName?: string;
   shopAddress?: string;
   address?: string; // Personal address
+  defaultCountryCode?: string; // Default country for phone numbers
 }
 
 const UserSchema: Schema = new Schema({
@@ -86,6 +87,11 @@ const UserSchema: Schema = new Schema({
   address: {
     type: String,
     required: false,
+  },
+  defaultCountryCode: {
+    type: String,
+    required: false,
+    default: 'IN', // Default to India
   },
 }, {
   timestamps: true,

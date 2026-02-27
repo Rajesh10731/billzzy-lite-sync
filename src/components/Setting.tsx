@@ -17,6 +17,8 @@ import {
   Bell
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
+import CountryCodeSelector from '@/components/ui/CountryCodeSelector';
+import { countries } from '@/lib/countries';
 
 // --- TYPES ---
 type FormData = {
@@ -26,6 +28,7 @@ type FormData = {
   shopName: string;
   shopAddress: string;
   merchantUpiId: string;
+  defaultCountryCode: string;
 };
 
 type SettingsFieldProps = {
@@ -71,7 +74,7 @@ export default function Settings() {
   const [editingSection, setEditingSection] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
-    name: '', phoneNumber: '', address: '', shopName: '', shopAddress: '', merchantUpiId: '',
+    name: '', phoneNumber: '', address: '', shopName: '', shopAddress: '', merchantUpiId: '', defaultCountryCode: 'IN',
   });
 
   const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
@@ -95,6 +98,7 @@ export default function Settings() {
             shopName: dbData.shopName || '',
             shopAddress: dbData.shopAddress || '',
             merchantUpiId: dbData.merchantUpiId || '',
+            defaultCountryCode: dbData.defaultCountryCode || 'IN',
           });
         }
       } catch (error) { console.error(error); }
@@ -193,6 +197,25 @@ export default function Settings() {
               <SectionHeader title="Personal" sectionKey="personal" icon={User} colorClass="text-[#5a4fcf]" />
               <div className="px-4 pb-2">
                 <SettingsField label="Merchant Name" name="name" value={formData.name} isEditing={editingSection === 'personal'} onChange={handleChange} />
+                <div className="py-2 border-b border-gray-100 last:border-b-0 transition-all hover:bg-gray-50/50 -mx-3 px-3">
+                  <label className="block text-[12px] font-bold text-gray-900 uppercase tracking-wide mb-1 opacity-90">
+                    Default Country Code
+                  </label>
+                  {editingSection === 'personal' ? (
+                    <div className="mt-1">
+                      <CountryCodeSelector
+                        selectedCountryCode={formData.defaultCountryCode}
+                        onSelect={(c) => setFormData(prev => ({ ...prev, defaultCountryCode: c.code }))}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between group">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {countries.find(c => c.code === formData.defaultCountryCode)?.flag} {countries.find(c => c.code === formData.defaultCountryCode)?.dialCode} ({countries.find(c => c.code === formData.defaultCountryCode)?.name})
+                      </p>
+                    </div>
+                  )}
+                </div>
                 <SettingsField label="Phone" name="phoneNumber" value={formData.phoneNumber} isEditing={editingSection === 'personal'} onChange={handleChange} type="tel" />
                 <SettingsField label="Location" name="address" value={formData.address} isEditing={editingSection === 'personal'} onChange={handleChange} />
               </div>
