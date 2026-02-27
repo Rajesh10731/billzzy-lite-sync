@@ -6,7 +6,7 @@ import { Scanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
 import QRCode from 'react-qr-code';
 import {
   Scan, Trash2, Edit2, Check, X, AlertTriangle,
-  CreditCard, CheckCircle, DollarSign, MessageSquare,
+  CheckCircle, DollarSign, MessageSquare,
   Nfc, ChevronRight
 } from 'lucide-react';
 import SuccessTick from './ui/SuccessTick';
@@ -262,11 +262,18 @@ export default function BillingPage() {
 
     try {
       const dialCode = countries.find(c => c.code === customerCountryCode)?.dialCode || '+91';
-      const cleanDialCode = dialCode.replace('+', '');
+      const cleanDialCode = dialCode.replace(/\+/g, '');
+      const cleanInput = phoneNumber.replace(/\D/g, '');
+
       // If the number already starts with the dial code, don't prepend it
-      const formattedPhone = phoneNumber.startsWith(cleanDialCode) ? phoneNumber : `${cleanDialCode}${phoneNumber}`;
+      // but ensure it doesn't double-prefix (e.g., 9191...) if the number itself starts with those digits
+      // A safer way: if input starts with cleanDialCode, use input. Else dialCode + input.
+      const formattedPhone = cleanInput.startsWith(cleanDialCode) ? cleanInput : `${cleanDialCode}${cleanInput}`;
+
       const orderId = `INV-${Date.now().toString().slice(-6)}`;
-      const itemsList = cart.map((item) => `${item.name} (x${item.quantity})`).join(', ');
+      const itemsListRaw = cart.map((item) => `${item.name} (x${item.quantity})`).join(', ');
+      // Truncate itemsList if too long (WhatsApp limits)
+      const itemsList = itemsListRaw.length > 500 ? itemsListRaw.substring(0, 497) + "..." : itemsListRaw;
 
       let templateName = '';
       let bodyParameters: string[] = [];
@@ -275,13 +282,13 @@ export default function BillingPage() {
         case 'cashPayment': templateName = 'payment_receipt_cashh'; break;
         case 'qrPayment': templateName = 'payment_receipt_upii'; break;
         case 'cardPayment': templateName = 'payment_receipt_card'; break;
-        default: throw new Error(`Invalid message type: ${messageType}`);
+        default: templateName = 'payment_receipt_cashh';
       }
 
       bodyParameters = [
         orderId,
         merchantName,
-        `₹${subtotal.toFixed(2)}`,
+        `₹${totalAmount.toFixed(2)}`,
         itemsList,
         discountAmount > 0 ? `₹${discountAmount.toFixed(2)}` : '₹0.00',
       ];
@@ -320,13 +327,14 @@ export default function BillingPage() {
       });
       return false;
     }
-  }, [cart, subtotal, discountAmount, merchantName]);
+  }, [cart, totalAmount, discountAmount, merchantName, customerCountryCode]);
 
   const sendWhatsAppReceipt = React.useCallback(async (paymentMethod: string) => {
     let templateType = '';
     switch (paymentMethod) {
       case 'cash': templateType = 'cashPayment'; break;
       case 'qr-code': templateType = 'qrPayment'; break;
+      case 'card': templateType = 'cardPayment'; break;
       default: templateType = 'cashPayment';
     }
     return await sendWhatsAppMessage(whatsAppNumber, templateType);
@@ -435,7 +443,7 @@ export default function BillingPage() {
     setAmountGiven('');
     setDiscountInput('');
     setModal({ ...modal, isOpen: false });
-  }, [modal]);
+  }, [modal, checkPhoneNumber]);
 
   const handleProceedToPayment = React.useCallback(async () => {
     if (showWhatsAppSharePanel && cart.length > 0) {
@@ -577,7 +585,7 @@ export default function BillingPage() {
       setIsCreatingLink(false);
       setIsMessaging(false);
     }
-  }, [selectedPayment, totalAmount, cart, whatsAppNumber, sendWhatsAppReceipt, customerName, merchantName, discountAmount]);
+  }, [selectedPayment, totalAmount, cart, whatsAppNumber, sendWhatsAppReceipt, customerName, merchantName, discountAmount, customerCountryCode]);
 
   const toggleScanner = React.useCallback(() => {
     setScanning(prev => { if (!prev) { setScannerError(''); } return !prev; });

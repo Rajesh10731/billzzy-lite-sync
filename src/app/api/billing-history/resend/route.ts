@@ -64,12 +64,19 @@ export async function POST(req: Request) {
 
     // 2. Prepare WhatsApp logic
     let cleanPhone = newPhone.replace(/\D/g, '');
-    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+    // Safety check for India (10 digits)
+    if (cleanPhone.length === 10 && !cleanPhone.startsWith('91')) {
+      cleanPhone = '91' + cleanPhone;
+    }
 
     // Fix: Handle items safely - Replaced 'any' with specific type
     const itemsList = updatedSale.items
       ? updatedSale.items.map((i: { name: string; quantity: number }) => `${i.name} (x${i.quantity})`).join(', ')
       : 'Items';
+
+    // Truncate itemsList if too long (WhatsApp limits apply)
+    const displayItems = itemsList.length > 500 ? itemsList.substring(0, 497) + "..." : itemsList;
 
     let templateName = 'payment_receipt_cashh';
     if (updatedSale.paymentMethod === 'qr-code' || updatedSale.paymentMethod === 'upi') {
@@ -94,7 +101,7 @@ export async function POST(req: Request) {
             { type: "text", text: String(updatedSale.billId || updatedSale._id) },
             { type: "text", text: updatedSale.merchantName || "Merchant" },
             { type: "text", text: `₹${subtotal.toFixed(2)}` },
-            { type: "text", text: itemsList },
+            { type: "text", text: displayItems },
             { type: "text", text: discount > 0 ? `₹${discount.toFixed(2)}` : "₹0.00" }
           ]
         }]
@@ -103,7 +110,7 @@ export async function POST(req: Request) {
 
     // 3. Send WhatsApp
     const wsResponse = await fetch(
-      `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
       {
         method: "POST",
         headers: {

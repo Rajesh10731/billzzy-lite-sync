@@ -32,15 +32,23 @@ export async function POST(request: Request) {
         }
 
         // Validate Phone Number (Basic check)
-        const cleanPhone = phoneNumber.replace(/\D/g, '');
-        if (cleanPhone.length !== 10) {
+        let cleanPhone = phoneNumber.replace(/\D/g, '');
+        if (cleanPhone.length < 10) {
             return NextResponse.json({
                 success: false,
-                message: "Please enter a valid 10-digit phone number."
+                message: "Please enter a valid phone number."
             }, { status: 400 });
         }
 
-        const formattedPhone = '91' + cleanPhone;
+        // WhatsApp Cloud API expects: country code + number, NO '+' 
+        // If it starts with '0', remove it (common in some local formats)
+        if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.substring(1);
+
+        // If it's 10 digits and not starting with 91, assume India and add 91
+        // Better: frontend should provide full number, but this is a safety net.
+        const formattedPhone = (cleanPhone.length === 10 && !cleanPhone.startsWith('91'))
+            ? '91' + cleanPhone
+            : cleanPhone;
 
         const otp = generateOTP();
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -94,7 +102,7 @@ export async function POST(request: Request) {
         };
 
         const response = await fetch(
-            `https://graph.facebook.com/v19.0/${whatsappConfig.phoneNumberId}/messages`,
+            `https://graph.facebook.com/v21.0/${whatsappConfig.phoneNumberId}/messages`,
             {
                 method: 'POST',
                 headers: {

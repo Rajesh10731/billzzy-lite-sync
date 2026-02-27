@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 
-const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0';
+const WHATSAPP_API_URL = 'https://graph.facebook.com/v21.0';
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const ACCESS_TOKEN = process.env.WHATSAPP_BUSINESS_API_TOKEN;
 const BUSINESS_ACCOUNT_ID = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
@@ -42,6 +42,9 @@ export async function POST(request: Request) {
     // Format phone number: just keep digits. 
     // The frontend now provides the full number including dial code.
     const to = messageData.to.replace(/\D/g, '');
+
+    // Ensure it doesn't have a leading '+' or '00' (already handled by \D/g but for clarity)
+    // WhatsApp Cloud API expects the number starting with the country code, no '+'.
 
     // Construct the payload according to WhatsApp Business API format
     const payload = {
