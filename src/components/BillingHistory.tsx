@@ -146,7 +146,7 @@ export default function BillingHistory() {
   };
 
   return (
-    <div className="h-full bg-gray-50 overflow-y-auto pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+    <div className="p-2 pb-10">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
         <div className="px-3 py-2 flex items-center justify-between">

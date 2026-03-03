@@ -49,20 +49,22 @@ export default function AppLayout({
 
 
   return (
-    <div className="flex min-h-[100dvh] bg-gray-50 overflow-hidden">
-      <Sidebar
-        isMobileOpen={isMobileOpen}
-        setIsMobileOpen={setIsMobileOpen}
-      />
-      <div className="flex-1 flex flex-col min-w-0 h-full">
-        <MobileHeader
-          onMenuClick={() => setIsMobileOpen(true)}
-        />
-        <main className="flex-1 overflow-y-auto pt-[calc(3.5rem+env(safe-area-inset-top))] lg:pt-0 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0 z-10 relative">
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-gray-50">
+      <div className="flex-shrink-0">
+        <MobileHeader onMenuClick={() => setIsMobileOpen(true)} />
+      </div>
+
+      <div className="flex-1 flex overflow-hidden lg:flex-row">
+        <Sidebar isMobileOpen={isMobileOpen} setIsMobileOpen={setIsMobileOpen} />
+
+        <main className="flex-1 min-h-0 overflow-y-auto">
           {children}
         </main>
       </div>
-      <BottomNavBar />
+
+      <div className="flex-shrink-0 border-t border-gray-100 shadow-lg">
+        <BottomNavBar />
+      </div>
       <NotificationPrompt />
     </div>
   );

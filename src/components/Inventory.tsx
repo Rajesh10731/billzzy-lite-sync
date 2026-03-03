@@ -699,7 +699,7 @@ const Inventory: FC = () => {
     }
 
     return (
-        <div className="h-full bg-gray-50 overflow-y-auto p-2.5 pb-[calc(5.5rem+env(safe-area-inset-bottom))] font-sans">
+        <div className="p-4 space-y-4 pb-10">
             <div className="max-w-2xl mx-auto space-y-4">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 space-y-3.5">
                     <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">

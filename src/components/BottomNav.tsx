@@ -24,7 +24,7 @@ function NavLink({ href, icon: Icon, label }: { href: string; icon: React.Elemen
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors duration-300 ${isActive ? 'text-white scale-105' : 'text-indigo-200 hover:text-white'
+      className={`flex flex-col items-center justify-center flex-1 py-1 transition-all duration-300 ${isActive ? 'text-[#5a4fcf] scale-105' : 'text-gray-400 hover:text-[#5a4fcf]'
         }`}
     >
       <Icon className="w-6 h-6" />
@@ -38,7 +38,7 @@ export function BottomNavBar() {
   const isBilling = pathname.startsWith('/billing');
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#5a4fcf] border-t-0 z-30 h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] flex items-center justify-between px-3 shadow-[0_-2px_8px_rgba(0,0,0,0.2)] rounded-t-2xl lg:hidden">
+    <nav className="bg-white border-t border-gray-100 z-30 h-[calc(4.5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] flex items-center justify-between px-3 lg:hidden relative">
       {/* Left two items */}
       <div className="flex flex-1 justify-evenly">
         {navItems.slice(0, 2).map((item) => (
@@ -54,7 +54,7 @@ export function BottomNavBar() {
       {/* Center big scanner button */}
       <Link
         href="/billing"
-        className={`relative bg-white text-[#5a4fcf] rounded-full p-4 shadow-xl transform transition-all duration-300 -translate-y-2 ${isBilling ? 'scale-110' : 'hover:scale-105'
+        className={`relative bg-[#5a4fcf] text-white rounded-2xl p-4 shadow-lg shadow-indigo-200 transform transition-all duration-300 -translate-y-6 ${isBilling ? 'scale-110 ring-4 ring-white' : 'hover:scale-105'
           }`}
       >
         <ScanLine className="w-8 h-8" />
