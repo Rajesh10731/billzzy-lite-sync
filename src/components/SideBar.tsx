@@ -158,7 +158,7 @@ export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
   }, []);
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b bg-white px-4 shadow-sm lg:hidden">
+    <header className="fixed left-0 right-0 top-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] items-center justify-between border-b bg-white px-4 shadow-sm lg:hidden">
       <div className="flex items-center gap-3">
         <Image src="/assets/lite-logo.png" alt="BillzzyLite Logo" width={110} height={28} priority />
       </div>

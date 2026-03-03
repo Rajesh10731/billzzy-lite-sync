@@ -38,7 +38,7 @@ export function BottomNavBar() {
   const isBilling = pathname.startsWith('/billing');
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#5a4fcf] border-t-0 z-30 h-20 flex items-center justify-between px-3 shadow-[0_-2px_8px_rgba(0,0,0,0.2)] rounded-t-2xl lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#5a4fcf] border-t-0 z-30 h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] flex items-center justify-between px-3 shadow-[0_-2px_8px_rgba(0,0,0,0.2)] rounded-t-2xl lg:hidden">
       {/* Left two items */}
       <div className="flex flex-1 justify-evenly">
         {navItems.slice(0, 2).map((item) => (

@@ -675,7 +675,7 @@ export default function StockStyleSalesChart() {
               <div className="flex flex-col items-end gap-1">
                 <div className="flex items-center gap-1 bg-gray-50 p-1 rounded border border-gray-200">
                   <span className="text-xs font-bold text-gray-500">₹</span>
-                  <input type="number" value={tempTarget} onChange={(e) => setTempTarget(e.target.value)} className="w-20 text-sm font-bold bg-transparent outline-none text-indigo-600" autoFocus placeholder="Daily..." />
+                  <input type="number" value={tempTarget} onChange={(e) => setTempTarget(e.target.value)} className="w-20 text-base font-bold bg-transparent outline-none text-indigo-600" autoFocus placeholder="Daily..." />
                   <button onClick={handleSaveTarget} className="p-1 hover:bg-green-100 rounded text-green-600"><Check size={14} /></button>
                   <button onClick={() => setIsEditing(false)} className="p-1 hover:bg-red-100 rounded text-red-600"><X size={14} /></button>
                 </div>

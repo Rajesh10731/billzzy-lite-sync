@@ -653,7 +653,7 @@ export default function BillingPage() {
             <div className="bg-white rounded-xl p-3 shadow-md border border-gray-200">
               <div className="flex gap-2">
                 <div ref={suggestionsRef} className="relative flex-1">
-                  <input type="text" placeholder={settingsComplete ? "Search or add item..." : "Settings required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 text-sm focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={!settingsComplete} />
+                  <input type="text" placeholder={settingsComplete ? "Search or add item..." : "Settings required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 text-base focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={!settingsComplete} />
                   {showSuggestions && settingsComplete && (
                     <div className="absolute z-10 mt-2 w-full rounded-xl border-2 border-[#5a4fcf] bg-white shadow-xl max-h-48 overflow-y-auto">{suggestions.map((s) => (<div key={s.id} onClick={() => addToCart(s.name, s.sellingPrice, s.gstRate, s.id, s.profitPerUnit)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0"><div className="flex justify-between items-center"><span className="font-semibold text-gray-800 text-sm">{s.name}</span><span className="text-[#5a4fcf] font-bold text-sm">{formatCurrency(s.sellingPrice)}</span></div>{s.sku && <p className="text-xs text-gray-500 mt-0.5">SKU: {s.sku}</p>}</div>))}</div>
                   )}
@@ -677,7 +677,7 @@ export default function BillingPage() {
                           type="text"
                           value={item.name}
                           onChange={(e) => updateCartItem(item.id, { name: e.target.value })}
-                          className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white"
+                          className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-base focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white"
                           placeholder="Item Name"
                           disabled={!settingsComplete}
                         />
@@ -689,7 +689,7 @@ export default function BillingPage() {
                               type="number"
                               value={item.quantity}
                               onChange={(e) => updateCartItem(item.id, { quantity: e.target.value === '' ? '' : parseInt(e.target.value, 10) })}
-                              className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white font-medium text-center"
+                              className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-base focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white font-medium text-center"
                               placeholder="Qty"
                               disabled={!settingsComplete}
                             />
@@ -702,7 +702,7 @@ export default function BillingPage() {
                               type="number"
                               value={item.price}
                               onChange={(e) => updateCartItem(item.id, { price: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                              className="w-full pl-5 pr-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white font-medium"
+                              className="w-full pl-5 pr-2 py-1.5 rounded-md border border-gray-300 text-base focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white font-medium"
                               placeholder="Price"
                               disabled={!settingsComplete}
                             />
@@ -771,7 +771,7 @@ export default function BillingPage() {
                 placeholder="Enter Discount"
                 value={discountInput}
                 onChange={(e) => setDiscountInput(e.target.value)}
-                className="flex-1 bg-transparent px-3 py-2 text-xs font-medium outline-none placeholder:text-gray-400 text-gray-700"
+                className="flex-1 bg-transparent px-3 py-2 text-base font-medium outline-none placeholder:text-gray-400 text-gray-700"
                 disabled={cart.length === 0 || !settingsComplete}
               />
               <button
