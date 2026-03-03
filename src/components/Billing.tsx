@@ -631,8 +631,8 @@ export default function BillingPage() {
           </div>
         )}
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-3">
-          <div className="p-2 space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 pt-1 pb-3">
+          <div className="space-y-2">
 
             {hasOpenedScanner && settingsComplete && (
               <div className={`bg-white rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
