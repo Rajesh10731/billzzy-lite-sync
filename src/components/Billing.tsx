@@ -91,7 +91,7 @@ export default function BillingPage() {
   const { data: session, status } = useSession();
   const [cart, setCart] = React.useState<CartItem[]>([]);
   const [productName, setProductName] = React.useState('');
-  const [scanning, setScanning] = React.useState(true);
+  const [scanning, setScanning] = React.useState(false);
   const [inventory, setInventory] = React.useState<InventoryProduct[]>([]);
   const [suggestions, setSuggestions] = React.useState<InventoryProduct[]>([]);
   const [showSuggestions, setShowSuggestions] = React.useState(false);
