@@ -6,7 +6,9 @@ import { Scanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
 import QRCode from 'react-qr-code';
 import {
   Scan, Trash2, Edit2, Check, X, AlertTriangle,
-  CheckCircle, DollarSign, MessageSquare,
+  CheckCircle,
+  ChevronRight,
+  DollarSign, MessageSquare,
   Nfc
 } from 'lucide-react';
 import SuccessTick from './ui/SuccessTick';
@@ -762,12 +764,12 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="flex-shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-gray-100/50 p-3">
-          <div className="max-w-2xl mx-auto space-y-3">
-            <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : 'hover:border-[#5a4fcf]'}`}>
+        <div className="flex-shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-gray-100/50 p-2 space-y-2">
+          <div className="max-w-2xl mx-auto space-y-2">
+            <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : 'hover:border-[#1D4ED8]'}`}>
               <input
                 type="number"
-                placeholder="Discount"
+                placeholder="Enter Discount"
                 value={discountInput}
                 onChange={(e) => setDiscountInput(e.target.value)}
                 className="flex-1 bg-transparent px-3 py-2 text-base font-medium outline-none placeholder:text-gray-400 text-gray-700"
@@ -775,37 +777,55 @@ export default function BillingPage() {
               />
               <button
                 onClick={() => setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')}
-                className="bg-[#5a4fcf] px-4 text-xs font-bold text-white transition-all hover:bg-[#4c42b8]"
+                className="bg-[#5a4fcf] px-4 text-[9px] font-black uppercase tracking-widest text-white transition-all hover:bg-[#4c42b8] active:bg-[#3d34a4] disabled:bg-gray-400"
                 disabled={cart.length === 0 || !settingsComplete}
               >
                 {discountType === 'percentage' ? '%' : '₹'}
               </button>
             </div>
 
-            <div className="flex justify-between items-center px-1">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Due</span>
-                <span className="text-xl font-black text-[#5a4fcf] leading-none">
+            {/* --- SUMMARY TABLE --- */}
+            <div className="space-y-1 px-1">
+              <div className="flex justify-between items-center text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                <span>Subtotal</span>
+                <span className="text-gray-600 font-black">{formatCurrency(subtotal)}</span>
+              </div>
+
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-[9px] font-bold text-emerald-600 animate-in slide-in-from-top-1 duration-200">
+                  <span className="uppercase tracking-widest">Discount ({discountType === 'percentage' ? `${discountInput}%` : 'Fixed'})</span>
+                  <span className="font-black">-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
+
+              <div className="h-[1px] w-full bg-gray-50 my-0.5" />
+
+              <div className="flex justify-between items-end">
+                <span className="text-xs font-black text-gray-900 tracking-tight uppercase">Total Due</span>
+                <span className="text-base font-black text-[#5a4fcf] tracking-tighter leading-none">
                   {formatCurrency(totalAmount)}
                 </span>
               </div>
-
-              {!showWhatsAppSharePanel && !showPaymentOptions && (
-                <button
-                  onClick={() => {
-                    if (cart.length === 0) {
-                      setModal({ isOpen: true, title: 'Cart Empty', message: 'Please add items to the cart before finalizing.', confirmText: 'OK', showCancel: false });
-                      return;
-                    }
-                    setShowWhatsAppSharePanel(true);
-                  }}
-                  className="bg-[#5a4fcf] text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all"
-                  disabled={cart.length === 0 || !settingsComplete}
-                >
-                  Pay Now
-                </button>
-              )}
             </div>
+
+            {/* --- ACTION BUTTONS --- */}
+            {!showWhatsAppSharePanel && !showPaymentOptions && (
+              <button
+                onClick={() => {
+                  if (cart.length === 0) {
+                    setModal({ isOpen: true, title: 'Cart Empty', message: 'Please add items to the cart before finalizing.', confirmText: 'OK', showCancel: false });
+                    return;
+                  }
+                  setShowWhatsAppSharePanel(true);
+                  setShowPaymentOptions(false);
+                }}
+                className="w-full group relative flex items-center justify-center gap-2 rounded-lg bg-[#5a4fcf] py-2 text-[13px] font-bold text-white shadow-md shadow-indigo-100 transition-all hover:bg-[#4c42b8] active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
+                disabled={cart.length === 0 || !settingsComplete}
+              >
+                <span>Proceed to Payment</span>
+                <ChevronRight size={14} className="transition-transform group-hover:translate-x-1" />
+              </button>
+            )}
           </div>
         </div>
 
