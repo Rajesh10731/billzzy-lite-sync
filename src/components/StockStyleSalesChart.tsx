@@ -700,7 +700,7 @@ export default function StockStyleSalesChart() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={processedData}
-              margin={{ top: 30, right: 40, left: 10, bottom: 0 }}
+              margin={{ top: 30, right: 10, left: 10, bottom: 0 }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onMouseMove={(e: any) => {
                 if (e && e.activePayload) setDisplayValue(e.activePayload[0].value);

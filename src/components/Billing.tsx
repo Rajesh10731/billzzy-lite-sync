@@ -115,6 +115,7 @@ export default function BillingPage() {
   // Loading states
   const [isMessaging, setIsMessaging] = React.useState(false); // For WhatsApp/DB Save
   const [isCreatingLink, setIsCreatingLink] = React.useState(false); // For NFC
+  const [hasOpenedScanner, setHasOpenedScanner] = React.useState(false);
 
   const [scannerError, setScannerError] = React.useState<string>('');
   const [modal, setModal] = React.useState<{ isOpen: boolean; title: string; message: string | React.ReactNode; onConfirm?: (() => void); confirmText: string; showCancel: boolean; }>({ isOpen: false, title: '', message: '', confirmText: 'OK', showCancel: false });
@@ -588,7 +589,13 @@ export default function BillingPage() {
   }, [selectedPayment, totalAmount, cart, whatsAppNumber, sendWhatsAppReceipt, customerName, merchantName, discountAmount, customerCountryCode]);
 
   const toggleScanner = React.useCallback(() => {
-    setScanning(prev => { if (!prev) { setScannerError(''); } return !prev; });
+    setScanning(prev => {
+      if (!prev) {
+        setScannerError('');
+        setHasOpenedScanner(true);
+      }
+      return !prev;
+    });
   }, []);
 
   const onSuccessAnimationComplete = React.useCallback(() => {
@@ -625,11 +632,21 @@ export default function BillingPage() {
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-2 space-y-2">
 
-            {scanning && settingsComplete && (
-              <div className="bg-white rounded-xl p-3 shadow-md border border-indigo-100">
-                <div className="max-w-sm mx-auto"><Scanner onScan={handleScan} onError={handleScanError} scanDelay={300} styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }} /></div>
+            {hasOpenedScanner && settingsComplete && (
+              <div className={`bg-white rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
+                <div className="max-w-sm mx-auto">
+                  <Scanner
+                    onScan={handleScan}
+                    onError={handleScanError}
+                    scanDelay={300}
+                    paused={!scanning}
+                    styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }}
+                  />
+                </div>
                 {scannerError && <p className="text-center text-xs text-red-500 mt-2">{scannerError}</p>}
-                <button onClick={toggleScanner} className="w-full mt-3 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-semibold hover:bg-red-100"><X size={16} /> Close Scanner</button>
+                <button onClick={toggleScanner} className="w-full mt-3 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-semibold hover:bg-red-100">
+                  <X size={16} /> Close Scanner
+                </button>
               </div>
             )}
 
