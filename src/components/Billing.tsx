@@ -629,7 +629,7 @@ export default function BillingPage() {
           </div>
         )}
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto p-2.5 font-sans">
           <div className="p-2 space-y-2">
 
             {hasOpenedScanner && settingsComplete && (
@@ -762,8 +762,8 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="flex-shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-gray-100/50">
-          <div className="p-2 space-y-2 max-h-[50vh] overflow-y-auto">
+        <div className="flex-shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-gray-100/50 pb-[calc(5rem+env(safe-area-inset-bottom))]">
+          <div className="p-2 space-y-2 max-h-[40vh] overflow-y-auto">
 
             <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : 'hover:border-[#1D4ED8]'}`}>
               <input

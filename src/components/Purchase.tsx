@@ -300,7 +300,7 @@ export default function Purchase() {
   }, [purchases, activeFilter, dateRange]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 overflow-x-hidden w-full">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 overflow-x-hidden w-full pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       <div className="max-w-5xl mx-auto w-full">
 
         {/* Compact Header */}
