@@ -11,8 +11,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <title>Billzzy Lite</title>
         <meta name="description" content="A lightweight billing PWA" />
 
-        {/* Viewport that allows user zooming for better accessibility and edge-to-edge on iOS */}
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        {/* Viewport that disables user scaling to prevent layout breaks on iOS while maintaining edge-to-edge support */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
         {/* --- PWA and Apple Tags --- */}
         <link rel="manifest" href="/manifest.json" />
