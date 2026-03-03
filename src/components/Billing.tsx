@@ -853,7 +853,7 @@ export default function BillingPage() {
               <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <p className="text-[10px] font-black text-gray-400 text-center uppercase tracking-widest">Select Payment Method</p>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {[{ method: 'cash', label: 'Cash' }, { method: 'qr-code', label: 'QR/UPI' }].map(({ method, label }) => (
+                  {[{ method: 'cash', label: 'Cash' }, { method: 'qr-code', label: 'QR' }].map(({ method, label }) => (
                     <button
                       key={method}
                       onClick={() => setSelectedPayment(method)}

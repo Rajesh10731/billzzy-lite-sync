@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   Filter, X, IndianRupee,
-  Smartphone, Pencil, Send, Loader2, Tag
+  Smartphone, Pencil, Send, Loader2, Tag,
+  Clock, Calendar as CalendarIcon, Package
 } from 'lucide-react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -284,34 +285,68 @@ export default function BillingHistory() {
           </div>
         </div>
 
-        {/* Quick Filter Boxes */}
-        <div className="px-3 pb-2 pt-2">
-          <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
-            <LayoutGroup>
-              {['today', 'weekly', 'monthly'].map((id) => (
+        {/* Premium Redesigned Time Filter Boxes */}
+        <div className="px-3 pb-3 pt-2">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              {
+                id: 'today', label: 'Today', icon: Clock, color: 'indigo',
+                active: 'bg-indigo-50 border-indigo-500 text-indigo-700',
+                iconBg: 'bg-indigo-500 text-white',
+                indicator: 'bg-indigo-500'
+              },
+              {
+                id: 'weekly', label: 'Weekly', icon: CalendarIcon, color: 'purple',
+                active: 'bg-purple-50 border-purple-500 text-purple-700',
+                iconBg: 'bg-purple-500 text-white',
+                indicator: 'bg-purple-500'
+              },
+              {
+                id: 'monthly', label: 'Monthly', icon: Package, color: 'blue',
+                active: 'bg-blue-50 border-blue-500 text-blue-700',
+                iconBg: 'bg-blue-500 text-white',
+                indicator: 'bg-blue-500'
+              }
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              const Icon = tab.icon;
+
+              return (
                 <button
-                  key={id}
-                  onClick={() => handleQuickFilter(id as TimeFilter)}
-                  className={`relative flex-1 py-2 text-center transition-colors z-10 rounded-md ${activeTab === id ? 'text-white' : 'text-gray-500 hover:text-gray-900'
+                  key={tab.id}
+                  onClick={() => handleQuickFilter(tab.id as TimeFilter)}
+                  className={`relative group flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 active:scale-95 shadow-sm h-24 ${isActive
+                    ? `${tab.active} border-opacity-100`
+                    : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                     }`}
                 >
-                  {activeTab === id && (
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 transition-colors ${isActive ? tab.iconBg : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
+                    }`}>
+                    <Icon size={16} />
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-tight ${isActive ? '' : 'text-gray-400'
+                    }`}>
+                    {tab.label}
+                  </span>
+
+                  {isActive && (
                     <motion.div
-                      layoutId="activeTab-history"
-                      className="absolute inset-0 bg-[#5a4fcf] rounded-md -z-10 shadow-sm"
-                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                      layoutId="active-indicator"
+                      className={`absolute -bottom-1 w-1.5 h-1.5 rounded-full ${tab.indicator}`}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     />
                   )}
-                  <p className="text-[10px] font-black uppercase tracking-tighter">{id}</p>
                 </button>
-              ))}
-            </LayoutGroup>
+              );
+            })}
           </div>
         </div>
 
-        <div className="px-3 py-1 bg-indigo-50/30 flex justify-between items-center text-[10px] font-bold">
-          <span className="text-gray-400 uppercase">{bills.length} BILLS</span>
-          <span className="text-indigo-700">TOTAL: ₹{bills.reduce((a, b) => a + b.amount, 0).toLocaleString()}</span>
+        <div className="px-3 py-1.5 bg-gray-50/80 flex justify-between items-center text-[10px] font-bold border-y border-gray-100/50">
+          <span className="text-gray-400 uppercase tracking-widest">{bills.length} BILLS</span>
+          <span className="text-[#5a4fcf] bg-[#5a4fcf]/10 px-2 py-0.5 rounded-full">
+            TOTAL: ₹{bills.reduce((a, b) => a + b.amount, 0).toLocaleString()}
+          </span>
         </div>
       </div>
 
