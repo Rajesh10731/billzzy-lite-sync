@@ -3,6 +3,8 @@
 import './globals.css';
 import { ReactNode } from 'react';
 import NextAuthSessionProvider from '@/components/SessionProvider';
+import ViewportFix from '@/components/ViewportFix';
+
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -11,8 +13,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <title>Billzzy Lite</title>
         <meta name="description" content="A lightweight billing PWA" />
 
-        {/* Viewport that disables user scaling to prevent layout breaks on iOS while maintaining edge-to-edge support */}
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        {/* Viewport that handles safe areas and attempts to keep layout stable */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
 
         {/* --- PWA and Apple Tags --- */}
         <link rel="manifest" href="/manifest.json" />
@@ -28,7 +30,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
 
       <body className='bg-gray-50'>
+        <ViewportFix />
         <NextAuthSessionProvider>
+
           {children}
         </NextAuthSessionProvider>
       </body>

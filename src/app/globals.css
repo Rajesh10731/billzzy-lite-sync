@@ -19,6 +19,21 @@ body {
   -webkit-text-size-adjust: 100%;
   /* Disable double-tap to zoom while keeping clicks fast */
   touch-action: manipulation;
+  /* Keep layout stable during virtual keyboard appearances */
+  overscroll-behavior-y: none;
+}
+
+/* 
+   FIX: iOS PWA Viewport Scaling Issue (Pinch Zoom Layout Break)
+   iOS automatically zooms if font-size < 16px on focus.
+*/
+@media screen and (max-width: 768px) {
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 :root {
