@@ -170,7 +170,7 @@ export default function VerifyPhonePage() {
 
                             <button
                                 type="submit"
-                                disabled={isLoading || phoneNumber.length !== 10}
+                                disabled={isLoading || phoneNumber.length < 7 || phoneNumber.length > 15}
                                 className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                                 {isLoading ? 'Sending...' : 'Send OTP'}
