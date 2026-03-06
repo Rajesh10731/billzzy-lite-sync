@@ -43,7 +43,7 @@ export default function CountryCodeSelector({
                 type="button"
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
-                className={`flex items-center justify-between gap-1 w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm transition-all focus:border-[#5a4fcf] ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-gray-400'}`}
+                className={`flex items-center justify-between gap-1 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm transition-all focus:border-[#5a4fcf] ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-gray-400'}`}
             >
                 <div className="flex items-center gap-1.5">
                     <span className="text-base leading-none">{selectedCountry.flag}</span>

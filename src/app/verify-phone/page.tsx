@@ -5,6 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import CountryCodeSelector from '@/components/ui/CountryCodeSelector';
+import { countries } from '@/lib/countries';
+
 
 // Reuse the image from login for consistency
 const HEADER_IMAGE_URL = '/assets/big-image-login.png';
@@ -17,6 +20,7 @@ export default function VerifyPhonePage() {
     const [step, setStep] = useState<'PHONE_INPUT' | 'OTP_INPUT'>('PHONE_INPUT');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otp, setOtp] = useState('');
+    const [selectedCountryCode, setSelectedCountryCode] = useState('IN');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -33,10 +37,13 @@ export default function VerifyPhonePage() {
         setError('');
 
         try {
+            const dialCode = countries.find(c => c.code === selectedCountryCode)?.dialCode || '+91';
+            const fullPhoneNumber = dialCode.replace('+', '') + phoneNumber;
+
             const res = await fetch('/api/auth/otp/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phoneNumber }),
+                body: JSON.stringify({ phoneNumber: fullPhoneNumber }),
             });
 
             const data = await res.json();
@@ -59,17 +66,22 @@ export default function VerifyPhonePage() {
         setError('');
 
         try {
+            const dialCode = countries.find(c => c.code === selectedCountryCode)?.dialCode || '+91';
+            const fullPhoneNumber = dialCode.replace('+', '') + phoneNumber;
+
             const res = await fetch('/api/auth/otp/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phoneNumber, otp }),
+                body: JSON.stringify({ phoneNumber: fullPhoneNumber, otp }),
             });
 
             const data = await res.json();
 
             if (data.success) {
                 // Update session to include phone number so middleware lets us pass
-                await update({ phoneNumber: phoneNumber });
+                const dialCode = countries.find(c => c.code === selectedCountryCode)?.dialCode || '+91';
+                const fullPhoneNumber = dialCode.replace('+', '') + phoneNumber;
+                await update({ phoneNumber: fullPhoneNumber });
                 router.push('/dashboard');
                 router.refresh(); // Refresh middleware state
             } else {
@@ -118,7 +130,7 @@ export default function VerifyPhonePage() {
                         <p className="text-gray-600 text-sm mt-2">
                             {step === 'PHONE_INPUT'
                                 ? 'We need to verify your phone number to secure your account. We will send an OTP via WhatsApp.'
-                                : `We've sent a 6-digit code to +91 ${phoneNumber}. Please enter it below.`}
+                                : `We've sent a 6-digit code to ${countries.find(c => c.code === selectedCountryCode)?.dialCode} ${phoneNumber}. Please enter it below.`}
                         </p>
                     </div>
 
@@ -134,18 +146,24 @@ export default function VerifyPhonePage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Phone Number
                                 </label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-3 text-gray-500 font-medium">+91</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-28 shrink-0">
+                                        <CountryCodeSelector
+                                            selectedCountryCode={selectedCountryCode}
+                                            onSelect={(c) => setSelectedCountryCode(c.code)}
+                                            disabled={isLoading}
+                                        />
+                                    </div>
                                     <input
                                         type="tel"
                                         required
                                         value={phoneNumber}
                                         onChange={(e) => {
                                             const val = e.target.value.replace(/\D/g, '');
-                                            if (val.length <= 10) setPhoneNumber(val);
+                                            if (val.length <= 15) setPhoneNumber(val);
                                         }}
-                                        className="w-full pl-12 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                                        placeholder="98765 43210"
+                                        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                        placeholder="Enter number"
                                     />
                                 </div>
                             </div>
