@@ -105,6 +105,8 @@ export default function BillingPage() {
 
   // This state holds 'cash' or 'qr-code' depending on which tab is open
   const [selectedPayment, setSelectedPayment] = React.useState<string>('');
+  const [isCashModalOpen, setIsCashModalOpen] = React.useState(false);
+  const [isQRModalOpen, setIsQRModalOpen] = React.useState(false);
 
   // Data states
   const [merchantUpi, setMerchantUpi] = React.useState('');
@@ -876,64 +878,177 @@ export default function BillingPage() {
               {[{ method: 'cash', label: 'Cash' }, { method: 'qr-code', label: 'QR' }].map(({ method, label }) => (
                 <button
                   key={method}
-                  onClick={() => setSelectedPayment(method)}
-                  className={`rounded-lg py-2 text-xs font-bold capitalize transition-all border ${selectedPayment === method ? 'bg-[#5a4fcf] text-white border-transparent shadow-md shadow-indigo-100 -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
+                  onClick={() => {
+                    setSelectedPayment(method);
+                    if (method === 'cash') setIsCashModalOpen(true);
+                    if (method === 'qr-code') setIsQRModalOpen(true);
+                  }}
+                  className={`rounded-lg py-3 text-sm font-bold capitalize transition-all border flex items-center justify-center gap-2 ${selectedPayment === method ? 'bg-[#5a4fcf] text-white border-transparent shadow-lg shadow-indigo-100 -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50 hover:shadow-md'}`}
                 >
+                  {method === 'cash' ? <DollarSign size={16} /> : <Scan size={16} />}
                   {label}
                 </button>
               ))}
             </div>
-
-            {selectedPayment === 'cash' && (
-              <div className="rounded-2xl bg-emerald-50 p-3 border border-emerald-100 animate-in zoom-in-95 duration-200">
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider ml-1">Received</label>
-                    <input type="number" placeholder="0.00" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full rounded-xl border border-emerald-200 p-2.5 text-sm font-bold focus:ring-1 focus:ring-emerald-500 outline-none bg-white shadow-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider ml-1">Balance</label>
-                    <div className="w-full rounded-xl bg-white border border-emerald-200 p-2.5 flex items-center justify-center shadow-sm">
-                      <span className={`font-black text-sm ${balance < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{formatCurrency(balance)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => handlePaymentSuccess(true)} disabled={isCreatingLink || isMessaging} className="flex-1 rounded-lg bg-indigo-600 py-2.5 font-bold text-white hover:bg-indigo-700 flex items-center justify-center shadow-md active:scale-95">
-                    {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>) : (<Nfc size={18} />)}
-                  </button>
-                  <button onClick={() => handlePaymentSuccess(false)} disabled={isMessaging || isCreatingLink} className="flex-[3] flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2.5 font-bold text-white hover:bg-emerald-700 transition-all shadow-md active:scale-[0.98]">
-                    {isMessaging ? (<div className="flex items-center gap-1.5 text-xs"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div><span>Saving...</span></div>) : (<><DollarSign size={16} /><span className="text-sm">Confirm Cash</span></>)}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {selectedPayment === 'qr-code' && (
-              <div className="rounded-2xl bg-blue-50 p-4 border border-blue-100 animate-in zoom-in-95 duration-200">
-                {upiQR ? (
-                  <div className="flex flex-col items-center">
-                    <div className="bg-white p-3 rounded-2xl shadow-xl border border-blue-100 mb-4 transition-transform hover:scale-105">
-                      <QRCode value={upiQR} size={140} style={{ height: 'auto', width: '100%' }} />
-                    </div>
-                    <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-4">Pay to: {merchantUpi}</p>
-                    <div className="flex w-full gap-2">
-                      <button onClick={() => handlePaymentSuccess(true)} disabled={isCreatingLink || isMessaging} className="flex-1 rounded-lg bg-indigo-600 py-2.5 font-bold text-white hover:bg-indigo-700 flex items-center justify-center shadow-md active:scale-95">
-                        {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>) : (<Nfc size={18} />)}
-                      </button>
-                      <button onClick={() => handlePaymentSuccess(false)} disabled={isMessaging || isCreatingLink} className="flex-[3] flex items-center justify-center gap-1.5 rounded-lg bg-[#5a4fcf] py-2.5 font-bold text-white hover:bg-[#4c42b8] transition-all shadow-md active:scale-[0.98]">
-                        {isMessaging ? (<div className="flex items-center gap-1.5 text-xs"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div><span>Saving...</span></div>) : (<><CheckCircle size={16} /><span className="text-sm">Payment Received</span></>)}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-center text-xs font-bold text-red-500 py-4 italic">UPI ID not configured in settings.</p>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
+
+      {/* --- CASH PAYMENT MODAL --- */}
+      {isCashModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="w-[95%] max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-1 bg-[#5a4fcf]"></div>
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 leading-tight">Cash Payment</h3>
+                  <p className="text-sm text-gray-400 font-medium">Accept cash from customer</p>
+                </div>
+                <button onClick={() => setIsCashModalOpen(false)} className="p-2 -mr-1 rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Amount</span>
+                  <span className="text-2xl font-black text-[#5a4fcf]">{formatCurrency(totalAmount)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cash Received</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      value={amountGiven}
+                      onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                      className="w-full rounded-xl border-2 border-gray-100 p-3 pl-7 text-lg font-black focus:border-[#5a4fcf] focus:ring-0 outline-none bg-white transition-all shadow-sm"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Change to Return</label>
+                  <div className={`w-full rounded-xl p-3 flex items-center justify-center border-2 ${balance < 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                    <span className={`font-black text-lg ${balance < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{formatCurrency(balance)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handlePaymentSuccess(true)}
+                  disabled={isCreatingLink || isMessaging}
+                  className="flex-1 rounded-2xl bg-indigo-50 text-indigo-600 py-3 font-black flex items-center justify-center shadow-sm hover:bg-indigo-100 active:scale-95 transition-all gap-2"
+                >
+                  {isCreatingLink ? (<div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent"></div>) : (<><Nfc size={18} /> <span className="text-[10px] uppercase tracking-widest">NFC</span></>)}
+                </button>
+                <button
+                  onClick={() => {
+                    handlePaymentSuccess(false);
+                    setIsCashModalOpen(false);
+                  }}
+                  disabled={isMessaging || isCreatingLink || (amountGiven !== '' && amountGiven < totalAmount)}
+                  className="flex-[3] flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 font-black text-white hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95 disabled:bg-gray-200 disabled:shadow-none"
+                >
+                  {isMessaging ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span className="text-[10px] uppercase tracking-widest">Saving...</span>
+                    </div>
+                  ) : (
+                    <><Check size={18} /><span className="text-[10px] uppercase tracking-widest">Confirm Cash Payment</span></>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- QR PAYMENT MODAL --- */}
+      {isQRModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="w-[95%] max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-1 bg-[#5a4fcf]"></div>
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 leading-tight">Scan to Pay</h3>
+                  <p className="text-sm text-gray-400 font-medium">Customer scans QR code</p>
+                </div>
+                <button onClick={() => setIsQRModalOpen(false)} className="p-2 -mr-1 rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {upiQR ? (
+                <div className="flex flex-col items-center">
+                  <div className="w-full bg-gray-50/80 rounded-3xl p-6 mb-6 flex flex-col items-center border border-gray-100/50">
+                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 mb-4 transition-transform hover:scale-[1.02] duration-300">
+                      <QRCode value={upiQR} size={180} style={{ height: 'auto', width: '100%' }} />
+                    </div>
+
+                    <div className="text-center w-full">
+                      <p className="text-[#5a4fcf] font-black text-xs tracking-[0.15em]">{merchantUpi}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-center mb-8">
+                    <p className="text-2xl font-black text-gray-900 tracking-tighter">{formatCurrency(totalAmount)}</p>
+                  </div>
+
+                  <div className="flex w-full gap-3">
+                    <button
+                      onClick={() => handlePaymentSuccess(true)}
+                      disabled={isCreatingLink || isMessaging}
+                      className="flex-1 rounded-2xl bg-indigo-50 text-indigo-600 py-3 font-black flex items-center justify-center shadow-sm hover:bg-indigo-100 active:scale-95 transition-all gap-2"
+                    >
+                      {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent"></div>) : (<><Nfc size={18} /> <span className="text-[10px] uppercase tracking-widest">NFC</span></>)}
+                    </button>
+                    <button
+                      onClick={() => {
+                        handlePaymentSuccess(false);
+                        setIsQRModalOpen(false);
+                      }}
+                      disabled={isMessaging || isCreatingLink}
+                      className="flex-[3] flex items-center justify-center gap-2 rounded-2xl bg-[#5a4fcf] py-3 font-black text-white hover:bg-[#4c42b8] transition-all shadow-lg shadow-indigo-100 active:scale-95 group"
+                    >
+                      {isMessaging ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          <span className="text-[10px] uppercase tracking-widest text-white">Saving...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <CheckCircle size={18} className="text-white group-hover:scale-110 transition-transform" />
+                          <span className="text-[10px] uppercase tracking-widest">Collect Payment</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <div className="h-16 w-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle className="h-8 w-8 text-red-500" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-600 px-8">UPI ID not configured in settings. Please update your profile to accept QR payments.</p>
+                  <button onClick={() => window.location.assign('/settings')} className="mt-6 text-[#5a4fcf] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:gap-3 transition-all">
+                    Go to Settings <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Modal
         isOpen={modal.isOpen}
         onClose={() => setModal({ ...modal, isOpen: false, message: '' })}
