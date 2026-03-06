@@ -28,47 +28,47 @@ export async function middleware(req: NextRequest) {
   // Define route categories
   const adminRoutes = ['/admin/dashboard'];
 
-  // 4. Redirect logged-in users away from the Landing Page
-  if (isLoggedIn && pathname === '/') {
-    if (isAdmin) {
-      return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+  // 4. Redirect logged-in users away from the Landing Page OR force verification
+  if (isLoggedIn) {
+    // If logged in but NOT verified and NOT admin, force verification
+    // This MUST check for null, undefined, and empty string
+    const hasPhone = token?.phoneNumber && token.phoneNumber.trim().length > 0;
+
+    if (!isAdmin && !hasPhone && pathname !== '/verify-phone') {
+      console.log(`[Middleware] Redirecting unverified user to /verify-phone. Path: ${pathname}`);
+      return NextResponse.redirect(new URL('/verify-phone', req.url));
     }
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+
+    // Redirect verified users away from landing/login pages
+    if (pathname === '/' || pathname === '/login') {
+      if (isAdmin) {
+        return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+      }
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
   }
 
-  // Define specific public paths that do NOT require Auth/Verification
-  const publicPaths = ['/', '/admin', '/logo.png', '/favicon.ico', '/login'];
+  // Define specific public paths that do NOT require Auth
+  const publicPaths = ['/', '/admin', '/logo.png', '/favicon.ico', '/login', '/assets'];
 
   // Helper to check if path is public
   const isPublic = (path: string) => {
-    return publicPaths.some(p => path === p || path.startsWith('/admin')); // Admin handled separately
+    return publicPaths.some(p => path === p || path.startsWith('/assets') || (path.startsWith('/admin') && !path.startsWith('/admin/dashboard')));
   };
 
   // 5. Protect Admin Routes (Explicit check)
-  if (pathname.startsWith('/admin')) {
-    if (adminRoutes.some(route => pathname.startsWith(route))) {
-      if (!isAdmin) return NextResponse.redirect(new URL('/dashboard', req.url));
-    }
-    // Allow other admin public pages (like /admin login) if any, or default allow
+  if (pathname.startsWith('/admin/dashboard')) {
+    if (!isAdmin) return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  // 6. Protect ALL other routes (App Routes) - "Deny by Default"
-  // If it's not public, not API, not Receipt, not Verification -> IT IS PROTECTED.
+  // 6. Protect ALL other routes - "Deny by Default"
   if (!isPublic(pathname) && pathname !== '/verify-phone') {
-
     // A. Must be logged in
     if (!isLoggedIn) {
-      const loginUrl = new URL('/', req.url);
+      const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('callbackUrl', pathname);
       console.log(`[Middleware] Redirecting unauth user to Login. Path: ${pathname}`);
       return NextResponse.redirect(loginUrl);
-    }
-
-    // B. Must be Verified (if not admin)
-    // We check token.phoneNumber to ensure they completed the flow
-    if (!isAdmin && !token?.phoneNumber) {
-      console.log(`[Middleware] Redirecting unverified user to /verify-phone. Path: ${pathname}`);
-      return NextResponse.redirect(new URL('/verify-phone', req.url));
     }
   }
 
