@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import CountryCodeSelector from '@/components/ui/CountryCodeSelector';
-import { countries } from '@/lib/countries';
+import { countries, formatPhoneNumber } from '@/lib/countries';
 
 // --- TYPES ---
 type FormData = {
@@ -38,11 +38,12 @@ type SettingsFieldProps = {
   name: keyof FormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: string;
+  displayValue?: React.ReactNode;
 };
 
 // --- COMPONENTS ---
 
-const SettingsField = ({ label, value, isEditing, name, onChange, type = 'text' }: SettingsFieldProps) => (
+const SettingsField = ({ label, value, isEditing, name, onChange, type = 'text', displayValue }: SettingsFieldProps) => (
   <div className="py-2 border-b border-gray-100 last:border-b-0 transition-all hover:bg-gray-50/50 -mx-3 px-3">
     <label htmlFor={name} className="block text-[12px] font-bold text-gray-900 uppercase tracking-wide mb-1 opacity-90">
       {label}
@@ -59,9 +60,9 @@ const SettingsField = ({ label, value, isEditing, name, onChange, type = 'text' 
       />
     ) : (
       <div className="flex items-center justify-between group">
-        <p className={`text-sm font-semibold ${value ? 'text-gray-900' : 'text-gray-400 italic'}`}>
-          {value || `No ${label.toLowerCase()} added`}
-        </p>
+        <div className={`text-sm font-semibold ${value ? 'text-gray-900' : 'text-gray-400 italic'}`}>
+          {displayValue || value || `No ${label.toLowerCase()} added`}
+        </div>
         <ChevronRight size={14} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
     )}
@@ -216,7 +217,19 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
-                <SettingsField label="Phone" name="phoneNumber" value={formData.phoneNumber} isEditing={editingSection === 'personal'} onChange={handleChange} type="tel" />
+                <SettingsField
+                  label="Phone"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  displayValue={
+                    <span className="bg-gray-50 px-3 py-1 rounded-lg border border-gray-100 inline-block font-bold">
+                      {formatPhoneNumber(formData.phoneNumber)}
+                    </span>
+                  }
+                  isEditing={editingSection === 'personal'}
+                  onChange={handleChange}
+                  type="tel"
+                />
                 <SettingsField label="Location" name="address" value={formData.address} isEditing={editingSection === 'personal'} onChange={handleChange} />
               </div>
             </div>
