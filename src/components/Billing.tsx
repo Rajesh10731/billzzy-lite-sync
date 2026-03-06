@@ -116,6 +116,31 @@ export default function BillingPage() {
   const [customerName, setCustomerName] = React.useState('');
   const [amountGiven, setAmountGiven] = React.useState<number | ''>('');
 
+  const [settingsComplete, setSettingsComplete] = React.useState(false);
+  const [checkingSettings, setCheckingSettings] = React.useState(true);
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  // Sync state with LocalStorage immediately on mount (before even first render if possible, but inside component for access to session)
+  React.useLayoutEffect(() => {
+    if (status === 'authenticated' && session?.user?.email) {
+      const savedData = localStorage.getItem(`userSettings-${session.user.email}`);
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          const phoneNumber = parsedData.phoneNumber || session.user.phoneNumber || '';
+          if (phoneNumber && phoneNumber.trim() !== '' && /^\d{10,15}$/.test(phoneNumber)) {
+            setSettingsComplete(true);
+            setMerchantUpi(parsedData.merchantUpiId || '');
+            setMerchantName(parsedData.shopName || 'Billzzy Lite');
+            setCheckingSettings(false);
+          }
+        } catch (e) {
+          console.error("Error parsing local settings", e);
+        }
+      }
+    }
+  }, [status, session]);
+
   // Loading states
   const [isMessaging, setIsMessaging] = React.useState(false); // For WhatsApp/DB Save
   const [isCreatingLink, setIsCreatingLink] = React.useState(false); // For NFC
@@ -125,7 +150,6 @@ export default function BillingPage() {
   const [modal, setModal] = React.useState<{ isOpen: boolean; title: string; message: string | React.ReactNode; onConfirm?: (() => void); confirmText: string; showCancel: boolean; }>({ isOpen: false, title: '', message: '', confirmText: 'OK', showCancel: false });
   const suggestionsRef = React.useRef<HTMLDivElement | null>(null);
 
-  const [settingsComplete, setSettingsComplete] = React.useState(false);
   const [discountInput, setDiscountInput] = React.useState<string>('');
   const [discountType, setDiscountType] = React.useState<'percentage' | 'fixed'>('percentage');
 
@@ -160,13 +184,15 @@ export default function BillingPage() {
   // Check Phone Number
   // Check Phone Number & Settings
   const checkPhoneNumber = React.useCallback(async () => {
+    if (status === 'loading') return;
+
     if (status === 'authenticated' && session?.user?.email) {
-      // 1. Try to fetch fresh settings from DB
+      // Background Sync (DB Fetch)
+      setIsSyncing(true);
       try {
         const res = await fetch('/api/users/settings');
         if (res.ok) {
           const data = await res.json();
-          // Update local storage to keep it in sync
           const localData = {
             name: data.name || session.user.name || '',
             phoneNumber: data.phoneNumber || '',
@@ -182,37 +208,19 @@ export default function BillingPage() {
             setMerchantUpi(localData.merchantUpiId);
             setMerchantName(localData.shopName || 'Billzzy Lite');
             setCustomerCountryCode(data.defaultCountryCode || 'IN');
-            return true;
+          } else {
+            setSettingsComplete(false);
           }
         }
       } catch (e) {
-        console.error("Failed to fetch settings from DB, falling back to local", e);
+        console.error("Failed to fetch settings from DB", e);
+      } finally {
+        setCheckingSettings(false);
+        setIsSyncing(false);
       }
-
-      // 2. Fallback to Local Storage/Session (Legacy behavior)
-      const savedData = localStorage.getItem(`userSettings-${session.user.email}`);
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          const phoneNumber = parsedData.phoneNumber || session.user.phoneNumber || '';
-
-          if (phoneNumber && phoneNumber.trim() !== '' && /^\d{10,15}$/.test(phoneNumber)) {
-            setSettingsComplete(true);
-            setMerchantUpi(parsedData.merchantUpiId || '');
-            setMerchantName(parsedData.shopName || 'Billzzy Lite');
-            return true;
-          }
-        } catch (error) {
-          console.error('Error parsing settings data:', error);
-        }
-      } else if (session.user.phoneNumber) {
-        setSettingsComplete(true);
-        // We don't have defaultCountryCode in session usually, so keep 'IN' or fetch again
-        return true;
-      }
-
-      setSettingsComplete(false);
-      return false;
+      return true;
+    } else if (status === 'unauthenticated') {
+      setCheckingSettings(false);
     }
     return false;
   }, [status, session]);
@@ -541,7 +549,7 @@ export default function BillingPage() {
             paymentMethod: selectedPayment,
             profit: totalProfit,
             items: safeCart,
-            customerPhone: whatsAppNumber ? `${countries.find(c => c.code === customerCountryCode)?.dialCode.replace('+', '')}${whatsAppNumber}` : '',
+            customerPhone: whatsAppNumber ? `${(countries.find(c => c.code === customerCountryCode) || countries[0]).dialCode.replace('+', '')}${whatsAppNumber}` : '',
             customerName: customerName,
             merchantName: merchantName,
             discount: discountAmount
@@ -566,7 +574,11 @@ export default function BillingPage() {
         window.location.href = bridgeUrl;
       }
 
-      // 7. Show Success Animation
+      // 7. Close Modals before showing success animation
+      setIsCashModalOpen(false);
+      setIsQRModalOpen(false);
+
+      // 8. Show Success Animation
       setShowSuccessAnimation(true);
       // The SuccessTick component will call handleTransactionDone (or we can chain it)
       // For now, we rely on the onComplete callback of SuccessTick to show the final modal or reset.
@@ -621,7 +633,7 @@ export default function BillingPage() {
     <>
       {showSuccessAnimation && <SuccessTick onComplete={onSuccessAnimationComplete} amount={totalAmount} />}
       <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
-        {!settingsComplete && (
+        {!checkingSettings && !settingsComplete && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <div className="w-[90%] max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-gray-200">
               <div className="flex items-start">
@@ -657,7 +669,7 @@ export default function BillingPage() {
             <div className="bg-white rounded-xl p-3 shadow-md border border-gray-200">
               <div className="flex gap-2">
                 <div ref={suggestionsRef} className="relative flex-1">
-                  <input type="text" placeholder={settingsComplete ? "Search or add item..." : "Settings required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 text-base focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={!settingsComplete} />
+                  <input type="text" placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? "Search or add item..." : "Settings required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 text-base focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={checkingSettings || !settingsComplete} />
                   {showSuggestions && settingsComplete && (
                     <div className="absolute z-10 mt-2 w-full rounded-xl border-2 border-[#5a4fcf] bg-white shadow-xl max-h-48 overflow-y-auto">{suggestions.map((s) => (<div key={s.id} onClick={() => addToCart(s.name, s.sellingPrice, s.gstRate, s.id, s.profitPerUnit)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0"><div className="flex justify-between items-center"><span className="font-semibold text-gray-800 text-sm">{s.name}</span><span className="text-[#5a4fcf] font-bold text-sm">{formatCurrency(s.sellingPrice)}</span></div>{s.sku && <p className="text-xs text-gray-500 mt-0.5">SKU: {s.sku}</p>}</div>))}</div>
                   )}
@@ -667,7 +679,15 @@ export default function BillingPage() {
             </div>
 
             {cart.length === 0 ? (
-              <div className="bg-white rounded-xl p-8 text-center shadow-md border border-gray-200"><div className="text-5xl mb-3">🛒</div><p className="text-gray-600 font-medium">{settingsComplete ? "Cart is Empty" : "Settings Required"}</p><p className="text-xs text-gray-500 mt-1">{settingsComplete ? "Add items to get started" : "Please complete your settings to start billing"}</p></div>
+              <div className="bg-white rounded-xl p-8 text-center shadow-md border border-gray-200">
+                <div className="text-5xl mb-3">{checkingSettings ? "🔄" : "🛒"}</div>
+                <p className="text-gray-600 font-medium">
+                  {checkingSettings ? "Checking Settings..." : settingsComplete ? "Cart is Empty" : "Settings Required"}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {checkingSettings ? "Please wait a moment" : settingsComplete ? "Add items to get started" : "Please complete your settings to start billing"}
+                </p>
+              </div>
             ) : (
               <div className="space-y-2">{cart.map((item) => {
                 const { gstAmount, totalPrice } = calculateGstDetails(Number(item.price) || 0, item.gstRate); const totalItemPrice = totalPrice * (Number(item.quantity) || 0); return (
@@ -951,7 +971,6 @@ export default function BillingPage() {
                 <button
                   onClick={() => {
                     handlePaymentSuccess(false);
-                    setIsCashModalOpen(false);
                   }}
                   disabled={isMessaging || isCreatingLink || (amountGiven !== '' && amountGiven < totalAmount)}
                   className="flex-[3] flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 font-black text-white hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95 disabled:bg-gray-200 disabled:shadow-none"
@@ -1014,7 +1033,6 @@ export default function BillingPage() {
                     <button
                       onClick={() => {
                         handlePaymentSuccess(false);
-                        setIsQRModalOpen(false);
                       }}
                       disabled={isMessaging || isCreatingLink}
                       className="flex-[3] flex items-center justify-center gap-2 rounded-2xl bg-[#5a4fcf] py-3 font-black text-white hover:bg-[#4c42b8] transition-all shadow-lg shadow-indigo-100 active:scale-95 group"
