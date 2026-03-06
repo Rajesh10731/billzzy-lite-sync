@@ -31,8 +31,10 @@ export async function middleware(req: NextRequest) {
   // 4. Redirect logged-in users away from the Landing Page OR force verification
   if (isLoggedIn) {
     // If logged in but NOT verified and NOT admin, force verification
-    // This MUST check for null, undefined, and empty string
-    const hasPhone = token?.phoneNumber && token.phoneNumber.trim().length > 0;
+    const hasPhone = token?.phoneNumber && String(token.phoneNumber).trim().length > 0;
+
+    // DEBUG: log the state
+    console.log(`[Middleware] User: ${token?.email}, Role: ${token?.role}, HasPhone: ${hasPhone}, Path: ${pathname}`);
 
     if (!isAdmin && !hasPhone && pathname !== '/verify-phone') {
       console.log(`[Middleware] Redirecting unverified user to /verify-phone. Path: ${pathname}`);

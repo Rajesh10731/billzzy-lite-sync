@@ -129,15 +129,16 @@ export async function PATCH(request: Request) {
 
   try {
     await dbConnect();
-    const { userId, onboarded, pin } = await request.json();
+    const { userId, onboarded, pin, phoneNumber } = await request.json();
 
     if (!userId) {
       return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
     }
 
-    const updateData: { onboarded?: boolean; pin?: string } = {};
+    const updateData: { onboarded?: boolean; pin?: string; phoneNumber?: string } = {};
     if (typeof onboarded === 'boolean') updateData.onboarded = onboarded;
     if (pin !== undefined) updateData.pin = pin;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
 
     const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
 

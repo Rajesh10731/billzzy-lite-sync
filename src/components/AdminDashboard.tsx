@@ -5,6 +5,9 @@
 import { useState, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { Edit2, Check, X } from 'lucide-react';
+import { formatPhoneNumber, countries, Country } from '@/lib/countries';
+import CountryCodeSelector from '@/components/ui/CountryCodeSelector';
 
 // The shape of the user data
 interface User {
@@ -25,6 +28,11 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // State for Phone editing
+  const [editingPhoneUserId, setEditingPhoneUserId] = useState<string | null>(null);
+  const [tempPhone, setTempPhone] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
 
   // Create a separate function for fetching users with date filters
   const fetchUsers = async (start: string = '', end: string = '') => {
@@ -116,6 +124,54 @@ export default function AdminDashboard() {
       setError((err as Error).message);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const startEditingPhone = (user: User) => {
+    setEditingPhoneUserId(user._id);
+
+    // Attempt to extract country and number
+    const cleaned = (user.phoneNumber || '').replace(/\D/g, '');
+    const foundCountry = [...countries]
+      .sort((a, b) => b.dialCode.length - a.dialCode.length)
+      .find(c => cleaned.startsWith(c.dialCode.replace(/\D/g, '')));
+
+    if (foundCountry) {
+      setSelectedCountry(foundCountry);
+      setTempPhone(cleaned.slice(foundCountry.dialCode.replace(/\D/g, '').length));
+    } else {
+      setSelectedCountry(countries[0]); // Default to India
+      setTempPhone(cleaned);
+    }
+  };
+
+  const cancelEditingPhone = () => {
+    setEditingPhoneUserId(null);
+    setTempPhone('');
+    setSelectedCountry(null);
+  };
+
+  const handleSavePhone = async (userId: string) => {
+    try {
+      const fullPhone = selectedCountry
+        ? `${selectedCountry.dialCode}${tempPhone.replace(/\D/g, '')}`
+        : tempPhone.replace(/\D/g, '');
+
+      const res = await fetch('/api/admin/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, phoneNumber: fullPhone }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update Phone Number');
+
+      setUsers(users.map(u => u._id === userId ? { ...u, phoneNumber: fullPhone } : u));
+      setEditingPhoneUserId(null);
+      setTempPhone('');
+      setSelectedCountry(null);
+      alert("Phone number updated successfully!");
+    } catch (err) {
+      alert((err as Error).message);
     }
   };
 
@@ -274,7 +330,38 @@ export default function AdminDashboard() {
                       <div className="text-sm text-gray-500">{user.email}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{user.phoneNumber || '-'}</div>
+                      {editingPhoneUserId === user._id ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-24">
+                            <CountryCodeSelector
+                              selectedCountryCode={selectedCountry?.code || 'IN'}
+                              onSelect={(c) => setSelectedCountry(c)}
+                            />
+                          </div>
+                          <input
+                            type="tel"
+                            placeholder="Phone number"
+                            className="w-32 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                            value={tempPhone}
+                            onChange={(e) => setTempPhone(e.target.value)}
+                          />
+                          <button onClick={() => handleSavePhone(user._id)} className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
+                            <Check size={18} />
+                          </button>
+                          <button onClick={cancelEditingPhone} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
+                            <X size={18} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 group">
+                          <div className="text-sm font-bold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                            {formatPhoneNumber(user.phoneNumber)}
+                          </div>
+                          <button onClick={() => startEditingPhone(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Edit2 size={16} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">

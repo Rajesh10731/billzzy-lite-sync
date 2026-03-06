@@ -35,10 +35,12 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, MobileHeader } from '@/components/SideBar';
 import { BottomNavBar } from '@/components/BottomNav';
 import NotificationPrompt from '@/components/NotificationPrompt';
+import { useSession } from 'next-auth/react';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function AppLayout({
   children,
@@ -46,6 +48,22 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // FINAL FAILSAFE: Redirect if user is logged in but has no phone (and is not admin)
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      const isAdmin = session.user.role === 'admin';
+      const hasPhone = session.user.phoneNumber && session.user.phoneNumber.trim().length > 0;
+
+      if (!isAdmin && !hasPhone && pathname !== '/verify-phone') {
+        console.log('[Layout Failsafe] Redirecting to /verify-phone');
+        router.push('/verify-phone');
+      }
+    }
+  }, [session, status, pathname, router]);
 
 
   return (
