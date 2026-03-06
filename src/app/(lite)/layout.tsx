@@ -65,6 +65,25 @@ export default function AppLayout({
     }
   }, [session, status, pathname, router]);
 
+  // Prevent flicker: Show loading screen while checking status
+  if (status === 'loading') {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5a4fcf]"></div>
+          <p className="text-sm font-medium text-gray-500 font-bold">Loading Workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Block rendering dashboard content for unverified users while redirecting
+  const isAdmin = session?.user?.role === 'admin';
+  const hasPhone = session?.user?.phoneNumber && session.user.phoneNumber.trim().length > 0;
+  if (status === 'authenticated' && !isAdmin && !hasPhone && pathname !== '/verify-phone') {
+    return null; // Keep screen empty while router.push works
+  }
+
 
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-gray-50">
