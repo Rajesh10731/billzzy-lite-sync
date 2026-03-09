@@ -118,7 +118,6 @@ export default function BillingPage() {
 
   const [settingsComplete, setSettingsComplete] = React.useState(false);
   const [checkingSettings, setCheckingSettings] = React.useState(true);
-  const [isSyncing, setIsSyncing] = React.useState(false);
 
   // Sync state with LocalStorage immediately on mount (before even first render if possible, but inside component for access to session)
   React.useLayoutEffect(() => {
@@ -188,7 +187,6 @@ export default function BillingPage() {
 
     if (status === 'authenticated' && session?.user?.email) {
       // Background Sync (DB Fetch)
-      setIsSyncing(true);
       try {
         const res = await fetch('/api/users/settings');
         if (res.ok) {
@@ -216,7 +214,6 @@ export default function BillingPage() {
         console.error("Failed to fetch settings from DB", e);
       } finally {
         setCheckingSettings(false);
-        setIsSyncing(false);
       }
       return true;
     } else if (status === 'unauthenticated') {

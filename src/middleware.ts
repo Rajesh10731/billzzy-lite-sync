@@ -26,7 +26,6 @@ export async function middleware(req: NextRequest) {
   }
 
   // Define route categories
-  const adminRoutes = ['/admin/dashboard'];
 
   // 4. Redirect logged-in users away from the Landing Page OR force verification
   if (isLoggedIn) {

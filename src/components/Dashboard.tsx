@@ -7,6 +7,7 @@ import { Package, AlertTriangle, XCircle, Loader2 } from "lucide-react";
 // 1. IMPORT THE CHART DYNAMICALLY (Fixes 500 Error / SSR issues)
 import dynamic from 'next/dynamic';
 import SalesSummary from "./SalesSummary";
+import AIInsights from "./AIInsights";
 const StockStyleSalesChart = dynamic(() => import("./StockStyleSalesChart"), { ssr: false });
 
 interface Product {
@@ -92,6 +93,9 @@ export default function Dashboard() {
 
         {/* 2. INSERT THE GRAPH HERE */}
         <StockStyleSalesChart />
+
+        {/* AI Business Insights */}
+        <AIInsights />
 
         {/* Inventory Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5">
