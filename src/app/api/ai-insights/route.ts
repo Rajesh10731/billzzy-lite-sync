@@ -19,28 +19,42 @@ export async function GET() {
         await dbConnect();
 
         // Get Today's range
-        const startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date();
-        endDate.setHours(23, 59, 59, 999);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
+        // Get Yesterday's range
+        const yesterdayStart = new Date(todayStart);
+        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+        const yesterdayEnd = new Date(todayEnd);
+        yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
 
         // Fetch sales for today
         const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const query = {
+        const getQuery = (start: Date, end: Date) => ({
             $or: [
                 { tenantId: tenantId },
                 { tenantId: { $regex: new RegExp(`^${escapedId}$`, 'i') } }
             ],
-            createdAt: { $gte: startDate, $lte: endDate }
-        };
+            createdAt: { $gte: start, $lte: end }
+        });
 
-        const todaySales = await Sale.find(query);
+        let salesRecords = await Sale.find(getQuery(todayStart, todayEnd));
+        let isYesterday = false;
+
+        if (salesRecords.length === 0) {
+            salesRecords = await Sale.find(getQuery(yesterdayStart, yesterdayEnd));
+            if (salesRecords.length > 0) {
+                isYesterday = true;
+            }
+        }
 
         // Aggregate data
         let totalSales = 0;
         const productMap: Record<string, number> = {};
 
-        todaySales.forEach(sale => {
+        salesRecords.forEach(sale => {
             totalSales += sale.amount;
             sale.items.forEach((item: { name: string; quantity: number }) => {
                 productMap[item.name] = (productMap[item.name] || 0) + item.quantity;
@@ -51,20 +65,35 @@ export async function GET() {
             .map(([name, qty]) => `${name} - ${qty}`)
             .join('\n');
 
+        // Handle Case: No sales today AND no sales yesterday
+        if (salesRecords.length === 0) {
+            return NextResponse.json({
+                salesInsight: "No sales recorded recently. Try offering a new promotion!",
+                topProduct: "None",
+                slowProduct: "None",
+                suggestion: "Add your first product or share your store link.",
+                isYesterday: false,
+                lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+        }
+
         // Handle Mock Fallback if API Key is missing
         if (!AI_APIKEY) {
             console.warn("AI_APIKEY is missing. Returning mock data.");
             return NextResponse.json({
-                salesInsight: totalSales > 0 ? "Daily sales are looking good! Keep promoting your top items." : "No sales recorded yet today. Try offering a morning discount!",
+                salesInsight: isYesterday 
+                    ? `(Yesterday) Sales were active! Keep up the momentum today.` 
+                    : "Daily sales are looking good! Keep promoting your top items.",
                 topProduct: Object.keys(productMap).length > 0 ? Object.keys(productMap)[0] : "N/A",
                 slowProduct: Object.keys(productMap).length > 1 ? Object.keys(productMap)[1] : "N/A",
                 suggestion: "Consider a bundle offer to increase average order value.",
-                isMock: true
+                isMock: true,
+                isYesterday
             });
         }
 
         const prompt = `You are an AI business advisor for small retail shop owners using the Billzzy Lite billing application.
-Analyze shop sales data and generate short, useful business insights.
+Analyze shop sales data for ${isYesterday ? "YESTERDAY" : "TODAY"} and generate short, useful business insights.
 Focus on:
 1. Sales performance
 2. Top selling product
@@ -75,6 +104,7 @@ Rules:
 - Keep ALWAYS under 10 words per insight.
 - Use simple, direct business language.
 - Avoid repeating the category names (e.g., don't say "Top product is...", just say the product name and why).
+- If it is YESTERDAY's data, your insights should reflect that (e.g., "Yesterday's performance was...").
 - Return the result strictly in JSON format.
 
 Format:
@@ -85,8 +115,8 @@ Format:
   "suggestion": ""
 }
 
-Data:
-Total Sales Today: ₹${totalSales}
+Data for ${isYesterday ? "Yesterday" : "Today"}:
+Total Sales: ₹${totalSales}
 Products Sold:
 ${productList || "None"}
 `;
@@ -143,6 +173,7 @@ ${productList || "None"}
 
             return NextResponse.json({
                 ...JSON.parse(content),
+                isYesterday,
                 lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
         } else {
@@ -160,6 +191,7 @@ ${productList || "None"}
 
         return NextResponse.json({
             ...insights,
+            isYesterday,
             lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
 
