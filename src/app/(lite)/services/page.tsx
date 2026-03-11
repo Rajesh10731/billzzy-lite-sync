@@ -1,0 +1,424 @@
+'use client';
+
+import React, { useState, useEffect, FC } from 'react';
+import { useSession } from 'next-auth/react';
+import { 
+  Plus, Search, Edit2, Trash2, X, 
+  Loader2, Briefcase, Info
+} from 'lucide-react';
+import { motion, AnimatePresence, useAnimationControls, PanInfo } from 'framer-motion';
+
+interface IService {
+  _id: string;
+  name: string;
+  price: number;
+  duration?: string;
+  category?: string;
+}
+
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
+};
+
+interface MobileServiceCardProps {
+  service: IService;
+  isSwiped: boolean;
+  onSwipe: (id: string | null) => void;
+  onEdit: (service: IService) => void;
+  onDelete: (id: string) => void;
+}
+
+const MobileServiceCard: FC<MobileServiceCardProps> = React.memo(({ service, isSwiped, onSwipe, onEdit, onDelete }) => {
+  const controls = useAnimationControls();
+  const ACTION_WIDTH = 140;
+
+  useEffect(() => {
+    if (!isSwiped) {
+      controls.start({ x: 0 });
+    }
+  }, [isSwiped, controls]);
+
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo): void => {
+    if (info.offset.x < -ACTION_WIDTH / 2) {
+      controls.start({ x: -ACTION_WIDTH });
+      onSwipe(service._id);
+    } else {
+      controls.start({ x: 0 });
+    }
+  };
+
+  return (
+    <div className="relative w-full bg-gray-100 rounded-xl overflow-hidden shadow-sm border border-gray-100 mb-2">
+      <div className="absolute inset-y-0 right-0 flex" style={{ width: ACTION_WIDTH }}>
+        <button onClick={() => onEdit(service)} className="w-1/2 h-full flex flex-col items-center justify-center bg-[#5a4fcf] text-white transition-colors hover:bg-[#4a3fb5]">
+          <Edit2 className="w-4 h-4" /><span className="text-[10px] mt-1 font-bold">Edit</span>
+        </button>
+        <button onClick={() => onDelete(service._id)} className="w-1/2 h-full flex flex-col items-center justify-center bg-red-500 text-white transition-colors hover:bg-red-600">
+          <Trash2 className="w-4 h-4" /><span className="text-[10px] mt-1 font-bold">Delete</span>
+        </button>
+      </div>
+      <motion.div
+        className="relative bg-white p-4 flex items-center justify-between w-full cursor-grab active:cursor-grabbing border-b border-gray-100"
+        drag="x" dragConstraints={{ right: 0, left: -ACTION_WIDTH }} onDragEnd={handleDragEnd}
+        animate={controls} transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        onClick={() => { if (isSwiped) { controls.start({ x: 0 }); onSwipe(null); } }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-[#5a4fcf] flex-shrink-0">
+            <Briefcase size={20} />
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-sm font-bold text-gray-900 truncate">{service.name}</h4>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] uppercase font-bold text-gray-400 truncate">{service.category || 'General'}</p>
+              {service.duration && (
+                <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">{service.duration}</span>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="text-right flex-shrink-0 ml-2">
+          <p className="text-sm font-bold text-gray-900">{formatCurrency(service.price)}</p>
+        </div>
+      </motion.div>
+    </div>
+  );
+});
+MobileServiceCard.displayName = 'MobileServiceCard';
+
+export default function ServicesPage() {
+  const { status } = useSession();
+  const [services, setServices] = useState<IService[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [swipedId, setSwipedId] = useState<string | null>(null);
+  
+  // Modal / Form state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState<IService | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    price: '',
+    duration: '',
+    category: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchServices();
+    }
+  }, [status]);
+
+  const fetchServices = async () => {
+    try {
+      const res = await fetch('/api/services');
+      if (res.ok) {
+        const data = await res.json();
+        setServices(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch services:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenModal = (service?: IService) => {
+    if (service) {
+      setEditingService(service);
+      setFormData({
+        name: service.name,
+        price: service.price.toString(),
+        duration: service.duration || '',
+        category: service.category || ''
+      });
+    } else {
+      setEditingService(null);
+      setFormData({
+        name: '',
+        price: '',
+        duration: '',
+        category: ''
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const payload = {
+      ...formData,
+      price: parseFloat(formData.price)
+    };
+
+    try {
+      const url = editingService ? `/api/services/${editingService._id}` : '/api/services';
+      const method = editingService ? 'PATCH' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        fetchServices();
+        setIsModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Error saving service:", error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this service?')) return;
+
+    try {
+      const res = await fetch(`/api/services/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setServices(services.filter(s => s._id !== id));
+        setSwipedId(null);
+      }
+    } catch (error) {
+      console.error("Error deleting service:", error);
+    }
+  };
+
+  const filteredServices = services.filter(s => 
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.category?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (status === 'loading' || (loading && services.length === 0)) {
+    return (
+      <div className="flex h-full items-center justify-center pt-20">
+        <Loader2 className="h-8 w-8 animate-spin text-[#5a4fcf]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-4 pb-24">
+      <div className="max-w-2xl mx-auto space-y-4">
+        {/* Header Section matching Inventory */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 space-y-3.5">
+          <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-[#5a4fcf] rounded-lg flex items-center justify-center">
+                <Briefcase className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 leading-tight">Services</h3>
+                <p className="text-xs text-gray-500">Manage business services</p>
+              </div>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2">
+              <button 
+                onClick={() => handleOpenModal()}
+                className="flex items-center gap-2 bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+              >
+                <Plus size={14} />
+                Add New Service
+              </button>
+            </div>
+          </div>
+          
+          {/* Summary stats like Inventory */}
+          <div className="grid grid-cols-1 gap-3">
+            <div className="rounded-xl border-2 bg-indigo-50 border-indigo-100 p-2 flex flex-col items-center justify-center text-center h-20 transition-all">
+               <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Total Services</p>
+               <p className="text-lg font-extrabold text-gray-900">{services.length}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Search matching Inventory */}
+        <div className="relative w-full group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 group-focus-within:text-indigo-600 transition-colors" />
+          <input 
+            type="text" 
+            placeholder="Search services by name or category..." 
+            className="w-full pl-11 pr-4 py-3 text-sm border-2 border-transparent bg-white rounded-2xl shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-gray-400 font-medium"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {/* Desktop View Table matching Inventory desktop feel but specifically for Services */}
+        <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          {filteredServices.length === 0 ? (
+            <div className="text-center p-12 bg-gray-50">
+              <Info className="w-8 h-8 mb-2 text-gray-400 mx-auto" />
+              <h3 className="font-semibold">No Services Found</h3>
+              <p className="text-gray-500">Add your first service to get started.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {filteredServices.map((service) => (
+                <div key={service._id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-[#5a4fcf]">
+                      <Briefcase size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">{service.name}</h4>
+                      <p className="text-[10px] uppercase font-bold text-gray-400">{service.category || 'General'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-gray-900">{formatCurrency(service.price)}</p>
+                      {service.duration && <p className="text-[10px] text-gray-500">{service.duration}</p>}
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleOpenModal(service)}
+                        className="p-1.5 text-gray-400 hover:text-[#5a4fcf] hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(service._id)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile View with Swiping Animations - Matching Inventory exactly */}
+        <div className="md:hidden space-y-2">
+           {filteredServices.map(service => (
+             <MobileServiceCard 
+               key={service._id} 
+               service={service} 
+               isSwiped={swipedId === service._id}
+               onSwipe={setSwipedId}
+               onEdit={handleOpenModal}
+               onDelete={handleDelete}
+             />
+           ))}
+        </div>
+
+        {/* Floating FAB for mobile like Inventory */}
+        <div className="sm:hidden fixed bottom-24 right-4 z-40">
+          <button 
+            onClick={() => handleOpenModal()}
+            className="w-14 h-14 flex items-center justify-center bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white rounded-full shadow-xl border-2 border-white transition-transform active:scale-95"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </div>
+      </div>
+
+      {/* Modal matching ProductFormModal exactly */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[100] p-3 animate-in fade-in duration-200">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.3 }} 
+              className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] px-4 py-4 flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-bold text-white">{editingService ? 'Edit Service' : 'Add New Service'}</h2>
+                  <p className="text-indigo-100 text-xs mt-0.5">{editingService ? 'Update service details' : 'Define your business service'}</p>
+                </div>
+                <button onClick={() => setIsModalOpen(false)} className="text-white hover:bg-white/20 rounded-full p-1.5 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-4 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">Service Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
+                    placeholder="e.g., Haircut, Consultation"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-700">Service Price</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
+                      <input 
+                        type="number" 
+                        required
+                        className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
+                        placeholder="0.00"
+                        value={formData.price}
+                        onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-700">Duration</label>
+                    <input 
+                      type="text" 
+                      className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
+                      placeholder="e.g., 30m, 1h"
+                      value={formData.duration}
+                      onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">Category</label>
+                  <input 
+                    type="text" 
+                    className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
+                    placeholder="e.g., Styling, Advisory"
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  />
+                </div>
+
+                <div className="bg-gray-50 -mx-4 -mb-4 px-4 py-3 flex justify-end gap-2.5 border-t mt-6">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
+                  <button 
+                    type="submit" 
+                    disabled={submitting}
+                    className={`px-5 py-2 text-white rounded-xl font-medium shadow-lg transition-all text-sm flex items-center justify-center min-w-[120px] 
+                      ${submitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] hover:from-[#4a3fb5] hover:to-[#6b58de] shadow-[#5a4fcf]/30'}`}
+                  >
+                    {submitting ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                    ) : (
+                      <>{editingService ? 'Save Changes' : 'Add Service'}</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

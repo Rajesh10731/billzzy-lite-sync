@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   BarChart2,
   Bell,
+  Briefcase,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -102,6 +103,10 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 
           <NavLink href="/inventory" setIsMobileOpen={setIsMobileOpen} isActive={pathname === '/inventory'}>
             <Package className="h-5 w-5" /><span>Inventory</span>
+          </NavLink>
+
+          <NavLink href="/services" setIsMobileOpen={setIsMobileOpen} isActive={pathname === '/services'}>
+            <Briefcase className="h-5 w-5" /><span>Services</span>
           </NavLink>
 
           <NavLink href="/billing" setIsMobileOpen={setIsMobileOpen} isActive={pathname === '/billing'}>

@@ -35,7 +35,9 @@ export async function POST(request: Request) {
     await Sale.create({
       billId: `NFC-${Date.now().toString().slice(-8)}`,
       tenantId: session.user.email,
-      items: cart.map((item: CartItem) => ({
+      items: cart.map((item: { type?: "product" | "service", productId?: string, serviceId?: string, name: string, quantity: number, price: number }) => ({
+        type: item.type || 'product',
+        itemId: item.productId || item.serviceId,
         name: item.name,
         quantity: item.quantity,
         price: item.price,

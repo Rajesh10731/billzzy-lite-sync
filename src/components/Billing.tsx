@@ -34,13 +34,23 @@ const calculateGstDetails = (sellingPrice: number, gstRate: number) => {
 // --- TYPE DEFINITIONS ---
 type CartItem = {
   id: number;
+  type: 'product' | 'service';
   productId?: string;
+  serviceId?: string;
   name: string;
   quantity: number | '';
   price: number | '';
   gstRate: number;
   profitPerUnit?: number;
   isEditing?: boolean;
+};
+
+type InventoryService = {
+  _id: string;
+  name: string;
+  price: number;
+  duration?: string;
+  category?: string;
 };
 
 type InventoryProduct = {
@@ -95,7 +105,8 @@ export default function BillingPage() {
   const [productName, setProductName] = React.useState('');
   const [scanning, setScanning] = React.useState(false);
   const [inventory, setInventory] = React.useState<InventoryProduct[]>([]);
-  const [suggestions, setSuggestions] = React.useState<InventoryProduct[]>([]);
+  const [services, setServices] = React.useState<InventoryService[]>([]);
+  const [suggestions, setSuggestions] = React.useState<(InventoryProduct | InventoryService)[]>([]);
   const [showSuggestions, setShowSuggestions] = React.useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = React.useState(false);
 
@@ -224,17 +235,28 @@ export default function BillingPage() {
 
   React.useEffect(() => { checkPhoneNumber(); }, [checkPhoneNumber]);
 
-  // Inventory Fetch
+  // Inventory & Services Fetch
   React.useEffect(() => {
     if (status !== 'authenticated') return;
     (async () => {
       try {
-        const res = await fetch('/api/products');
-        if (!res.ok) { setInventory([]); return; }
-        const data: InventoryProduct[] = await res.json();
-        const productsWithGst = data.map(p => ({ ...p, gstRate: p.gstRate || 0 }));
-        setInventory(productsWithGst);
-      } catch { setInventory([]); }
+        const [prodRes, servRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/services')
+        ]);
+        
+        if (prodRes.ok) {
+          const data: InventoryProduct[] = await prodRes.json();
+          setInventory(data.map(p => ({ ...p, gstRate: p.gstRate || 0 })));
+        }
+        
+        if (servRes.ok) {
+          const data: InventoryService[] = await servRes.json();
+          setServices(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch inventory/services:", err);
+      }
     })();
   }, [status]);
 
@@ -242,10 +264,14 @@ export default function BillingPage() {
   React.useEffect(() => {
     if (!productName.trim()) { setShowSuggestions(false); return; }
     const query = productName.trim().toLowerCase();
-    const filtered = inventory.filter(p => p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query)).slice(0, 5);
-    setSuggestions(filtered);
-    setShowSuggestions(filtered.length > 0);
-  }, [productName, inventory]);
+    
+    const prodFiltered = inventory.filter(p => p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query));
+    const servFiltered = services.filter(s => s.name.toLowerCase().includes(query));
+    
+    const combined = [...prodFiltered, ...servFiltered].slice(0, 8);
+    setSuggestions(combined);
+    setShowSuggestions(combined.length > 0);
+  }, [productName, inventory, services]);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -351,16 +377,15 @@ export default function BillingPage() {
   }, [whatsAppNumber, sendWhatsAppMessage]);
 
   // --- CART ACTIONS ---
-  // --- CART ACTIONS ---
-  const addToCart = React.useCallback((name: string, price: number, gstRate: number, productId?: string, profitPerUnit?: number, isEditing = false) => {
+  const addToCart = React.useCallback((type: 'product' | 'service', id: string, name: string, price: number, gstRate: number, profitPerUnit?: number, isEditing = false) => {
     if (!name || price < 0) return;
 
-    // Check stock if productId exists
-    if (productId) {
-      const product = inventory.find(p => p.id === productId);
+    // Check stock if type is product
+    if (type === 'product') {
+      const product = inventory.find(p => p.id === id);
       if (product) {
         // Find existing quantity in cart
-        const existingItem = cart.find(item => item.productId === productId);
+        const existingItem = cart.find(item => item.productId === id);
         const currentCartQty = existingItem ? (Number(existingItem.quantity) || 0) : 0;
 
         if (currentCartQty + 1 > product.quantity) {
@@ -377,25 +402,45 @@ export default function BillingPage() {
     }
 
     setCart(prev => {
-      const existingItem = productId ? prev.find(item => item.productId === productId) : null;
+      const existingItem = type === 'product' 
+        ? prev.find(item => item.productId === id) 
+        : prev.find(item => item.serviceId === id);
+
       if (existingItem) {
-        return prev.map(item => item.productId === productId ? { ...item, quantity: (Number(item.quantity) || 0) + 1 } : item);
+        return prev.map(item => (type === 'product' ? item.productId === id : item.serviceId === id) 
+          ? { ...item, quantity: (Number(item.quantity) || 0) + 1 } 
+          : item);
       }
-      return [{ id: Date.now(), productId, name, quantity: 1, price, gstRate, profitPerUnit: profitPerUnit || 0, isEditing }, ...prev];
+
+      const newItem: CartItem = {
+        id: Date.now(),
+        type,
+        productId: type === 'product' ? id : undefined,
+        serviceId: type === 'service' ? id : undefined,
+        name,
+        quantity: 1,
+        price,
+        gstRate,
+        profitPerUnit: profitPerUnit || 0,
+        isEditing
+      };
+      
+      return [newItem, ...prev];
     });
     setProductName('');
     setShowSuggestions(false);
-  }, [inventory, cart]); // Added dependencies
+  }, [inventory, cart]);
 
   const handleScan = React.useCallback((results: IDetectedBarcode[]) => {
     if (results && results[0]) {
       const scannedValue = results[0].rawValue;
       const foundProduct = inventory.find(p => p.id === scannedValue || p.sku?.toLowerCase() === scannedValue.toLowerCase() || p.name.toLowerCase() === scannedValue.toLowerCase());
       if (foundProduct) {
-        addToCart(foundProduct.name, foundProduct.sellingPrice, foundProduct.gstRate, foundProduct.id, foundProduct.profitPerUnit);
+        addToCart('product', foundProduct.id, foundProduct.name, foundProduct.sellingPrice, foundProduct.gstRate, foundProduct.profitPerUnit);
         setScanning(false);
       } else {
-        addToCart(scannedValue, 0, 0, undefined, 0, true);
+        // Fallback for custom item if not found in inventory
+        addToCart('product', `custom-${Date.now()}`, scannedValue, 0, 0, 0, true);
         setScanning(false);
       }
     }
@@ -411,7 +456,7 @@ export default function BillingPage() {
       setModal({ isOpen: true, title: 'Item Name Required', message: 'Please enter a name for the custom item.', showCancel: false, confirmText: 'OK' });
       return;
     }
-    addToCart(name, 0, 0, undefined, 0, true);
+    addToCart('product', `manual-${Date.now()}`, name, 0, 0, 0, true);
   }, [productName, addToCart]);
 
   const deleteCartItem = (id: number) => setCart(prev => prev.filter(item => item.id !== id));
@@ -668,7 +713,31 @@ export default function BillingPage() {
                 <div ref={suggestionsRef} className="relative flex-1">
                   <input type="text" placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? "Search or add item..." : "Settings required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 text-base focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={checkingSettings || !settingsComplete} />
                   {showSuggestions && settingsComplete && (
-                    <div className="absolute z-10 mt-2 w-full rounded-xl border-2 border-[#5a4fcf] bg-white shadow-xl max-h-48 overflow-y-auto">{suggestions.map((s) => (<div key={s.id} onClick={() => addToCart(s.name, s.sellingPrice, s.gstRate, s.id, s.profitPerUnit)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0"><div className="flex justify-between items-center"><span className="font-semibold text-gray-800 text-sm">{s.name}</span><span className="text-[#5a4fcf] font-bold text-sm">{formatCurrency(s.sellingPrice)}</span></div>{s.sku && <p className="text-xs text-gray-500 mt-0.5">SKU: {s.sku}</p>}</div>))}</div>
+                    <div className="absolute z-10 mt-2 w-full rounded-xl border-2 border-[#5a4fcf] bg-white shadow-xl max-h-48 overflow-y-auto">
+                      {suggestions.map((s) => {
+                        const isProduct = 'id' in s;
+                        const id = isProduct ? (s as InventoryProduct).id : (s as InventoryService)._id;
+                        const price = isProduct ? (s as InventoryProduct).sellingPrice : (s as InventoryService).price;
+                        const name = s.name;
+                        const gstRate = isProduct ? (s as InventoryProduct).gstRate : 0;
+                        const profitPerUnit = isProduct ? (s as InventoryProduct).profitPerUnit : 0;
+                        const sku = isProduct ? (s as InventoryProduct).sku : undefined;
+                        const type = isProduct ? 'product' : 'service';
+
+                        return (
+                          <div key={id} onClick={() => addToCart(type, id, name, price, gstRate, profitPerUnit)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0">
+                            <div className="flex justify-between items-center">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-gray-800 text-sm">{name}</span>
+                                <span className="text-[10px] uppercase font-bold text-gray-400">{type}</span>
+                              </div>
+                              <span className="text-[#5a4fcf] font-bold text-sm">{formatCurrency(price)}</span>
+                            </div>
+                            {sku && <p className="text-xs text-gray-500 mt-0.5">SKU: {sku}</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </div>

@@ -11,7 +11,14 @@ export interface ISale extends Document {
   customerName?: string;
   merchantName?: string;
   discount?: number;
-  items: { name: string; quantity: number; price: number }[];
+  items: { 
+    type: "product" | "service";
+    itemId?: string;
+    name: string; 
+    quantity: number; 
+    price: number;
+    gstRate?: number;
+  }[];
   publicToken?: string;
   expiresAt?: Date;
   isEdited?: boolean;
@@ -38,9 +45,12 @@ const SaleSchema = new Schema<ISale>({
 
   // ✅ ADDED: To store the cart items
   items: [{
+    type: { type: String, enum: ["product", "service"], default: "product" },
+    itemId: { type: String },
     name: String,
     quantity: Number,
-    price: Number
+    price: Number,
+    gstRate: Number
   }],
 
   // ✅ ADDED: Random Token for the link

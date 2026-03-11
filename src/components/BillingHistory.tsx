@@ -13,6 +13,8 @@ import { motion } from "framer-motion";
 import { useSearchParams } from 'next/navigation';
 
 interface BillItem {
+  type: "product" | "service";
+  itemId?: string;
   name: string;
   quantity: number;
   price: number;
@@ -414,7 +416,10 @@ export default function BillingHistory() {
                     <div className="space-y-1 mb-2">
                       {bill.items.map((item, i) => (
                         <div key={i} className="flex justify-between text-[10px] font-bold text-gray-500">
-                          <span className="truncate pr-4">{item.name} × {item.quantity}</span>
+                          <span className="truncate pr-4 flex flex-col">
+                            {item.name} × {item.quantity}
+                            <span className="text-[8px] uppercase text-gray-400">{item.type}</span>
+                          </span>
                           <span className="text-gray-900">₹{(item.price * item.quantity).toLocaleString()}</span>
                         </div>
                       ))}
