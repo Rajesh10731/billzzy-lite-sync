@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useSession } from 'next-auth/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Scanner, IDetectedBarcode } from '@yudiel/react-qr-scanner';
 import QRCode from 'react-qr-code';
 import {
@@ -9,7 +10,7 @@ import {
   CheckCircle,
   ChevronRight,
   DollarSign, MessageSquare,
-  Nfc
+  Nfc, Filter
 } from 'lucide-react';
 import SuccessTick from './ui/SuccessTick';
 import CountryCodeSelector from './ui/CountryCodeSelector';
@@ -106,9 +107,12 @@ export default function BillingPage() {
   const [scanning, setScanning] = React.useState(false);
   const [inventory, setInventory] = React.useState<InventoryProduct[]>([]);
   const [services, setServices] = React.useState<InventoryService[]>([]);
-  const [suggestions, setSuggestions] = React.useState<(InventoryProduct | InventoryService)[]>([]);
+  const [suggestions, setSuggestions] = React.useState<((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[]>([]);
   const [showSuggestions, setShowSuggestions] = React.useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = React.useState(false);
+  const [searchType, setSearchType] = React.useState<'all' | 'product' | 'service'>('all');
+  const [showFilterMenu, setShowFilterMenu] = React.useState(false);
+  const filterMenuRef = React.useRef<HTMLDivElement>(null);
 
   // States for flow
   const [showWhatsAppSharePanel, setShowWhatsAppSharePanel] = React.useState(false);
@@ -265,18 +269,33 @@ export default function BillingPage() {
     if (!productName.trim()) { setShowSuggestions(false); return; }
     const query = productName.trim().toLowerCase();
     
-    const prodFiltered = inventory.filter(p => p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query));
-    const servFiltered = services.filter(s => s.name.toLowerCase().includes(query));
+    let prodFiltered: ((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[] = [];
+    let servFiltered: ((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[] = [];
+
+    if (searchType === 'all' || searchType === 'product') {
+      prodFiltered = inventory
+        .filter(p => p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query))
+        .map(p => ({ ...p, itemType: 'product' as const }));
+    }
+
+    if (searchType === 'all' || searchType === 'service') {
+      servFiltered = services
+        .filter(s => s.name.toLowerCase().includes(query))
+        .map(s => ({ ...s, itemType: 'service' as const }));
+    }
     
     const combined = [...prodFiltered, ...servFiltered].slice(0, 8);
     setSuggestions(combined);
     setShowSuggestions(combined.length > 0);
-  }, [productName, inventory, services]);
+  }, [productName, inventory, services, searchType]);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
+      }
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setShowFilterMenu(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -711,18 +730,65 @@ export default function BillingPage() {
             <div className="bg-white rounded-xl p-3 shadow-md border border-gray-200">
               <div className="flex gap-2">
                 <div ref={suggestionsRef} className="relative flex-1">
-                  <input type="text" placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? "Search or add item..." : "Settings required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 text-base focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={checkingSettings || !settingsComplete} />
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? `Search in ${searchType === 'all' ? 'Inventory' : searchType + 's'}...` : "Settings required to add items"} 
+                      className="w-full rounded-lg border-2 border-gray-300 p-2.5 pr-10 text-base focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" 
+                      value={productName} 
+                      onChange={(e) => setProductName(e.target.value)} 
+                      onClick={() => setScanning(false)} 
+                      onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} 
+                      disabled={checkingSettings || !settingsComplete} 
+                    />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1" ref={filterMenuRef}>
+                      <button
+                        onClick={() => setShowFilterMenu(!showFilterMenu)}
+                        className={`w-8 h-8 rounded-md transition-all flex items-center justify-center text-sm font-bold bg-[#5a4fcf] text-white shadow-sm ring-2 ring-transparent hover:ring-indigo-200`}
+                        title="Filter Category"
+                      >
+                        {searchType === 'product' ? 'P' : searchType === 'service' ? 'S' : <Filter size={18} />}
+                      </button>
+                      
+                      <AnimatePresence>
+                        {showFilterMenu && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="absolute right-0 top-full mt-2 w-36 bg-white border border-gray-200 rounded-xl shadow-xl z-[60] overflow-hidden"
+                          >
+                            {(['all', 'product', 'service'] as const).map((type) => (
+                              <button
+                                key={type}
+                                onClick={() => {
+                                  setSearchType(type);
+                                  setShowFilterMenu(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors
+                                  ${searchType === type 
+                                    ? 'bg-indigo-50 text-[#5a4fcf]' 
+                                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
+                              >
+                                {type === 'all' ? 'All Items' : type === 'product' ? 'Products' : 'Services'}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
                   {showSuggestions && settingsComplete && (
                     <div className="absolute z-10 mt-2 w-full rounded-xl border-2 border-[#5a4fcf] bg-white shadow-xl max-h-48 overflow-y-auto">
                       {suggestions.map((s) => {
-                        const isProduct = 'id' in s;
+                        const isProduct = s.itemType === 'product';
                         const id = isProduct ? (s as InventoryProduct).id : (s as InventoryService)._id;
                         const price = isProduct ? (s as InventoryProduct).sellingPrice : (s as InventoryService).price;
                         const name = s.name;
                         const gstRate = isProduct ? (s as InventoryProduct).gstRate : 0;
                         const profitPerUnit = isProduct ? (s as InventoryProduct).profitPerUnit : 0;
                         const sku = isProduct ? (s as InventoryProduct).sku : undefined;
-                        const type = isProduct ? 'product' : 'service';
+                        const type = s.itemType;
 
                         return (
                           <div key={id} onClick={() => addToCart(type, id, name, price, gstRate, profitPerUnit)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0">
