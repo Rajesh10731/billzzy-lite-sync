@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, FC } from 'react';
+import React, { useState, useEffect, FC, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { 
   Plus, Search, Edit2, Trash2, X, 
@@ -12,7 +12,6 @@ interface IService {
   _id: string;
   name: string;
   price: number;
-  duration?: string;
   category?: string;
 }
 
@@ -71,9 +70,6 @@ const MobileServiceCard: FC<MobileServiceCardProps> = React.memo(({ service, isS
             <h4 className="text-sm font-bold text-gray-900 truncate">{service.name}</h4>
             <div className="flex items-center gap-2">
               <p className="text-[10px] uppercase font-bold text-gray-400 truncate">{service.category || 'General'}</p>
-              {service.duration && (
-                <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">{service.duration}</span>
-              )}
             </div>
           </div>
         </div>
@@ -100,10 +96,25 @@ export default function ServicesPage() {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    duration: '',
     category: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Extract unique categories for dropdown
+  const existingCategories: string[] = Array.from(new Set(services.map(s => s.category?.trim()).filter((cat): cat is string => Boolean(cat)))).sort();
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -131,7 +142,6 @@ export default function ServicesPage() {
       setFormData({
         name: service.name,
         price: service.price.toString(),
-        duration: service.duration || '',
         category: service.category || ''
       });
     } else {
@@ -139,7 +149,6 @@ export default function ServicesPage() {
       setFormData({
         name: '',
         price: '',
-        duration: '',
         category: ''
       });
     }
@@ -234,10 +243,16 @@ export default function ServicesPage() {
           </div>
           
           {/* Summary stats like Inventory */}
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl border-2 bg-indigo-50 border-indigo-100 p-2 flex flex-col items-center justify-center text-center h-20 transition-all">
                <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Total Services</p>
                <p className="text-lg font-extrabold text-gray-900">{services.length}</p>
+            </div>
+            <div className="rounded-xl border-2 bg-indigo-50 border-indigo-100 p-2 flex flex-col items-center justify-center text-center h-20 transition-all">
+               <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Categories</p>
+               <p className="text-lg font-extrabold text-gray-900">
+                 {new Set(services.map(s => s.category?.toLowerCase().trim() || 'general')).size}
+               </p>
             </div>
           </div>
         </div>
@@ -279,7 +294,6 @@ export default function ServicesPage() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="text-sm font-bold text-gray-900">{formatCurrency(service.price)}</p>
-                      {service.duration && <p className="text-[10px] text-gray-500">{service.duration}</p>}
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
@@ -361,42 +375,74 @@ export default function ServicesPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-700">Service Price</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
-                      <input 
-                        type="number" 
-                        required
-                        className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
-                        placeholder="0.00"
-                        value={formData.price}
-                        onChange={(e) => setFormData({...formData, price: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-700">Duration</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">Service Price</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
                     <input 
-                      type="text" 
-                      className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
-                      placeholder="e.g., 30m, 1h"
-                      value={formData.duration}
-                      onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                      type="number" 
+                      required
+                      className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
+                      placeholder="0.00"
+                      value={formData.price}
+                      onChange={(e) => setFormData({...formData, price: e.target.value})}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 relative" ref={categoryDropdownRef}>
                   <label className="text-xs font-medium text-gray-700">Category</label>
                   <input 
                     type="text" 
                     className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
                     placeholder="e.g., Styling, Advisory"
                     value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    onFocus={() => setShowCategoryDropdown(true)}
+                    onChange={(e) => {
+                      setFormData({...formData, category: e.target.value});
+                      setShowCategoryDropdown(true);
+                    }}
                   />
+                  <AnimatePresence>
+                    {showCategoryDropdown && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-40 overflow-y-auto"
+                      >
+                        {existingCategories.filter(cat => 
+                          cat.toLowerCase().includes(formData.category.toLowerCase())
+                        ).length > 0 ? (
+                          existingCategories
+                            .filter(cat => cat.toLowerCase().includes(formData.category.toLowerCase()))
+                            .map(cat => (
+                              <div 
+                                key={cat}
+                                className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer transition-colors"
+                                onClick={() => {
+                                  setFormData({...formData, category: cat});
+                                  setShowCategoryDropdown(false);
+                                }}
+                              >
+                                {cat}
+                              </div>
+                            ))
+                        ) : (
+                          formData.category && (
+                            <div className="px-3 py-2 text-sm text-gray-500 italic">
+                              New Category: &quot;{formData.category}&quot;
+                            </div>
+                          )
+                        )}
+                        {!formData.category && existingCategories.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-gray-500 italic">
+                            No categories yet
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 <div className="bg-gray-50 -mx-4 -mb-4 px-4 py-3 flex justify-end gap-2.5 border-t mt-6">
