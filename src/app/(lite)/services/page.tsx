@@ -89,6 +89,9 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [swipedId, setSwipedId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  const [activeTab, setActiveTab] = useState<'total' | 'categories'>('total');
   
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -202,10 +205,19 @@ export default function ServicesPage() {
     }
   };
 
-  const filteredServices = services.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredServices = services.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         s.category?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = !selectedCategory || s.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const clearFilters = () => {
+    setSelectedCategory(null);
+    setSearchQuery('');
+    setShowCategoryFilter(false);
+    setActiveTab('total');
+  };
 
   if (status === 'loading' || (loading && services.length === 0)) {
     return (
@@ -219,7 +231,11 @@ export default function ServicesPage() {
     <div className="p-4 space-y-4 pb-24">
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Header Section matching Inventory */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 space-y-3.5">
+        <div className={`bg-white rounded-xl shadow-sm border transition-all duration-300 p-3.5 space-y-3.5 ${
+          activeTab === 'total' 
+            ? 'border-indigo-200 ring-2 ring-indigo-50/50 shadow-indigo-50/20' 
+            : 'border-[#5a4fcf]/40 ring-2 ring-[#5a4fcf]/10 shadow-[#5a4fcf]/5'
+        }`}>
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-[#5a4fcf] rounded-lg flex items-center justify-center">
@@ -244,18 +260,57 @@ export default function ServicesPage() {
           
           {/* Summary stats like Inventory */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border-2 bg-indigo-50 border-indigo-100 p-2 flex flex-col items-center justify-center text-center h-20 transition-all">
+            <button 
+              onClick={clearFilters}
+              className={`rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center h-20 transition-all active:scale-95 ${activeTab === 'total' ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-100' : 'bg-gray-50 border-gray-100 opacity-60 hover:opacity-100'}`}
+            >
                <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Total Services</p>
                <p className="text-lg font-extrabold text-gray-900">{services.length}</p>
-            </div>
-            <div className="rounded-xl border-2 bg-indigo-50 border-indigo-100 p-2 flex flex-col items-center justify-center text-center h-20 transition-all">
+            </button>
+            <button 
+              onClick={() => {
+                setShowCategoryFilter(!showCategoryFilter);
+                setActiveTab('categories');
+              }}
+              className={`rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center h-20 transition-all active:scale-95 ${activeTab === 'categories' ? 'bg-indigo-50 border-[#5a4fcf]/30 ring-2 ring-[#5a4fcf]/10' : 'bg-gray-50 border-gray-100 opacity-60 hover:opacity-100'}`}
+            >
                <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Categories</p>
                <p className="text-lg font-extrabold text-gray-900">
                  {new Set(services.map(s => s.category?.toLowerCase().trim() || 'general')).size}
                </p>
-            </div>
+            </button>
           </div>
         </div>
+
+        {/* Category Filter Bar */}
+        <AnimatePresence>
+          {showCategoryFilter && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${!selectedCategory ? 'bg-[#5a4fcf] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  All
+                </button>
+                {existingCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedCategory === cat ? 'bg-[#5a4fcf] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Search matching Inventory */}
         <div className="relative w-full group">
