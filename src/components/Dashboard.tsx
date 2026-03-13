@@ -95,7 +95,7 @@ export default function Dashboard() {
         <StockStyleSalesChart />
 
         {/* AI Business Insights */}
-        <AIInsights />
+        {/* <AIInsights /> */}
 
         {/* Inventory Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5">
