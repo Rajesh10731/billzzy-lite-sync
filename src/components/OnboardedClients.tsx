@@ -355,7 +355,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Edit2, Check, X, Copy, Key, Filter } from 'lucide-react';
+import { Edit2, Check, X, Copy, Key, Filter, ExternalLink } from 'lucide-react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format } from 'date-fns';
@@ -794,17 +794,50 @@ export default function OnboardedClients() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1.5 min-w-[220px]">
                       {user.billzzyHook ? (
-                        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 px-3 py-2 rounded-xl group shadow-sm transition-all hover:shadow hover:border-indigo-200">
-                          <code className="text-xs font-black text-indigo-700 break-all">
-                            HOOK: {user.billzzyHook}
-                          </code>
-                          <button
-                            onClick={() => copyToClipboard(user.billzzyHook!, 'Access Hook')}
-                            className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-indigo-100 rounded-lg ml-2"
-                            title="Copy Hook"
-                          >
-                            <Copy size={14} />
-                          </button>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 px-3 py-2 rounded-xl group shadow-sm transition-all hover:shadow hover:border-indigo-200">
+                            <code className="text-[10px] font-black text-indigo-700 break-all">
+                              HOOK: {user.billzzyHook}
+                            </code>
+                            <button
+                              onClick={() => copyToClipboard(user.billzzyHook!, 'Access Hook')}
+                              className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-indigo-100 rounded-lg ml-2"
+                              title="Copy Hook"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          </div>
+                          
+                          {/* Webhook Test Link */}
+                          <div className="flex items-center justify-between bg-orange-50/50 border border-orange-100 px-3 py-1.5 rounded-lg group/link transition-all hover:bg-orange-50">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-orange-600 uppercase tracking-tight">Test Endpoint URL</span>
+                              <code className="text-[10px] font-medium text-orange-800 break-all line-clamp-1 max-w-[150px]">
+                                /api/external/v1/billing-history?hook={user.billzzyHook}
+                              </code>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  const url = `${window.location.origin}/api/external/v1/billing-history?hook=${user.billzzyHook}`;
+                                  copyToClipboard(url, 'Test URL');
+                                }}
+                                className="text-orange-600 opacity-0 group-hover/link:opacity-100 transition-all p-1 hover:bg-orange-100 rounded"
+                                title="Copy Test URL"
+                              >
+                                <Copy size={12} />
+                              </button>
+                              <a
+                                href={`/api/external/v1/billing-history?hook=${user.billzzyHook}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-orange-600 opacity-0 group-hover/link:opacity-100 transition-all p-1 hover:bg-orange-100 rounded"
+                                title="Open in New Tab"
+                              >
+                                <ExternalLink size={12} />
+                              </a>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <button

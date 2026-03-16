@@ -9,6 +9,7 @@ import {
   Users,
   UserCheck,
   BellRing,
+  Terminal,
   LogOut,
   Menu,
   X,
@@ -100,6 +101,10 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 
           <NavLink href="/admin/subscribed" setIsMobileOpen={setIsMobileOpen} isActive={pathname === '/admin/subscribed'}>
             <BellRing className="h-5 w-5" /><span>Notifications</span>
+          </NavLink>
+
+          <NavLink href="/admin/api-docs" setIsMobileOpen={setIsMobileOpen} isActive={pathname === '/admin/api-docs'}>
+            <Terminal className="h-5 w-5" /><span>API Documentation</span>
           </NavLink>
         </nav>
 
