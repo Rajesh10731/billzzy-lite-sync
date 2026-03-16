@@ -355,7 +355,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Edit2, Check, X, Copy, Key } from 'lucide-react';
+import { Edit2, Check, X, Copy, Key, Filter } from 'lucide-react';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+import { format } from 'date-fns';
 import { formatPhoneNumber, countries, Country } from '@/lib/countries';
 import CountryCodeSelector from '@/components/ui/CountryCodeSelector';
 
@@ -379,8 +382,13 @@ export default function OnboardedClients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+
+  // Date Filter State
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  type ValuePiece = Date | null;
+  type CalendarValue = ValuePiece | [ValuePiece, ValuePiece];
+  const [dateRange, setDateRange] = useState<CalendarValue>(null);
+  const [tempDateRange, setTempDateRange] = useState<CalendarValue>(null);
 
   // State for PIN editing
   const [editingPinUserId, setEditingPinUserId] = useState<string | null>(null);
@@ -428,16 +436,11 @@ export default function OnboardedClients() {
     alert(`${label} copied to clipboard!`);
   };
 
-  // Handle date filter submission
-  const handleFilter = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    fetchUsers(startDate, endDate);
-  };
 
   // Reset filters
   const handleReset = () => {
-    setStartDate('');
-    setEndDate('');
+    setDateRange(null);
+    setTempDateRange(null);
     fetchUsers();
   };
 
@@ -592,77 +595,168 @@ export default function OnboardedClients() {
       <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
+        <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Onboarded Clients</h2>
-            <p className="text-xs text-gray-500 font-medium">Manage merchant identity, PINs, and Developer API access</p>
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Active Clients</h2>
+            <p className="text-sm text-gray-500 font-medium mt-1">Manage merchant identity, PINs, and Developer API access</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => router.push('/admin/dashboard')} className="px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100">
-              Dashboard
+          <div className="flex gap-2 relative">
+            <button
+              onClick={() => {
+                setTempDateRange(dateRange);
+                setShowDateFilter(!showDateFilter);
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm border ${Array.isArray(dateRange) && dateRange[0] && dateRange[1]
+                ? 'bg-indigo-600 text-white border-transparent ring-2 ring-indigo-200'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100 hover:border-indigo-200'
+                }`}
+            >
+              <Filter className="w-4 h-4" />
+              {Array.isArray(dateRange) && dateRange[0] && dateRange[1] ? (
+                <span>
+                  {format(dateRange[0], 'dd MMM')} - {format(dateRange[1], 'dd MMM')}
+                </span>
+              ) : <span>Filter by Date</span>}
+              {(Array.isArray(dateRange) && dateRange[0]) && (
+                <X
+                  size={14}
+                  className="ml-1 hover:text-red-500 hover:bg-white/20 rounded-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReset();
+                  }}
+                />
+              )}
             </button>
-            <button onClick={handleLogout} className="px-3 py-1.5 text-xs font-bold text-white bg-red-600 rounded-md hover:bg-red-700">
-              Logout
-            </button>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <form onSubmit={handleFilter} className="flex flex-col sm:flex-row gap-4">
-            <div className="flex flex-wrap items-end gap-4 flex-1">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Start Date</label>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-md border-gray-300 text-sm py-1.5 px-3 border" />
+            {/* Date Filter Popover */}
+            {showDateFilter && (
+              <div className="absolute top-full right-0 mt-2 z-50 bg-white rounded-xl shadow-xl border border-gray-200 w-[280px] p-0 animate-in fade-in zoom-in-95 duration-200">
+                <style>{`
+                    .filter-calendar .react-calendar {
+                      border: none;
+                      font-family: inherit;
+                      width: 100%;
+                      font-size: 0.75rem;
+                      background: transparent;
+                    }
+                    .filter-calendar .react-calendar__navigation {
+                      margin-bottom: 0.5rem;
+                    }
+                    .filter-calendar .react-calendar__navigation button {
+                      min-width: 24px;
+                      background: none;
+                      font-weight: 600;
+                      color: #4f46e5;
+                    }
+                    .filter-calendar .react-calendar__month-view__weekdays {
+                      font-weight: 600;
+                      font-size: 0.65rem;
+                      text-transform: uppercase;
+                      color: #9ca3af;
+                    }
+                    .filter-calendar .react-calendar__tile {
+                      padding: 6px 4px;
+                      border-radius: 4px;
+                    }
+                    .filter-calendar .react-calendar__tile--active {
+                      background: #4f46e5 !important;
+                      color: white !important;
+                    }
+                    .filter-calendar .react-calendar__tile--now {
+                      background: #f3f4f6;
+                    }
+                    .filter-calendar .react-calendar__tile--range {
+                       background: #eef2ff;
+                       color: #4f46e5;
+                    }
+                    .filter-calendar .react-calendar__tile--rangeStart {
+                       background: #4f46e5 !important;
+                       color: white !important;
+                       border-top-left-radius: 6px !important;
+                       border-bottom-left-radius: 6px !important;
+                    }
+                    .filter-calendar .react-calendar__tile--rangeEnd {
+                       background: #4f46e5 !important;
+                       color: white !important;
+                       border-top-right-radius: 6px !important;
+                       border-bottom-right-radius: 6px !important;
+                    }
+                 `}</style>
+                <div className="p-3 filter-calendar">
+                  <Calendar
+                    onChange={(value) => setTempDateRange(value as CalendarValue)}
+                    value={tempDateRange}
+                    selectRange={true}
+                    className="w-full"
+                    next2Label={null}
+                    prev2Label={null}
+                  />
+                </div>
+                <div className="flex items-center gap-2 p-2 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
+                  <button
+                    onClick={() => setShowDateFilter(false)}
+                    className="flex-1 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all active:scale-95 shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (Array.isArray(tempDateRange) && tempDateRange[0] && tempDateRange[1]) {
+                        setDateRange(tempDateRange);
+                        setShowDateFilter(false);
+                        const f = format(tempDateRange[0], 'yyyy-MM-dd');
+                        const t = format(tempDateRange[1], 'yyyy-MM-dd');
+                        fetchUsers(f, t);
+                      }
+                    }}
+                    disabled={!Array.isArray(tempDateRange) || !tempDateRange[0] || !tempDateRange[1]}
+                    className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  >
+                    Apply Filter
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">End Date</label>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-md border-gray-300 text-sm py-1.5 px-3 border" />
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700">Apply</button>
-                <button type="button" onClick={handleReset} className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Reset</button>
-              </div>
-            </div>
-          </form>
+            )}
+          </div>
         </div>
 
         {/* Search */}
-        <div className="px-6 py-3 border-b border-gray-200 bg-white">
+        <div className="px-6 py-4 border-b border-gray-100 bg-white">
           <input
             type="text"
-            placeholder="Search by name, email or phone..."
+            placeholder="Search active tenants by name, email or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+            className="block w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-gray-50/50 hover:bg-white"
           />
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+            <thead className="bg-gray-50/50 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
               <tr>
-                <th className="px-6 py-3 text-left">S.No</th>
-                <th className="px-6 py-3 text-left">Tenant Info</th>
-                <th className="px-6 py-3 text-left text-orange-600">Developer API Access</th>
-                <th className="px-6 py-3 text-left">PIN</th>
-                <th className="px-6 py-3 text-left">Usage (Bills)</th>
-                <th className="px-6 py-3 text-left">Earnings</th>
-                <th className="px-6 py-3 text-left text-green-600">Status</th>
-                <th className="px-6 py-3 text-left">Actions</th>
+                <th className="px-6 py-4 text-left">S.No</th>
+                <th className="px-6 py-4 text-left">Tenant Info</th>
+                <th className="px-6 py-4 text-left text-orange-600">Developer API Access</th>
+                <th className="px-6 py-4 text-left">PIN</th>
+                <th className="px-6 py-4 text-left">Usage (Bills)</th>
+                <th className="px-6 py-4 text-left">Earnings</th>
+                <th className="px-6 py-4 text-left text-green-600">Status</th>
+                <th className="px-6 py-4 text-left">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-50">
               {onboardedUsers.map((user, index) => (
-                <tr key={user._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{index + 1}</td>
+                <tr key={user._id} className="hover:bg-gray-50/50 transition-colors group/row">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{index + 1}</td>
 
                   {/* Tenant Info */}
                   <td className="px-6 py-4">
-                    <div className="text-sm font-bold text-gray-900">{user.name}</div>
+                    <div className="text-sm font-bold text-gray-900 group-hover/row:text-indigo-600 transition-colors">{user.name}</div>
                     {editingPhoneUserId === user._id ? (
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1.5">
                         <div className="w-24">
                           <CountryCodeSelector
                             selectedCountryCode={selectedCountry?.code || 'IN'}
@@ -672,41 +766,41 @@ export default function OnboardedClients() {
                         <input
                           type="tel"
                           placeholder="Phone number"
-                          className="w-32 border border-gray-300 rounded-xl px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                          className="w-32 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-bold bg-white"
                           value={tempPhone}
                           onChange={(e) => setTempPhone(e.target.value)}
                         />
-                        <button onClick={() => handleSavePhone(user._id)} className="p-1 bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors">
-                          <Check size={16} />
+                        <button onClick={() => handleSavePhone(user._id)} className="p-1 px-1.5 bg-green-50 text-green-600 rounded-lg border border-green-100 hover:bg-green-100 transition-colors shadow-sm">
+                          <Check size={14} />
                         </button>
-                        <button onClick={cancelEditingPhone} className="p-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
-                          <X size={16} />
+                        <button onClick={cancelEditingPhone} className="p-1 px-1.5 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors shadow-sm">
+                          <X size={14} />
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 group mt-0.5">
-                        <div className="text-[11px] text-gray-700 font-bold italic bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">
+                      <div className="flex items-center gap-2 group mt-1">
+                        <div className="text-[11px] text-gray-600 font-bold bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200 shadow-sm">
                           {formatPhoneNumber(user.phoneNumber)}
                         </div>
-                        <button onClick={() => startEditingPhone(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEditingPhone(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-indigo-50 rounded-lg">
                           <Edit2 size={12} />
                         </button>
                       </div>
                     )}
-                    <div className="text-[11px] text-gray-400 font-medium">{user.email}</div>
+                    <div className="text-[11px] font-medium text-gray-500 mt-1">{user.email}</div>
                   </td>
 
                   {/* API ACCESS COLUMN */}
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1.5 min-w-[220px]">
                       {user.billzzyHook ? (
-                        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 px-2 py-1.5 rounded group shadow-sm">
-                          <code className="text-[10px] font-black text-indigo-700 break-all">
+                        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 px-3 py-2 rounded-xl group shadow-sm transition-all hover:shadow hover:border-indigo-200">
+                          <code className="text-xs font-black text-indigo-700 break-all">
                             HOOK: {user.billzzyHook}
                           </code>
                           <button
                             onClick={() => copyToClipboard(user.billzzyHook!, 'Access Hook')}
-                            className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-indigo-100 rounded"
+                            className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-indigo-100 rounded-lg ml-2"
                             title="Copy Hook"
                           >
                             <Copy size={14} />
@@ -715,9 +809,9 @@ export default function OnboardedClients() {
                       ) : (
                         <button
                           onClick={() => handleGenerateApiKey(user._id)}
-                          className="w-full py-1.5 bg-indigo-600 text-white rounded text-[10px] font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                          className="w-full py-2 bg-indigo-600 text-white rounded-xl text-[11px] font-bold hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm"
                         >
-                          <Key size={10} /> Generate Access Hook
+                          <Key size={12} /> Generate Access Hook
                         </button>
                       )}
                     </div>
@@ -729,18 +823,18 @@ export default function OnboardedClients() {
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
-                          className="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm"
                           value={tempPin}
                           onChange={(e) => setTempPin(e.target.value)}
                           maxLength={6}
                         />
-                        <button onClick={() => handleSavePin(user._id)} className="text-green-600 hover:text-green-800"><Check size={18} /></button>
-                        <button onClick={cancelEditingPin} className="text-red-600 hover:text-red-800"><X size={18} /></button>
+                        <button onClick={() => handleSavePin(user._id)} className="p-1 px-1.5 bg-green-50 text-green-600 rounded-lg border border-green-100 hover:bg-green-100 transition-colors shadow-sm"><Check size={14} /></button>
+                        <button onClick={cancelEditingPin} className="p-1 px-1.5 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors shadow-sm"><X size={14} /></button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 group">
-                        <span className="text-sm text-gray-700 font-mono bg-gray-50 px-2 py-0.5 rounded border border-gray-100">{user.pin || '----'}</span>
-                        <button onClick={() => startEditingPin(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-sm text-gray-700 font-mono bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-200 shadow-sm">{user.pin || '----'}</span>
+                        <button onClick={() => startEditingPin(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-indigo-50 rounded-lg">
                           <Edit2 size={14} />
                         </button>
                       </div>
@@ -749,28 +843,28 @@ export default function OnboardedClients() {
 
                   {/* BILL COUNT */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100/50 shadow-sm">
                       {user.billCount || 0} Bills
                     </span>
                   </td>
 
                   {/* EARNINGS */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-bold">
+                    <div className="text-sm text-gray-900 font-bold bg-green-50/50 px-2 py-1 rounded-lg inline-block border border-green-100/50">
                       ₹{((user.billCount || 0) * 0.15).toFixed(2)}
                     </div>
                   </td>
 
                   {/* STATUS */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-[10px] font-extrabold text-green-600 uppercase tracking-tight">Onboarded</span>
+                    <span className="text-[10px] font-extrabold text-green-600 uppercase tracking-wide bg-green-50 px-2 py-1 rounded-md">Active</span>
                   </td>
 
                   {/* ACTIONS */}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => handleOffboard(user._id, user.name)}
-                      className="px-3 py-1 rounded-md text-white text-[10px] font-bold bg-yellow-600 hover:bg-yellow-700 transition-colors uppercase tracking-tight shadow-sm"
+                      className="px-4 py-1.5 rounded-lg text-yellow-700 text-[11px] font-bold bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 transition-all active:scale-95 uppercase tracking-wider shadow-sm"
                     >
                       Offboard
                     </button>

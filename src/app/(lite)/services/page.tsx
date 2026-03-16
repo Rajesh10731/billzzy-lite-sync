@@ -262,22 +262,41 @@ export default function ServicesPage() {
           <div className="grid grid-cols-2 gap-3">
             <button 
               onClick={clearFilters}
-              className={`rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center h-20 transition-all active:scale-95 ${activeTab === 'total' ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-100' : 'bg-gray-50 border-gray-100 opacity-60 hover:opacity-100'}`}
+              className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeTab === 'total'
+                ? 'bg-indigo-50 border-indigo-500'
+                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                }`}
             >
-               <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Total Services</p>
-               <p className="text-lg font-extrabold text-gray-900">{services.length}</p>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeTab === 'total' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                <Briefcase className="w-4 h-4" />
+              </div>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${activeTab === 'total' ? 'text-indigo-500' : 'text-gray-400'}`}>Total Services</span>
+              <p className={`text-lg font-extrabold ${activeTab === 'total' ? 'text-gray-900' : 'text-gray-700'}`}>{services.length}</p>
+              {activeTab === 'total' && (
+                <motion.div layoutId="services-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+              )}
             </button>
+
             <button 
               onClick={() => {
                 setShowCategoryFilter(!showCategoryFilter);
                 setActiveTab('categories');
               }}
-              className={`rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center h-20 transition-all active:scale-95 ${activeTab === 'categories' ? 'bg-indigo-50 border-[#5a4fcf]/30 ring-2 ring-[#5a4fcf]/10' : 'bg-gray-50 border-gray-100 opacity-60 hover:opacity-100'}`}
+              className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeTab === 'categories'
+                ? 'bg-purple-50 border-purple-500'
+                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                }`}
             >
-               <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Categories</p>
-               <p className="text-lg font-extrabold text-gray-900">
-                 {new Set(services.map(s => s.category?.toLowerCase().trim() || 'general')).size}
-               </p>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeTab === 'categories' ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                <Briefcase className="w-4 h-4" />
+              </div>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${activeTab === 'categories' ? 'text-purple-500' : 'text-gray-400'}`}>Categories</span>
+              <p className={`text-lg font-extrabold ${activeTab === 'categories' ? 'text-gray-900' : 'text-gray-700'}`}>
+                {new Set(services.map(s => s.category?.toLowerCase().trim() || 'general')).size}
+              </p>
+              {activeTab === 'categories' && (
+                <motion.div layoutId="services-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-purple-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+              )}
             </button>
           </div>
         </div>

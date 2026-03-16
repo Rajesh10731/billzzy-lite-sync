@@ -8,6 +8,7 @@ import { format, parseISO } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { motion } from 'framer-motion';
 
 interface Product {
   id: string;
@@ -447,35 +448,53 @@ export default function Purchase() {
           <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => setActiveFilter('all')}
-              className={`${activeFilter === 'all' ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-200' : 'bg-indigo-50 border-indigo-200'} border-2 rounded-xl p-2 flex flex-col items-center justify-center text-center h-24 transition-all active:scale-95`}
+              className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'all'
+                ? 'bg-indigo-50 border-indigo-500'
+                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                }`}
             >
-              <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center mb-1">
-                <ShoppingCart className="w-4 h-4 text-white" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                <ShoppingCart className="w-4 h-4" />
               </div>
-              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Total Bills</p>
-              <p className="text-lg font-extrabold text-gray-900">{purchases.length}</p>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'all' ? 'text-indigo-500' : 'text-gray-400'}`}>Total Bills</span>
+              <p className={`text-lg font-extrabold ${activeFilter === 'all' ? 'text-gray-900' : 'text-gray-700'}`}>{purchases.length}</p>
+              {activeFilter === 'all' && (
+                <motion.div layoutId="purchase-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+              )}
             </button>
 
             <button
               onClick={() => setActiveFilter('paid')}
-              className={`${activeFilter === 'paid' ? 'bg-green-50 border-green-300 ring-2 ring-green-200' : 'bg-green-50 border-green-200'} border-2 rounded-xl p-2 flex flex-col items-center justify-center text-center h-24 transition-all active:scale-95`}
+              className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'paid'
+                ? 'bg-green-50 border-green-500'
+                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                }`}
             >
-              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center mb-1">
-                <IndianRupee className="w-4 h-4 text-white" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'paid' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                <IndianRupee className="w-4 h-4" />
               </div>
-              <p className="text-[10px] font-bold text-green-500 uppercase tracking-wide">Paid</p>
-              <p className="text-lg font-extrabold text-gray-900">₹{totalPaid.toFixed(0)}</p>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'paid' ? 'text-green-500' : 'text-gray-400'}`}>Paid</span>
+              <p className={`text-lg font-extrabold ${activeFilter === 'paid' ? 'text-gray-900' : 'text-gray-700'}`}>₹{totalPaid.toFixed(0)}</p>
+              {activeFilter === 'paid' && (
+                <motion.div layoutId="purchase-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-green-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+              )}
             </button>
 
             <button
               onClick={() => setActiveFilter('pending')}
-              className={`${activeFilter === 'pending' ? 'bg-red-50 border-red-300 ring-2 ring-red-200' : 'bg-red-50 border-red-200'} border-2 rounded-xl p-2 flex flex-col items-center justify-center text-center h-24 transition-all active:scale-95`}
+              className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'pending'
+                ? 'bg-red-50 border-red-500'
+                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                }`}
             >
-              <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center mb-1">
-                <AlertCircle className="w-4 h-4 text-white" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'pending' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                <AlertCircle className="w-4 h-4" />
               </div>
-              <p className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Pending</p>
-              <p className="text-lg font-extrabold text-gray-900">₹{totalPending.toFixed(0)}</p>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'pending' ? 'text-red-500' : 'text-gray-400'}`}>Pending</span>
+              <p className={`text-lg font-extrabold ${activeFilter === 'pending' ? 'text-gray-900' : 'text-gray-700'}`}>₹{totalPending.toFixed(0)}</p>
+              {activeFilter === 'pending' && (
+                <motion.div layoutId="purchase-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-red-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+              )}
             </button>
           </div>
         </div>

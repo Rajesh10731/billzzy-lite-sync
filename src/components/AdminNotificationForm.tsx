@@ -75,7 +75,7 @@ export default function AdminNotificationForm() {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-[24px] shadow-xl border border-gray-100 overflow-hidden mb-2">
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-6 text-white">
         <div className="flex items-center gap-3">
           <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">

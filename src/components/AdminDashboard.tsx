@@ -5,7 +5,10 @@
 import { useState, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Edit2, Check, X } from 'lucide-react';
+import { Edit2, Check, X, Filter } from 'lucide-react';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+import { format } from 'date-fns';
 import { formatPhoneNumber, countries, Country } from '@/lib/countries';
 import CountryCodeSelector from '@/components/ui/CountryCodeSelector';
 
@@ -25,9 +28,14 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Date Filter State
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  type ValuePiece = Date | null;
+  type CalendarValue = ValuePiece | [ValuePiece, ValuePiece];
+  const [dateRange, setDateRange] = useState<CalendarValue>(null);
+  const [tempDateRange, setTempDateRange] = useState<CalendarValue>(null);
 
   // State for Phone editing
   const [editingPhoneUserId, setEditingPhoneUserId] = useState<string | null>(null);
@@ -65,16 +73,10 @@ export default function AdminDashboard() {
     fetchUsers();
   }, []);
 
-  // Handle date filter submission
-  const handleFilter = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    fetchUsers(startDate, endDate);
-  };
-
   // Reset filters
   const handleReset = () => {
-    setStartDate('');
-    setEndDate('');
+    setDateRange(null);
+    setTempDateRange(null);
     fetchUsers();
   };
 
@@ -202,132 +204,188 @@ export default function AdminDashboard() {
     <div className="max-w-6xl mx-auto px-4 py-6">
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="px-6 py-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">Tenant Management</h2>
-            <p className="text-sm text-gray-500">View tenant bill counts with date filtering</p>
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Tenant Management</h2>
+            <p className="text-sm text-gray-500 font-medium mt-1">Review pending registrations and tenant activity</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 relative">
             <button
-              onClick={() => router.push('/admin/subscribed')}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              onClick={() => {
+                setTempDateRange(dateRange);
+                setShowDateFilter(!showDateFilter);
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm border ${Array.isArray(dateRange) && dateRange[0] && dateRange[1]
+                ? 'bg-indigo-600 text-white border-transparent ring-2 ring-indigo-200'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100 hover:border-indigo-200'
+                }`}
             >
-              View Subscribed Users
+              <Filter className="w-4 h-4" />
+              {Array.isArray(dateRange) && dateRange[0] && dateRange[1] ? (
+                <span>
+                  {format(dateRange[0], 'dd MMM')} - {format(dateRange[1], 'dd MMM')}
+                </span>
+              ) : <span>Filter by Date</span>}
+              {(Array.isArray(dateRange) && dateRange[0]) && (
+                <X
+                  size={14}
+                  className="ml-1 hover:text-red-500 hover:bg-white/20 rounded-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReset();
+                  }}
+                />
+              )}
             </button>
-            <button
-              onClick={() => router.push('/admin/onboard')}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            >
-              View Onboarded Clients
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <form onSubmit={handleFilter} className="flex flex-col sm:flex-row gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 flex-1">
-              {/* Start Date */}
-              <div className="sm:col-span-1">
-                <label htmlFor="startDate" className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    id="startDate"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2 px-3 border"
+            {/* Date Filter Popover */}
+            {showDateFilter && (
+              <div className="absolute top-full right-0 mt-2 z-50 bg-white rounded-xl shadow-xl border border-gray-200 w-[280px] p-0 animate-in fade-in zoom-in-95 duration-200">
+                <style>{`
+                    .filter-calendar .react-calendar {
+                      border: none;
+                      font-family: inherit;
+                      width: 100%;
+                      font-size: 0.75rem;
+                      background: transparent;
+                    }
+                    .filter-calendar .react-calendar__navigation {
+                      margin-bottom: 0.5rem;
+                    }
+                    .filter-calendar .react-calendar__navigation button {
+                      min-width: 24px;
+                      background: none;
+                      font-weight: 600;
+                      color: #4f46e5;
+                    }
+                    .filter-calendar .react-calendar__month-view__weekdays {
+                      font-weight: 600;
+                      font-size: 0.65rem;
+                      text-transform: uppercase;
+                      color: #9ca3af;
+                    }
+                    .filter-calendar .react-calendar__tile {
+                      padding: 6px 4px;
+                      border-radius: 4px;
+                    }
+                    .filter-calendar .react-calendar__tile--active {
+                      background: #4f46e5 !important;
+                      color: white !important;
+                    }
+                    .filter-calendar .react-calendar__tile--now {
+                      background: #f3f4f6;
+                    }
+                    .filter-calendar .react-calendar__tile--range {
+                       background: #eef2ff;
+                       color: #4f46e5;
+                    }
+                    .filter-calendar .react-calendar__tile--rangeStart {
+                       background: #4f46e5 !important;
+                       color: white !important;
+                       border-top-left-radius: 6px !important;
+                       border-bottom-left-radius: 6px !important;
+                    }
+                    .filter-calendar .react-calendar__tile--rangeEnd {
+                       background: #4f46e5 !important;
+                       color: white !important;
+                       border-top-right-radius: 6px !important;
+                       border-bottom-right-radius: 6px !important;
+                    }
+                 `}</style>
+                <div className="p-3 filter-calendar">
+                  <Calendar
+                    onChange={(value) => setTempDateRange(value as CalendarValue)}
+                    value={tempDateRange}
+                    selectRange={true}
+                    className="w-full"
+                    next2Label={null}
+                    prev2Label={null}
                   />
                 </div>
-              </div>
-
-              {/* End Date */}
-              <div className="sm:col-span-1">
-                <label htmlFor="endDate" className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    id="endDate"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2 px-3 border"
-                  />
+                <div className="flex items-center gap-2 p-2 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
+                  <button
+                    onClick={() => setShowDateFilter(false)}
+                    className="flex-1 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all active:scale-95 shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (Array.isArray(tempDateRange) && tempDateRange[0] && tempDateRange[1]) {
+                        setDateRange(tempDateRange);
+                        setShowDateFilter(false);
+                        const f = format(tempDateRange[0], 'yyyy-MM-dd');
+                        const t = format(tempDateRange[1], 'yyyy-MM-dd');
+                        fetchUsers(f, t);
+                      }
+                    }}
+                    disabled={!Array.isArray(tempDateRange) || !tempDateRange[0] || !tempDateRange[1]}
+                    className="flex-1 py-2 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  >
+                    Apply Filter
+                  </button>
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="sm:col-span-2 flex items-end space-x-3">
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Apply Filters
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </form>
+            )}
+          </div>
         </div>
 
         {/* Search */}
-        <div className="px-6 py-3 border-b border-gray-200">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search tenants..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
+        <div className="px-6 py-4 border-b border-gray-100 bg-white">
+          <input
+            type="text"
+            placeholder="Search pending tenants by name, email, or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-gray-50/50 hover:bg-white"
+          />
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto pb-8">
-          <div className="px-6 py-4 bg-yellow-50 border-b border-yellow-200">
-            <h3 className="text-md font-semibold text-yellow-800">Pending Onboarding</h3>
+        <div className="overflow-x-auto pb-4">
+          <div className="px-6 py-4 bg-amber-50/80 border-b border-amber-100/50 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              Registration Review Queue
+            </h3>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+              {pendingUsers.length} Pending
+            </span>
           </div>
+          
           {pendingUsers.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">
-                {searchTerm ? 'No pending tenants match your search.' : 'No pending tenants found.'}
+            <div className="text-center py-12 px-4">
+              <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                <Check className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">All caught up!</h3>
+              <p className="text-gray-500 text-sm">
+                {searchTerm ? 'No pending tenants match your current search.' : 'There are no tenants waiting to be onboarded right now.'}
               </p>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">S.No</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill Count</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50/50 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                  <tr>
+                    <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">S.No</th>
+                    <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">Tenant Profile</th>
+                    <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">Contact Info</th>
+                    <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">Activity</th>
+                    <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+              <tbody className="bg-white divide-y divide-gray-50">
                 {pendingUsers.map((user, index) => (
-                  <tr key={user._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <tr key={user._id} className="hover:bg-gray-50/50 transition-colors group/row">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
                       {index + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                      <div className="flex flex-col">
+                        <div className="text-sm font-bold text-gray-900 group-hover/row:text-indigo-600 transition-colors">{user.name}</div>
+                        <div className="text-[11px] font-medium text-gray-500 mt-0.5">{user.email}</div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingPhoneUserId === user._id ? (
@@ -341,55 +399,58 @@ export default function AdminDashboard() {
                           <input
                             type="tel"
                             placeholder="Phone number"
-                            className="w-32 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                            className="w-32 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-bold bg-white"
                             value={tempPhone}
                             onChange={(e) => setTempPhone(e.target.value)}
                           />
-                          <button onClick={() => handleSavePhone(user._id)} className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
-                            <Check size={18} />
+                          <button onClick={() => handleSavePhone(user._id)} className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors shadow-sm border border-green-100">
+                            <Check size={14} />
                           </button>
-                          <button onClick={cancelEditingPhone} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
-                            <X size={18} />
+                          <button onClick={cancelEditingPhone} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors shadow-sm border border-red-100">
+                            <X size={14} />
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 group">
-                          <div className="text-sm font-bold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                          <div className="text-xs font-bold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
                             {formatPhoneNumber(user.phoneNumber)}
                           </div>
-                          <button onClick={() => startEditingPhone(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Edit2 size={16} />
+                          <button onClick={() => startEditingPhone(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-indigo-50 rounded-lg">
+                            <Edit2 size={14} />
                           </button>
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {user.billCount || 0}
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100/50">
+                        {user.billCount || 0} Bills Generated
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
-                      <button
-                        onClick={() => handleOnboard(user._id)}
-                        className="px-3 py-1 rounded-md text-white text-sm bg-green-600 hover:bg-green-700"
-                      >
-                        Onboard
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTenant(user._id, user.name)}
-                        disabled={deletingId === user._id}
-                        className={`px-3 py-1 rounded-md text-white text-sm ${deletingId === user._id
-                          ? 'bg-red-400 cursor-not-allowed'
-                          : 'bg-red-600 hover:bg-red-700'
-                          }`}
-                      >
-                        {deletingId === user._id ? 'Deleting...' : 'Delete'}
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOnboard(user._id)}
+                          className="px-4 py-1.5 rounded-lg text-white text-[11px] font-bold bg-green-600 hover:bg-green-700 transition-all active:scale-95 shadow-sm uppercase tracking-wider"
+                        >
+                          Onboard
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTenant(user._id, user.name)}
+                          disabled={deletingId === user._id}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all active:scale-95 shadow-sm uppercase tracking-wider border ${deletingId === user._id
+                            ? 'bg-red-50 text-red-400 border-red-100 cursor-not-allowed'
+                            : 'bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300'
+                            }`}
+                        >
+                          {deletingId === user._id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 

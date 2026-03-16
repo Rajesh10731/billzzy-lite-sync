@@ -733,40 +733,55 @@ const Inventory: FC = () => {
                         {/* All Stock */}
                         <button
                             onClick={() => setActiveFilter('all')}
-                            className={`rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center h-24 transition-all active:scale-95 ${activeFilter === 'all' ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-100' : 'bg-indigo-50 border-indigo-100/50'
+                            className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'all'
+                                ? 'bg-indigo-50 border-indigo-500'
+                                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                 }`}
                         >
-                            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center mb-1">
-                                <Package className="w-4 h-4 text-white" />
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                                <Package className="w-4 h-4" />
                             </div>
-                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">All Stock</p>
-                            <p className="text-lg font-extrabold text-gray-900">{stats.totalProducts}</p>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'all' ? 'text-indigo-500' : 'text-gray-400'}`}>All Stock</span>
+                            <p className={`text-lg font-extrabold ${activeFilter === 'all' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.totalProducts}</p>
+                            {activeFilter === 'all' && (
+                                <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                            )}
                         </button>
 
                         {/* Low Stock */}
                         <button
                             onClick={() => setActiveFilter('low')}
-                            className={`rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center h-24 transition-all active:scale-95 ${activeFilter === 'low' ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-100' : 'bg-orange-50 border-orange-100/50'
+                            className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'low'
+                                ? 'bg-orange-50 border-orange-500'
+                                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                 }`}
                         >
-                            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center mb-1">
-                                <AlertTriangle className="w-4 h-4 text-white" />
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'low' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                                <AlertTriangle className="w-4 h-4" />
                             </div>
-                            <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wide">Low Stock</p>
-                            <p className="text-lg font-extrabold text-gray-900">{stats.lowStock}</p>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'low' ? 'text-orange-500' : 'text-gray-400'}`}>Low Stock</span>
+                            <p className={`text-lg font-extrabold ${activeFilter === 'low' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.lowStock}</p>
+                            {activeFilter === 'low' && (
+                                <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-orange-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                            )}
                         </button>
 
                         {/* Out Stock */}
                         <button
                             onClick={() => setActiveFilter('out')}
-                            className={`rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center h-24 transition-all active:scale-95 ${activeFilter === 'out' ? 'bg-red-50 border-red-200 ring-2 ring-red-100' : 'bg-red-50 border-red-100/50'
+                            className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'out'
+                                ? 'bg-red-50 border-red-500'
+                                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                 }`}
                         >
-                            <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center mb-1">
-                                <AlertCircle className="w-4 h-4 text-white" />
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'out' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                                <AlertCircle className="w-4 h-4" />
                             </div>
-                            <p className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Out Stock</p>
-                            <p className="text-lg font-extrabold text-gray-900">{stats.outOfStock}</p>
+                            <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'out' ? 'text-red-500' : 'text-gray-400'}`}>Out Stock</span>
+                            <p className={`text-lg font-extrabold ${activeFilter === 'out' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.outOfStock}</p>
+                            {activeFilter === 'out' && (
+                                <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-red-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                            )}
                         </button>
                     </div>
                 </div>

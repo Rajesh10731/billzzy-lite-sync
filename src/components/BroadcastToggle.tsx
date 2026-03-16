@@ -2,45 +2,42 @@
 
 import React, { useState } from 'react';
 import AdminNotificationForm from '@/components/AdminNotificationForm';
+import { Send, X } from 'lucide-react';
 
 export default function BroadcastToggle() {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div
-                className="p-6 md:p-8 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => setIsOpen(!isOpen)}
+        <>
+            <button
+                onClick={() => setIsOpen(true)}
+                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 font-bold text-white text-sm rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2"
             >
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-1">System Broadcast</h2>
-                    <p className="text-sm text-gray-600">Click to {isOpen ? 'close' : 'open'} the broadcast messaging tool.</p>
-                </div>
-                <div className="flex-shrink-0 ml-4">
-                    <button
-                        className={`p-2 rounded-full ${isOpen ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-400'} transition-colors duration-200`}
-                        aria-label={isOpen ? "Close broadcast tool" : "Open broadcast tool"}
-                    >
-                        <svg
-                            className={`w-6 h-6 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
+                <Send size={16} />
+                <span>System Broadcast</span>
+            </button>
 
-            <div
-                className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}
-            >
-                <div className="px-6 md:px-8 pb-6 md:pb-8 border-t border-gray-100 pt-6">
-                    <p className="text-sm text-gray-600 mb-6">Send an instant push notification to all merchants who have subscribed.</p>
-                    <div className="max-w-2xl">
-                        <AdminNotificationForm />
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div 
+                        className="bg-transparent w-full max-w-2xl relative animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button 
+                            onClick={() => setIsOpen(false)}
+                            className="absolute -top-12 right-0 md:-right-12 z-10 p-2 bg-white/20 hover:bg-white/40 text-white rounded-full transition-colors backdrop-blur-md"
+                        >
+                            <X size={24} />
+                        </button>
+                        
+                        <div className="max-h-[85vh] overflow-y-auto rounded-3xl" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                            <div className="pb-2">
+                                <AdminNotificationForm />
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            )}
+        </>
     );
 }
