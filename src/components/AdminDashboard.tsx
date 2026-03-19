@@ -352,7 +352,7 @@ export default function AdminDashboard() {
               {pendingUsers.length} Pending
             </span>
           </div>
-          
+
           {pendingUsers.length === 0 ? (
             <div className="text-center py-12 px-4">
               <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-100">
@@ -375,81 +375,81 @@ export default function AdminDashboard() {
                     <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
-              <tbody className="bg-white divide-y divide-gray-50">
-                {pendingUsers.map((user, index) => (
-                  <tr key={user._id} className="hover:bg-gray-50/50 transition-colors group/row">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <div className="text-sm font-bold text-gray-900 group-hover/row:text-indigo-600 transition-colors">{user.name}</div>
-                        <div className="text-[11px] font-medium text-gray-500 mt-0.5">{user.email}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {editingPhoneUserId === user._id ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-24">
-                            <CountryCodeSelector
-                              selectedCountryCode={selectedCountry?.code || 'IN'}
-                              onSelect={(c) => setSelectedCountry(c)}
+                <tbody className="bg-white divide-y divide-gray-50">
+                  {pendingUsers.map((user, index) => (
+                    <tr key={user._id} className="hover:bg-gray-50/50 transition-colors group/row">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
+                        {index + 1}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <div className="text-sm font-bold text-gray-900 group-hover/row:text-indigo-600 transition-colors">{user.name}</div>
+                          <div className="text-[11px] font-medium text-gray-500 mt-0.5">{user.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {editingPhoneUserId === user._id ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-24">
+                              <CountryCodeSelector
+                                selectedCountryCode={selectedCountry?.code || 'IN'}
+                                onSelect={(c) => setSelectedCountry(c)}
+                              />
+                            </div>
+                            <input
+                              type="tel"
+                              placeholder="Phone number"
+                              className="w-32 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-bold bg-white"
+                              value={tempPhone}
+                              onChange={(e) => setTempPhone(e.target.value)}
                             />
+                            <button onClick={() => handleSavePhone(user._id)} className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors shadow-sm border border-green-100">
+                              <Check size={14} />
+                            </button>
+                            <button onClick={cancelEditingPhone} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors shadow-sm border border-red-100">
+                              <X size={14} />
+                            </button>
                           </div>
-                          <input
-                            type="tel"
-                            placeholder="Phone number"
-                            className="w-32 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-bold bg-white"
-                            value={tempPhone}
-                            onChange={(e) => setTempPhone(e.target.value)}
-                          />
-                          <button onClick={() => handleSavePhone(user._id)} className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors shadow-sm border border-green-100">
-                            <Check size={14} />
+                        ) : (
+                          <div className="flex items-center gap-2 group">
+                            <div className="text-xs font-bold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+                              {formatPhoneNumber(user.phoneNumber)}
+                            </div>
+                            <button onClick={() => startEditingPhone(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-indigo-50 rounded-lg">
+                              <Edit2 size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100/50">
+                          {user.billCount || 0} Bills Generated
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOnboard(user._id)}
+                            className="px-4 py-1.5 rounded-lg text-white text-[11px] font-bold bg-green-600 hover:bg-green-700 transition-all active:scale-95 shadow-sm uppercase tracking-wider"
+                          >
+                            Onboard
                           </button>
-                          <button onClick={cancelEditingPhone} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors shadow-sm border border-red-100">
-                            <X size={14} />
+                          <button
+                            onClick={() => handleDeleteTenant(user._id, user.name)}
+                            disabled={deletingId === user._id}
+                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all active:scale-95 shadow-sm uppercase tracking-wider border ${deletingId === user._id
+                              ? 'bg-red-50 text-red-400 border-red-100 cursor-not-allowed'
+                              : 'bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300'
+                              }`}
+                          >
+                            {deletingId === user._id ? 'Deleting...' : 'Delete'}
                           </button>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-2 group">
-                          <div className="text-xs font-bold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
-                            {formatPhoneNumber(user.phoneNumber)}
-                          </div>
-                          <button onClick={() => startEditingPhone(user)} className="text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all p-1 hover:bg-indigo-50 rounded-lg">
-                            <Edit2 size={14} />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100/50">
-                        {user.billCount || 0} Bills Generated
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleOnboard(user._id)}
-                          className="px-4 py-1.5 rounded-lg text-white text-[11px] font-bold bg-green-600 hover:bg-green-700 transition-all active:scale-95 shadow-sm uppercase tracking-wider"
-                        >
-                          Onboard
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTenant(user._id, user.name)}
-                          disabled={deletingId === user._id}
-                          className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all active:scale-95 shadow-sm uppercase tracking-wider border ${deletingId === user._id
-                            ? 'bg-red-50 text-red-400 border-red-100 cursor-not-allowed'
-                            : 'bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300'
-                            }`}
-                        >
-                          {deletingId === user._id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

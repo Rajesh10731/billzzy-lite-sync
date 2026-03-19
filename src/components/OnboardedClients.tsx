@@ -807,7 +807,7 @@ export default function OnboardedClients() {
                               <Copy size={14} />
                             </button>
                           </div>
-                          
+
                           {/* Webhook Test Link */}
                           <div className="flex items-center justify-between bg-orange-50/50 border border-orange-100 px-3 py-1.5 rounded-lg group/link transition-all hover:bg-orange-50">
                             <div className="flex flex-col">

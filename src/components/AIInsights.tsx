@@ -2,17 +2,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sparkles, TrendingUp, ShoppingBag, Lightbulb, Loader2, RefreshCw, Bot, AlertTriangle } from "lucide-react";
+import { Clock, Sparkles, TrendingUp, ShoppingBag, Lightbulb, Loader2, RefreshCw, Bot, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface InsightsData {
     salesInsight: string;
+    peakTime: string;
     topProduct: string;
     slowProduct: string;
     suggestion: string;
+    retargeting: string;
+    churnRate: string;
     lastUpdated?: string;
     isMock?: boolean;
-    isYesterday?: boolean;
+    isFallback?: boolean;
 }
 
 export default function AIInsights() {
@@ -45,15 +48,12 @@ export default function AIInsights() {
 
             <div className="flex items-center justify-between mb-2">
                  <div className="flex items-center gap-2">
-                     {/* Robot Icon from Reference */}
                      <div className="w-10 h-10 bg-[#eef2ff] rounded-xl flex items-center justify-center shadow-sm">
                          <Bot className="w-6 h-6 text-[#5a4fcf]" />
                      </div>
                      <div>
-                        <h3 className="text-lg font-bold text-[#1e293b]">AI Insights</h3>
-                        {insights?.isYesterday && (
-                            <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded uppercase tracking-tight">Yesterday</span>
-                        )}
+                        <h3 className="text-lg font-bold text-[#1e293b]">AI Business Advisor</h3>
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-tight">Smart Analysis</span>
                      </div>
                  </div>
                  {!loading && (
@@ -67,7 +67,7 @@ export default function AIInsights() {
                  )}
              </div>
 
-             <div className="h-[1px] bg-gray-100 w-full mb-4" /> {/* Separator Line */}
+             <div className="h-[1px] bg-gray-100 w-full mb-4" />
 
              <AnimatePresence mode="wait">
                  {loading ? (
@@ -107,6 +107,16 @@ export default function AIInsights() {
                          transition={{ duration: 0.4 }}
                          className="space-y-5 px-1"
                      >
+                         {/* Peak Sales Time */}
+                         <div className="flex items-start gap-3.5">
+                             <div className="w-5 h-5 mt-0.5 flex items-center justify-center flex-shrink-0">
+                                 <Clock className="w-5 h-5 text-indigo-500" />
+                             </div>
+                             <p className="text-[14px] text-slate-600 font-medium leading-snug">
+                                 Peak Sales Time: <span className="text-indigo-900 font-bold">{insights?.peakTime}</span>
+                             </p>
+                         </div>
+
                          {/* Sales Insight */}
                          <div className="flex items-start gap-3.5">
                              <div className="w-5 h-5 mt-0.5 flex items-center justify-center flex-shrink-0">
@@ -138,13 +148,25 @@ export default function AIInsights() {
                          </div>
 
                          {/* Suggestion */}
-                         <div className="flex items-start gap-3.5 pb-2">
+                         <div className="flex items-start gap-3.5">
                              <div className="w-5 h-5 mt-0.5 flex items-center justify-center flex-shrink-0">
                                  <Lightbulb className="w-5 h-5 text-amber-500" />
                              </div>
                              <p className="text-[14px] text-slate-600 font-medium leading-snug">
-                                 Suggestion: <span className="text-emerald-700 font-bold">{insights?.suggestion}</span>
+                                 Guidance: <span className="text-emerald-700 font-bold">{insights?.suggestion}</span>
                              </p>
+                         </div>
+
+                         {/* Business Pulse Grid */}
+                         <div className="grid grid-cols-2 gap-3 mt-2">
+                             <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Lost Customers</p>
+                                 <p className="text-xl font-black text-slate-800">{insights?.churnRate}</p>
+                             </div>
+                             <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+                                 <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Customer Focus</p>
+                                 <p className="text-[13px] font-bold text-indigo-700 leading-tight">{insights?.retargeting}</p>
+                             </div>
                          </div>
 
                          {/* Footer */}
@@ -155,15 +177,15 @@ export default function AIInsights() {
                                  </span>
                                  <div className="w-1.5 h-1.5 rounded-full border border-gray-200" />
                              </div>
-                             {(insights?.isMock || insights?.isYesterday) && (
+                             {(insights?.isMock || insights?.isFallback) && (
                                  <span className="text-[10px] text-indigo-400 font-bold tracking-tighter uppercase">
-                                     {insights?.isYesterday ? "Yesterday's Data" : "Demo Mode"}
+                                     Advisor Mode
                                  </span>
                              )}
                          </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                     </motion.div>
+                 )}
+             </AnimatePresence>
         </div>
     );
 }

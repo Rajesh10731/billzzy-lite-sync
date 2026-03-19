@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import CRMComponent from '@/components/CRM';
 import ProfitSection from '@/components/Profit';
 import SalesSummary from '@/components/SalesSummary';
+import StockStyleSalesChart from '@/components/StockStyleSalesChart';
 import { ChevronDown, ChevronUp, BarChart3, TrendingUp, Lock, ArrowRight, Wallet } from 'lucide-react';
 
 export default function ReportPage() {
@@ -148,8 +149,12 @@ export default function ReportPage() {
           </button>
 
           {showSales && (
-            <div className="p-4 border-t border-gray-100 rounded-b-xl">
+            <div className="p-4 border-t border-gray-100 rounded-b-xl space-y-4">
               <SalesSummary enableTabs={true} showHeader={false} />
+              <div className="pt-4 border-t border-gray-50">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Sales Trends</h4>
+                <StockStyleSalesChart />
+              </div>
             </div>
           )}
         </div>

@@ -6,8 +6,6 @@ import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Sale from "@/models/Sales";
 
-const AI_APIKEY = process.env.AI_APIKEY;
-
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);
@@ -18,180 +16,201 @@ export async function GET() {
         const tenantId = session.user.email;
         await dbConnect();
 
-        // Get Today's range
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
-
-        // Get Yesterday's range
-        const yesterdayStart = new Date(todayStart);
-        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-        const yesterdayEnd = new Date(todayEnd);
-        yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
-
-        // Fetch sales for today
         const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const getQuery = (start: Date, end: Date) => ({
+        const tenantQuery = {
             $or: [
                 { tenantId: tenantId },
                 { tenantId: { $regex: new RegExp(`^${escapedId}$`, 'i') } }
-            ],
-            createdAt: { $gte: start, $lte: end }
+            ]
+        };
+
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        const salesHistory = await Sale.find({ ...tenantQuery, createdAt: { $gte: ninetyDaysAgo } }).sort({ createdAt: -1 });
+
+        const Product = (await import("@/models/Product")).default;
+        const products = await Product.find(tenantQuery);
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentSales = salesHistory.filter(s => s.createdAt >= thirtyDaysAgo);
+
+        const productVelocity: Record<string, number> = {};
+        recentSales.forEach(sale => {
+            sale.items.forEach((item: any) => {
+                productVelocity[item.name] = (productVelocity[item.name] || 0) + item.quantity;
+            });
         });
 
-        let salesRecords = await Sale.find(getQuery(todayStart, todayEnd));
-        let isYesterday = false;
+        const purchaseSuggestions: string[] = [];
+        products.forEach(p => {
+            const monthlySales = productVelocity[p.name] || 0;
+            const dailyVelocity = monthlySales / 30;
+            const daysOfStockLeft = dailyVelocity > 0 ? p.quantity / dailyVelocity : 999;
 
-        if (salesRecords.length === 0) {
-            salesRecords = await Sale.find(getQuery(yesterdayStart, yesterdayEnd));
-            if (salesRecords.length > 0) {
-                isYesterday = true;
+            if (daysOfStockLeft < 14 || p.quantity <= (p.lowStockThreshold || 10)) {
+                const weeklyNeed = Math.ceil(dailyVelocity * 7);
+                const suggestQty = Math.max(weeklyNeed * 2, 10); // Buy 2 weeks worth
+                purchaseSuggestions.push(`${p.name}: Weekly need is ~${weeklyNeed}, suggest restock: ${suggestQty} units.`);
             }
-        }
-
-        // Aggregate data
-        let totalSales = 0;
-        const productMap: Record<string, number> = {};
-
-        salesRecords.forEach(sale => {
-            totalSales += sale.amount;
-            sale.items.forEach((item: { name: string; quantity: number }) => {
-                productMap[item.name] = (productMap[item.name] || 0) + item.quantity;
-            });
         });
 
-        const productList = Object.entries(productMap)
-            .map(([name, qty]) => `${name} - ${qty}`)
-            .join('\n');
+        const hourCounts: Record<number, number> = {};
+        const dayCounts: Record<number, number> = {};
+        salesHistory.forEach(sale => {
+            const date = new Date(sale.createdAt);
+            const hour = date.getHours();
+            const day = date.getDay();
+            hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+            dayCounts[day] = (dayCounts[day] || 0) + 1;
+        });
 
-        // Handle Case: No sales today AND no sales yesterday
-        if (salesRecords.length === 0) {
+        const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const peakTimeStr = peakHour ? `${peakHour}:00 on ${days[Number(peakDay)]}s` : "N/A";
+
+        const customerStats: Record<string, { count: number; lastDate: Date }> = {};
+        salesHistory.forEach(sale => {
+            if (sale.customerPhone) {
+                const stats = customerStats[sale.customerPhone] || { count: 0, lastDate: sale.createdAt };
+                stats.count++;
+                if (sale.createdAt > stats.lastDate) stats.lastDate = sale.createdAt;
+                customerStats[sale.customerPhone] = stats;
+            }
+        });
+
+        const lastMonthStart = new Date();
+        lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+        const prevMonthStart = new Date();
+        prevMonthStart.setMonth(prevMonthStart.getMonth() - 2);
+
+        const activeLastMonth = Object.values(customerStats).filter(c => c.lastDate >= lastMonthStart).length;
+        const activePrevMonth = Object.values(customerStats).filter(c => c.lastDate >= prevMonthStart && c.lastDate < lastMonthStart).length;
+
+        const churnRateVal = activePrevMonth > 0 ? Math.max(0, ((activePrevMonth - activeLastMonth) / activePrevMonth) * 100) : 0;
+        const atRiskCustomers = Object.entries(customerStats)
+            .filter(([_, stats]) => stats.lastDate < thirtyDaysAgo && stats.count > 1)
+            .length;
+
+        const sortedProducts = Object.entries(productVelocity).sort((a, b) => b[1] - a[1]);
+        const topProdName = sortedProducts[0]?.[0] || "None";
+        const slowProdName = sortedProducts.length > 1 ? sortedProducts[sortedProducts.length - 1]?.[0] : "None";
+
+        if (salesHistory.length === 0) {
             return NextResponse.json({
-                salesInsight: "No sales recorded recently. Try offering a new promotion!",
-                topProduct: "None",
-                slowProduct: "None",
-                suggestion: "Add your first product or share your store link.",
-                isYesterday: false,
-                lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                salesInsight: "No historical sales data yet.",
+                topProduct: "N/A",
+                slowProduct: "N/A",
+                suggestion: "Start recording sales to see AI insights!",
+                churnRate: "0%",
+                peakTime: "N/A",
+                retargeting: "N/A"
             });
         }
 
-        // Handle Mock Fallback if API Key is missing
-        if (!AI_APIKEY) {
-            console.warn("AI_APIKEY is missing. Returning mock data.");
-            return NextResponse.json({
-                salesInsight: isYesterday 
-                    ? `(Yesterday) Sales were active! Keep up the momentum today.` 
-                    : "Daily sales are looking good! Keep promoting your top items.",
-                topProduct: Object.keys(productMap).length > 0 ? Object.keys(productMap)[0] : "N/A",
-                slowProduct: Object.keys(productMap).length > 1 ? Object.keys(productMap)[1] : "N/A",
-                suggestion: "Consider a bundle offer to increase average order value.",
-                isMock: true,
-                isYesterday
-            });
-        }
+        const prompt = `You are an AI business advisor for small retail shop owners.
+Analyze the following detailed business data and generate short, professional, and actionable insights.
 
-        const prompt = `You are an AI business advisor for small retail shop owners using the Billzzy Lite billing application.
-Analyze shop sales data for ${isYesterday ? "YESTERDAY" : "TODAY"} and generate short, useful business insights.
-Focus on:
-1. Sales performance
-2. Top selling product
-3. Slow selling product
-4. One actionable suggestion to improve sales
+Data Summary:
+- Top Product: ${topProdName}
+- Slow Product: ${slowProdName}
+- Peak Sales Time: ${peakTimeStr}
+- Churn Rate: ${churnRateVal.toFixed(1)}%
+- At-Risk Customers: ${atRiskCustomers}
+- Purchase Suggestions: ${purchaseSuggestions.slice(0, 3).join(", ") || "None"}
 
 Rules:
-- Keep ALWAYS under 10 words per insight.
-- Use simple, direct business language.
-- Avoid repeating the category names (e.g., don't say "Top product is...", just say the product name and why).
-- If it is YESTERDAY's data, your insights should reflect that (e.g., "Yesterday's performance was...").
-- Return the result strictly in JSON format.
+1. salesInsight: Overall performance & peak times. (under 12 words)
+2. topProduct: Why it's winning. (under 10 words)
+3. slowProduct: Specific fix (discount, bundle). (under 10 words)
+4. suggestion: Actionable step for churn or inventory. (under 12 words)
+5. retargeting: Specific group to message (loyal vs at-risk). (under 10 words)
 
-Format:
+Return valid JSON.
 {
   "salesInsight": "",
+  "peakTime": "${peakTimeStr}",
   "topProduct": "",
   "slowProduct": "",
-  "suggestion": ""
+  "suggestion": "",
+  "retargeting": "",
+  "churnRate": "${churnRateVal.toFixed(1)}%"
 }
-
-Data for ${isYesterday ? "Yesterday" : "Today"}:
-Total Sales: ₹${totalSales}
-Products Sold:
-${productList || "None"}
 `;
 
-        // --- AI PROVIDER DETECTION ---
         const apiKey = process.env.AI_APIKEY || "";
+        let insights;
         let aiResponse;
 
-        if (apiKey.startsWith("gsk_")) {
-            // GROQ
-            aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
-            });
-        } else if (apiKey.startsWith("sk-")) {
-            // OPENAI / DEEPSEEK
-            const isDeepSeek = apiKey.includes("ds");
-            const baseUrl = isDeepSeek ? "https://api.deepseek.com/v1" : "https://api.openai.com/v1";
+        try {
+            if (!apiKey) throw new Error("No API Key");
 
-            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: isDeepSeek ? "deepseek-chat" : "gpt-4o-mini",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
-            });
-        } else if (apiKey.startsWith("AIza")) {
-            // GOOGLE GEMINI (via Fetch API)
-            aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt + " (Strictly return JSON format)" }] }],
-                    generationConfig: { response_mime_type: "application/json" }
-                })
-            });
+            if (apiKey.startsWith("gsk_")) {
+                aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+            } else if (apiKey.startsWith("sk-")) {
+                const isDeepSeek = apiKey.includes("ds");
+                const baseUrl = isDeepSeek ? "https://api.deepseek.com/v1" : "https://api.openai.com/v1";
+                aiResponse = await fetch(`${baseUrl}/chat/completions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: isDeepSeek ? "deepseek-chat" : "gpt-4o-mini",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+            } else if (apiKey.startsWith("AIza")) {
+                aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt + " (Strictly return JSON format)" }] }],
+                        generationConfig: { response_mime_type: "application/json" }
+                    })
+                });
 
-            const data = await aiResponse.json();
-            const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!content) throw new Error("Gemini failed to generate content");
+                const data = await aiResponse.json();
+                const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!content) throw new Error("Gemini failed");
+                insights = JSON.parse(content);
+            }
 
+            if (aiResponse && !aiResponse.ok) {
+                const errorData = await aiResponse.json();
+                console.error("AI Provider Error:", errorData);
+                throw new Error("AI call failed");
+            }
+
+            if (!insights && aiResponse) {
+                const data = await aiResponse.json();
+                insights = JSON.parse(data.choices[0].message.content);
+            }
+        } catch (error) {
+            console.warn("AI Insights failed, returning fallback data:", error);
             return NextResponse.json({
-                ...JSON.parse(content),
-                isYesterday,
-                lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                salesInsight: `Overall performance is stable.`,
+                peakTime: peakTimeStr,
+                topProduct: topProdName,
+                slowProduct: slowProdName,
+                suggestion: purchaseSuggestions[0] || "Continue tracking your high-selling items.",
+                retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with your top customers.",
+                churnRate: `${churnRateVal.toFixed(1)}%`,
+                lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isFallback: true
             });
-        } else {
-            throw new Error("Unsupported or missing API key prefix");
         }
-
-        if (!aiResponse.ok) {
-            const errorData = await aiResponse.json();
-            console.error("AI Provider Error:", errorData);
-            throw new Error("AI call failed");
-        }
-
-        const data = await aiResponse.json();
-        const insights = JSON.parse(data.choices[0].message.content);
 
         return NextResponse.json({
             ...insights,
-            isYesterday,
             lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
 

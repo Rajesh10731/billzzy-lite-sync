@@ -91,11 +91,11 @@ export default function Dashboard() {
         {/* Sales Card */}
         <SalesSummary enableTabs={false} />
 
-        {/* 2. INSERT THE GRAPH HERE */}
-        <StockStyleSalesChart />
+        {/* 2. Today's Performance Graph */}
+        <StockStyleSalesChart hideTabs />
 
         {/* AI Business Insights */}
-        {/* <AIInsights /> */}
+        <AIInsights />
 
         {/* Inventory Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5">
