@@ -4,23 +4,27 @@ import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Sale, { ISale } from "@/models/Sales";
 import Product from "@/models/Product";
+import Service from "@/models/Service";
 
 interface SaleItem {
     name: string;
     quantity: number;
     price: number;
+    type?: "product" | "service";
 }
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const tz = searchParams.get("tz") || "UTC";
+        const type = searchParams.get("type") || "all"; // "product", "service", or "all"
 
         const session = await getServerSession(authOptions);
         if (!session?.user?.email) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
-
+        
+        // ... (existing logic for tenantQuery and fetching data)
         const tenantId = session.user.email;
         await dbConnect();
 
@@ -35,12 +39,13 @@ export async function GET(request: Request) {
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-        const [salesHistory, tenantProducts] = await Promise.all([
+        const [salesHistory, tenantProducts, tenantServices] = await Promise.all([
             Sale.find({
                 ...tenantQuery,
                 createdAt: { $gte: ninetyDaysAgo }
             }).lean() as unknown as ISale[],
-            Product.find(tenantQuery).lean() as unknown as { name: string; quantity: number; lowStockThreshold?: number }[]
+            Product.find(tenantQuery).lean() as unknown as { name: string; quantity: number; lowStockThreshold?: number }[],
+            Service.find(tenantQuery).lean() as unknown as { name: string }[]
         ]);
 
         if (salesHistory.length === 0) {
@@ -49,6 +54,8 @@ export async function GET(request: Request) {
                 peakTime: "N/A",
                 topProduct: tenantProducts.length > 0 ? "Inventory Ready" : "N/A",
                 slowProduct: "N/A",
+                topService: tenantServices.length > 0 ? "Services Ready" : "N/A",
+                slowService: "N/A",
                 suggestion: "Start recording sales to see AI insights.",
                 retargeting: "N/A",
                 churnRate: "0%",
@@ -60,30 +67,43 @@ export async function GET(request: Request) {
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const recentSales = salesHistory.filter(s => s.createdAt >= thirtyDaysAgo);
 
-        // Product Statistics (Quantity & Revenue)
+        // Product & Service Statistics
         const productStats: Record<string, { quantity: number; revenue: number }> = {};
+        const serviceStats: Record<string, { quantity: number; revenue: number }> = {};
         
-        // Initialize with all existing products (to catch zero-sale items)
-        tenantProducts.forEach((p) => {
-            productStats[p.name] = { quantity: 0, revenue: 0 };
-        });
+        tenantProducts.forEach(p => productStats[p.name] = { quantity: 0, revenue: 0 });
+        tenantServices.forEach(s => serviceStats[s.name] = { quantity: 0, revenue: 0 });
 
         salesHistory.forEach(sale => {
             sale.items.forEach((item: SaleItem) => {
                 const name = item.name.trim();
-                if (!productStats[name]) {
-                    productStats[name] = { quantity: 0, revenue: 0 };
+                const isService = item.type === "service";
+                const stats = isService ? serviceStats : productStats;
+                
+                if (!stats[name]) {
+                    stats[name] = { quantity: 0, revenue: 0 };
                 }
-                productStats[name].quantity += item.quantity;
-                productStats[name].revenue += (item.quantity * item.price);
+                stats[name].quantity += item.quantity;
+                stats[name].revenue += (item.quantity * item.price);
             });
         });
 
-        const sortedByRevenue = Object.entries(productStats).sort((a, b) => b[1].revenue - a[1].revenue);
-        const sortedByQuantity = Object.entries(productStats).sort((a, b) => a[1].quantity - b[1].quantity);
+        const sortInsights = (stats: Record<string, { quantity: number; revenue: number }>) => {
+            const sortedByRev = Object.entries(stats).sort((a, b) => b[1].revenue - a[1].revenue);
+            const sortedByQty = Object.entries(stats).sort((a, b) => a[1].quantity - b[1].quantity);
+            return {
+                top: sortedByRev[0]?.[0] || "N/A",
+                slow: sortedByQty[0]?.[0] || "None"
+            };
+        };
 
-        const topProduct = sortedByRevenue[0]?.[0] || "N/A";
-        const slowProduct = sortedByQuantity[0]?.[0] || "None";
+        const prodInsights = sortInsights(productStats);
+        const servInsights = sortInsights(serviceStats);
+
+        const topProduct = prodInsights.top;
+        const slowProduct = prodInsights.slow;
+        const topService = servInsights.top;
+        const slowService = servInsights.slow;
 
         // Peak Sales Time (Timezone Aware & Daily Breakdown)
         const hourCounts: Record<number, number> = {};
@@ -112,7 +132,6 @@ export async function GET(request: Request) {
         
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         
-        // Calculate peaks for every day
         const dailyPeaks: Record<string, string> = {};
         days.forEach((dayName, idx) => {
             const hoursForDay = dayHourCounts[idx];
@@ -165,7 +184,6 @@ export async function GET(request: Request) {
         // Purchase Suggestions (Velocity based)
         const purchaseSuggestions: string[] = [];
         tenantProducts.forEach(p => {
-            // Get 30-day velocity
             const monthlySales = recentSales.reduce((acc, sale) => {
                 const item = sale.items.find(i => i.name === p.name);
                 return acc + (item?.quantity || 0);
@@ -181,30 +199,34 @@ export async function GET(request: Request) {
             }
         });
 
-        const prompt = `You are an AI business advisor for small retail shop owners.
-Analyze the following detailed business data and generate short, professional, and actionable insights.
+        const prompt = `You are an AI business ${type === "service" ? "service advisor" : type === "product" ? "inventory advisor" : "advisor"} for small retail shop owners.
+Analyze following data and generate short, professional, and actionable insights.
 
 Data Summary:
-- Top Product (Revenue): ${topProduct}
-- Slow Product (Sales): ${slowProduct}
+${type !== "service" ? `- Top Product (Revenue): ${topProduct}
+- Slow Product (Sales): ${slowProduct}` : ""}
+${type !== "product" ? `- Top Service (Revenue): ${topService}
+- Slow Service (Sales): ${slowService}` : ""}
 - Peak Sales Time: ${peakTimeStr}
 - Churn Rate: ${churnRateVal.toFixed(1)}%
 - At-Risk Customers: ${atRiskCustomers}
-- Purchase Suggestions: ${purchaseSuggestions.slice(0, 3).join(", ") || "None"}
+${type !== "service" ? `- Purchase Suggestions: ${purchaseSuggestions.slice(0, 3).join(", ") || "None"}` : ""}
 
-Rules:
-1. salesInsight: Overall performance & peak times. (under 12 words)
-2. topProduct: Why it's winning. (under 10 words)
-3. slowProduct: Specific fix (discount, bundle). (under 10 words)
-4. suggestion: Actionable step for churn or inventory. (under 12 words)
-5. retargeting: Specific group to message (loyal vs at-risk). (under 10 words)
+Rules (STRICT JSON):
+1. salesInsight: ${type === "service" ? "Booking trends & peak hours" : "Stock performance & peak times"}. (under 12 words)
+2. topProduct/topService: ${type === "service" ? "Most popular service" : "Best selling items"}. (under 10 words total)
+3. slowProduct/slowService: ${type === "service" ? "Service improvement fix" : "Inventory/Discount fix"}. (under 10 words total)
+4. suggestion: Actionable step for ${type === "service" ? "customer retention" : "inventory/churn"}. (under 12 words)
+5. retargeting: Specific group message. (under 10 words)
 
-Return valid JSON.
+Return valid JSON:
 {
   "salesInsight": "",
   "peakTime": "${peakTimeStr}",
-  "topProduct": "",
-  "slowProduct": "",
+  "topProduct": "${topProduct}",
+  "slowProduct": "${slowProduct}",
+  "topService": "${topService}",
+  "slowService": "${slowService}",
   "suggestion": "",
   "retargeting": "",
   "churnRate": "${churnRateVal.toFixed(1)}%"
@@ -274,6 +296,8 @@ Return valid JSON.
                 dailyPeaks,
                 topProduct: `Top revenue from ${topProduct}.`,
                 slowProduct: `Improve ${slowProduct} sales.`,
+                topService: `Top revenue from ${topService}.`,
+                slowService: `Improve ${slowService} sales.`,
                 suggestion: purchaseSuggestions[0] || "Maintain current inventory levels.",
                 retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers.",
                 churnRate: `${churnRateVal.toFixed(1)}%`,

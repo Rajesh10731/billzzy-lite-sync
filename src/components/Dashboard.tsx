@@ -95,7 +95,10 @@ export default function Dashboard() {
         <StockStyleSalesChart hideTabs />
 
         {/* AI Business Insights */}
-        <AIInsights />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AIInsights mode="product" />
+          <AIInsights mode="service" />
+        </div>
 
         {/* Inventory Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5">
