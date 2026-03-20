@@ -1,16 +1,15 @@
-// src/app/api/ai-insights/route.ts
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
-import Sale from "@/models/Sales";
+import Sale, { ISale } from "@/models/Sales";
+import Product from "@/models/Product";
 
 interface SaleItem {
     name: string;
     quantity: number;
+    price: number;
 }
-
 
 export async function GET(request: Request) {
     try {
@@ -35,58 +34,87 @@ export async function GET(request: Request) {
 
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-        const salesHistory = await Sale.find({ ...tenantQuery, createdAt: { $gte: ninetyDaysAgo } }).sort({ createdAt: -1 });
 
-        const Product = (await import("@/models/Product")).default;
-        const products = await Product.find(tenantQuery);
+        const [salesHistory, tenantProducts] = await Promise.all([
+            Sale.find({
+                ...tenantQuery,
+                createdAt: { $gte: ninetyDaysAgo }
+            }).lean() as unknown as ISale[],
+            Product.find(tenantQuery).lean() as unknown as { name: string; quantity: number; lowStockThreshold?: number }[]
+        ]);
+
+        if (salesHistory.length === 0) {
+            return NextResponse.json({
+                salesInsight: "No historical sales data yet.",
+                peakTime: "N/A",
+                topProduct: tenantProducts.length > 0 ? "Inventory Ready" : "N/A",
+                slowProduct: "N/A",
+                suggestion: "Start recording sales to see AI insights.",
+                retargeting: "N/A",
+                churnRate: "0%",
+                isFallback: true
+            });
+        }
 
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const recentSales = salesHistory.filter(s => s.createdAt >= thirtyDaysAgo);
 
-        const productVelocity: Record<string, number> = {};
-        recentSales.forEach(sale => {
+        // Product Statistics (Quantity & Revenue)
+        const productStats: Record<string, { quantity: number; revenue: number }> = {};
+        
+        // Initialize with all existing products (to catch zero-sale items)
+        tenantProducts.forEach((p) => {
+            productStats[p.name] = { quantity: 0, revenue: 0 };
+        });
+
+        salesHistory.forEach(sale => {
             sale.items.forEach((item: SaleItem) => {
-                productVelocity[item.name] = (productVelocity[item.name] || 0) + item.quantity;
+                const name = item.name.trim();
+                if (!productStats[name]) {
+                    productStats[name] = { quantity: 0, revenue: 0 };
+                }
+                productStats[name].quantity += item.quantity;
+                productStats[name].revenue += (item.quantity * item.price);
             });
         });
 
-        const purchaseSuggestions: string[] = [];
-        products.forEach(p => {
-            const monthlySales = productVelocity[p.name] || 0;
-            const dailyVelocity = monthlySales / 30;
-            const daysOfStockLeft = dailyVelocity > 0 ? p.quantity / dailyVelocity : 999;
+        const sortedByRevenue = Object.entries(productStats).sort((a, b) => b[1].revenue - a[1].revenue);
+        const sortedByQuantity = Object.entries(productStats).sort((a, b) => a[1].quantity - b[1].quantity);
 
-            if (daysOfStockLeft < 14 || p.quantity <= (p.lowStockThreshold || 10)) {
-                const weeklyNeed = Math.ceil(dailyVelocity * 7);
-                const suggestQty = Math.max(weeklyNeed * 2, 10); // Buy 2 weeks worth
-                purchaseSuggestions.push(`${p.name}: Weekly need is ~${weeklyNeed}, suggest restock: ${suggestQty} units.`);
-            }
-        });
+        const topProduct = sortedByRevenue[0]?.[0] || "N/A";
+        const slowProduct = sortedByQuantity[0]?.[0] || "None";
 
+        // Peak Sales Time (Timezone Aware)
         const hourCounts: Record<number, number> = {};
         const dayCounts: Record<number, number> = {};
         const dayMap: Record<string, number> = { "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6 };
 
         salesHistory.forEach(sale => {
             const date = new Date(sale.createdAt);
-            
-            // Extract hour and day in the target timezone
             const hourStr = date.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", hour12: false });
             const dayStr = date.toLocaleDateString("en-US", { timeZone: tz, weekday: "short" });
-            
             const hour = parseInt(hourStr) || 0;
             const day = dayMap[dayStr] ?? 0;
-            
             hourCounts[hour] = (hourCounts[hour] || 0) + 1;
             dayCounts[day] = (dayCounts[day] || 0) + 1;
         });
 
-        const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-        const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        const peakHourEntries = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
+        const peakDayEntries = Object.entries(dayCounts).sort((a, b) => b[1] - a[1]);
+        const peakHour = peakHourEntries[0]?.[0];
+        const peakDay = peakDayEntries[0]?.[0];
+        
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        const peakTimeStr = peakHour ? `${peakHour}:00 on ${days[Number(peakDay)]}s` : "N/A";
+        let peakTimeStr = "N/A";
+        if (peakHour) {
+            const hourNum = parseInt(peakHour);
+            const period = hourNum >= 12 ? "PM" : "AM";
+            const hour12 = hourNum % 12 || 12;
+            peakTimeStr = `${hour12}:00 ${period} on ${days[Number(peakDay)]}s`;
+        }
 
+        // Customer Insights
         const customerStats: Record<string, { count: number; lastDate: Date }> = {};
         salesHistory.forEach(sale => {
             if (sale.customerPhone) {
@@ -104,34 +132,36 @@ export async function GET(request: Request) {
 
         const activeLastMonth = Object.values(customerStats).filter(c => c.lastDate >= lastMonthStart).length;
         const activePrevMonth = Object.values(customerStats).filter(c => c.lastDate >= prevMonthStart && c.lastDate < lastMonthStart).length;
-
         const churnRateVal = activePrevMonth > 0 ? Math.max(0, ((activePrevMonth - activeLastMonth) / activePrevMonth) * 100) : 0;
         const atRiskCustomers = Object.entries(customerStats)
             .filter(([, stats]) => stats.lastDate < thirtyDaysAgo && stats.count > 1)
             .length;
 
-        const sortedProducts = Object.entries(productVelocity).sort((a, b) => b[1] - a[1]);
-        const topProdName = sortedProducts[0]?.[0] || "None";
-        const slowProdName = sortedProducts.length > 1 ? sortedProducts[sortedProducts.length - 1]?.[0] : "None";
+        // Purchase Suggestions (Velocity based)
+        const purchaseSuggestions: string[] = [];
+        tenantProducts.forEach(p => {
+            // Get 30-day velocity
+            const monthlySales = recentSales.reduce((acc, sale) => {
+                const item = sale.items.find(i => i.name === p.name);
+                return acc + (item?.quantity || 0);
+            }, 0);
+            
+            const dailyVelocity = monthlySales / 30;
+            const daysOfStockLeft = dailyVelocity > 0 ? p.quantity / dailyVelocity : 999;
 
-        if (salesHistory.length === 0) {
-            return NextResponse.json({
-                salesInsight: "No historical sales data yet.",
-                topProduct: "N/A",
-                slowProduct: "N/A",
-                suggestion: "Start recording sales to see AI insights!",
-                churnRate: "0%",
-                peakTime: "N/A",
-                retargeting: "N/A"
-            });
-        }
+            if (daysOfStockLeft < 14 || p.quantity <= (p.lowStockThreshold || 10)) {
+                const weeklyNeed = Math.ceil(dailyVelocity * 7);
+                const suggestQty = Math.max(weeklyNeed * 2, 10);
+                purchaseSuggestions.push(`${p.name}: Low stock, suggest restock ~${suggestQty} units.`);
+            }
+        });
 
         const prompt = `You are an AI business advisor for small retail shop owners.
 Analyze the following detailed business data and generate short, professional, and actionable insights.
 
 Data Summary:
-- Top Product: ${topProdName}
-- Slow Product: ${slowProdName}
+- Top Product (Revenue): ${topProduct}
+- Slow Product (Sales): ${slowProduct}
 - Peak Sales Time: ${peakTimeStr}
 - Churn Rate: ${churnRateVal.toFixed(1)}%
 - At-Risk Customers: ${atRiskCustomers}
@@ -158,11 +188,11 @@ Return valid JSON.
 
         const apiKey = process.env.AI_APIKEY || "";
         let insights;
-        let aiResponse;
 
         try {
             if (!apiKey) throw new Error("No API Key");
 
+            let aiResponse;
             if (apiKey.startsWith("gsk_")) {
                 aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                     method: "POST",
@@ -194,32 +224,32 @@ Return valid JSON.
                         generationConfig: { response_mime_type: "application/json" }
                     })
                 });
+                
+                if (aiResponse.ok) {
+                    const data = await aiResponse.json();
+                    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (content) insights = JSON.parse(content);
+                }
+            }
 
+            if (aiResponse && aiResponse.ok && !insights) {
                 const data = await aiResponse.json();
-                const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!content) throw new Error("Gemini failed");
-                insights = JSON.parse(content);
+                const content = data.choices[0].message.content;
+                if (content) insights = JSON.parse(content);
             }
 
-            if (aiResponse && !aiResponse.ok) {
-                const errorData = await aiResponse.json();
-                console.error("AI Provider Error:", errorData);
-                throw new Error("AI call failed");
-            }
-
-            if (!insights && aiResponse) {
-                const data = await aiResponse.json();
-                insights = JSON.parse(data.choices[0].message.content);
-            }
         } catch (error) {
-            console.warn("AI Insights failed, returning fallback data:", error);
+            console.warn("AI call failed, using local processing:", error);
+        }
+
+        if (!insights) {
             return NextResponse.json({
-                salesInsight: `Overall performance is stable.`,
+                salesInsight: `Stable performance, peak at ${peakTimeStr}.`,
                 peakTime: peakTimeStr,
-                topProduct: topProdName,
-                slowProduct: slowProdName,
-                suggestion: purchaseSuggestions[0] || "Continue tracking your high-selling items.",
-                retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with your top customers.",
+                topProduct: `Top revenue from ${topProduct}.`,
+                slowProduct: `Improve ${slowProduct} sales.`,
+                suggestion: purchaseSuggestions[0] || "Maintain current inventory levels.",
+                retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers.",
                 churnRate: `${churnRateVal.toFixed(1)}%`,
                 lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isFallback: true
