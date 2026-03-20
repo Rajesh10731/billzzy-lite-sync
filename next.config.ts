@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import withPWA from "next-pwa";
+import path from "path";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -37,7 +38,13 @@ const nextConfig: NextConfig = {
     if (dev && !isServer) {
       config.watchOptions = {
         ...(config.watchOptions || {}),
-        ignored: /public\/(sw\.js|workbox-.*\.js|sw\.js\.map)/,
+        ignored: [
+          "**/public/sw.js",
+          "**/public/workbox-*.js",
+          "**/public/sw.js.map",
+          "C:/**", // Explicitly ignore C: if Next.js tries to watch it
+          "**/.next/**",
+        ],
       };
     }
     return config;

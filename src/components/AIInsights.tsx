@@ -27,7 +27,8 @@ export default function AIInsights() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/ai-insights");
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const res = await fetch(`/api/ai-insights?tz=${encodeURIComponent(tz)}`);
             if (!res.ok) throw new Error("Failed to fetch insights");
             const data = await res.json();
             setInsights(data);

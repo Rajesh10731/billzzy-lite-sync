@@ -12,8 +12,11 @@ interface SaleItem {
 }
 
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const tz = searchParams.get("tz") || "UTC";
+
         const session = await getServerSession(authOptions);
         if (!session?.user?.email) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -63,10 +66,18 @@ export async function GET() {
 
         const hourCounts: Record<number, number> = {};
         const dayCounts: Record<number, number> = {};
+        const dayMap: Record<string, number> = { "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6 };
+
         salesHistory.forEach(sale => {
             const date = new Date(sale.createdAt);
-            const hour = date.getHours();
-            const day = date.getDay();
+            
+            // Extract hour and day in the target timezone
+            const hourStr = date.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", hour12: false });
+            const dayStr = date.toLocaleDateString("en-US", { timeZone: tz, weekday: "short" });
+            
+            const hour = parseInt(hourStr) || 0;
+            const day = dayMap[dayStr] ?? 0;
+            
             hourCounts[hour] = (hourCounts[hour] || 0) + 1;
             dayCounts[day] = (dayCounts[day] || 0) + 1;
         });
