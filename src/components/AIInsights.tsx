@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 interface InsightsData {
     salesInsight: string;
     peakTime: string;
+    dailyPeaks?: Record<string, string>;
     topProduct: string;
     slowProduct: string;
     suggestion: string;
@@ -108,15 +109,28 @@ export default function AIInsights() {
                          transition={{ duration: 0.4 }}
                          className="space-y-5 px-1"
                      >
-                         {/* Peak Sales Time */}
-                         <div className="flex items-start gap-3.5">
-                             <div className="w-5 h-5 mt-0.5 flex items-center justify-center flex-shrink-0">
-                                 <Clock className="w-5 h-5 text-indigo-500" />
+                        {/* Peak Sales Time */}
+                        <div className="flex flex-col gap-2">
+                             <div className="flex items-start gap-3.5">
+                                 <div className="w-5 h-5 mt-0.5 flex items-center justify-center flex-shrink-0">
+                                     <Clock className="w-5 h-5 text-indigo-500" />
+                                 </div>
+                                 <p className="text-[14px] text-slate-600 font-medium leading-snug">
+                                     Peak Sales: <span className="text-indigo-900 font-bold">{insights?.peakTime}</span>
+                                 </p>
                              </div>
-                             <p className="text-[14px] text-slate-600 font-medium leading-snug">
-                                 Peak Sales Time: <span className="text-indigo-900 font-bold">{insights?.peakTime}</span>
-                             </p>
-                         </div>
+                             
+                             {insights?.dailyPeaks && (
+                                 <div className="ml-8.5 grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1">
+                                     {Object.entries(insights.dailyPeaks).map(([day, time]) => (
+                                         <div key={day} className="flex flex-col bg-slate-50/50 border border-slate-100 rounded-md p-1.5">
+                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{day.slice(0, 3)}</span>
+                                             <span className="text-[11px] font-black text-indigo-700 leading-tight">{time}</span>
+                                         </div>
+                                     ))}
+                                 </div>
+                             )}
+                        </div>
 
                          {/* Sales Insight */}
                          <div className="flex items-start gap-3.5">

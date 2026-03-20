@@ -85,9 +85,10 @@ export async function GET(request: Request) {
         const topProduct = sortedByRevenue[0]?.[0] || "N/A";
         const slowProduct = sortedByQuantity[0]?.[0] || "None";
 
-        // Peak Sales Time (Timezone Aware)
+        // Peak Sales Time (Timezone Aware & Daily Breakdown)
         const hourCounts: Record<number, number> = {};
         const dayCounts: Record<number, number> = {};
+        const dayHourCounts: Record<number, Record<number, number>> = {};
         const dayMap: Record<string, number> = { "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6 };
 
         salesHistory.forEach(sale => {
@@ -96,8 +97,12 @@ export async function GET(request: Request) {
             const dayStr = date.toLocaleDateString("en-US", { timeZone: tz, weekday: "short" });
             const hour = parseInt(hourStr) || 0;
             const day = dayMap[dayStr] ?? 0;
+
             hourCounts[hour] = (hourCounts[hour] || 0) + 1;
             dayCounts[day] = (dayCounts[day] || 0) + 1;
+
+            if (!dayHourCounts[day]) dayHourCounts[day] = {};
+            dayHourCounts[day][hour] = (dayHourCounts[day][hour] || 0) + 1;
         });
 
         const peakHourEntries = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
@@ -106,6 +111,26 @@ export async function GET(request: Request) {
         const peakDay = peakDayEntries[0]?.[0];
         
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        
+        // Calculate peaks for every day
+        const dailyPeaks: Record<string, string> = {};
+        days.forEach((dayName, idx) => {
+            const hoursForDay = dayHourCounts[idx];
+            if (hoursForDay) {
+                const bestHour = Object.entries(hoursForDay).sort((a, b) => b[1] - a[1])[0]?.[0];
+                if (bestHour) {
+                    const hNum = parseInt(bestHour);
+                    const period = hNum >= 12 ? "PM" : "AM";
+                    const h12 = hNum % 12 || 12;
+                    dailyPeaks[dayName] = `${h12}:00 ${period}`;
+                } else {
+                    dailyPeaks[dayName] = "N/A";
+                }
+            } else {
+                dailyPeaks[dayName] = "N/A";
+            }
+        });
+
         let peakTimeStr = "N/A";
         if (peakHour) {
             const hourNum = parseInt(peakHour);
@@ -246,6 +271,7 @@ Return valid JSON.
             return NextResponse.json({
                 salesInsight: `Stable performance, peak at ${peakTimeStr}.`,
                 peakTime: peakTimeStr,
+                dailyPeaks,
                 topProduct: `Top revenue from ${topProduct}.`,
                 slowProduct: `Improve ${slowProduct} sales.`,
                 suggestion: purchaseSuggestions[0] || "Maintain current inventory levels.",
@@ -258,6 +284,8 @@ Return valid JSON.
 
         return NextResponse.json({
             ...insights,
+            peakTime: peakTimeStr,
+            dailyPeaks,
             lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
 
