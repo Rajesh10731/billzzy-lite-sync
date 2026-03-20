@@ -1,7 +1,7 @@
 // src/app/(admin)/admin/subscribed/page.tsx
 import AdminSubscribedUsers from '@/components/AdminSubscribedUsers';
 import BroadcastToggle from '@/components/BroadcastToggle';
-import Link from 'next/link';
+
 
 export default function SubscribedUsersPage() {
     return (

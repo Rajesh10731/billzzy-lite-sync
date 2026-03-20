@@ -6,6 +6,12 @@ import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Sale from "@/models/Sales";
 
+interface SaleItem {
+    name: string;
+    quantity: number;
+}
+
+
 export async function GET() {
     try {
         const session = await getServerSession(authOptions);
@@ -37,7 +43,7 @@ export async function GET() {
 
         const productVelocity: Record<string, number> = {};
         recentSales.forEach(sale => {
-            sale.items.forEach((item: any) => {
+            sale.items.forEach((item: SaleItem) => {
                 productVelocity[item.name] = (productVelocity[item.name] || 0) + item.quantity;
             });
         });
@@ -90,7 +96,7 @@ export async function GET() {
 
         const churnRateVal = activePrevMonth > 0 ? Math.max(0, ((activePrevMonth - activeLastMonth) / activePrevMonth) * 100) : 0;
         const atRiskCustomers = Object.entries(customerStats)
-            .filter(([_, stats]) => stats.lastDate < thirtyDaysAgo && stats.count > 1)
+            .filter(([, stats]) => stats.lastDate < thirtyDaysAgo && stats.count > 1)
             .length;
 
         const sortedProducts = Object.entries(productVelocity).sort((a, b) => b[1] - a[1]);

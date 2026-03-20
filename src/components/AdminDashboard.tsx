@@ -3,8 +3,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Edit2, Check, X, Filter } from 'lucide-react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -23,7 +21,6 @@ interface User {
 }
 
 export default function AdminDashboard() {
-  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -177,12 +174,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    await signOut({ redirect: false });
-    setTimeout(() => {
-      router.push('/');
-    }, 500);
-  };
 
   const pendingUsers = users.filter((user: User) =>
     (!user.onboarded) &&

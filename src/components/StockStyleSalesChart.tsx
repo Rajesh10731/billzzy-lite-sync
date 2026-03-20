@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Label
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine
 } from "recharts";
 import { motion, LayoutGroup } from "framer-motion";
 import { format, parseISO } from "date-fns";
-import { Loader2, TrendingUp, TrendingDown, Target, Edit2, Check, X, Filter, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Target, Edit2, Check, X, Filter } from "lucide-react";
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
@@ -27,6 +27,7 @@ interface CustomLabelProps {
   x?: number;
   y?: number;
   value?: number;
+  index?: number;
 }
 
 // --- CONSTANTS ---
@@ -69,7 +70,6 @@ export default function StockStyleSalesChart({ hideTabs = false }: { hideTabs?: 
   const [tempTarget, setTempTarget] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
   const [dateRange, setDateRange] = useState<Value>(null);
-  const [tempDateRange, setTempDateRange] = useState<Value>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -156,7 +156,7 @@ export default function StockStyleSalesChart({ hideTabs = false }: { hideTabs?: 
     } catch { return ""; }
   };
 
-  const CustomLabel = (props: any) => {
+  const CustomLabel = (props: CustomLabelProps) => {
     const { x, y, value, index } = props;
     if (value === undefined || x === undefined || y === undefined || value === 0) return null;
     const isLast = index === processedData.length - 1;
@@ -211,7 +211,10 @@ export default function StockStyleSalesChart({ hideTabs = false }: { hideTabs?: 
 
       <div className="h-[260px] w-full mt-4">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={processedData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }} onMouseMove={(e: any) => { if (e.activePayload) setDisplayValue(e.activePayload[0].value); }} onMouseLeave={() => setDisplayValue(null)}>
+          <AreaChart data={processedData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }} onMouseMove={(e) => { 
+            const state = e as unknown as { activePayload?: Array<{ value: number }> };
+            if (state && state.activePayload) setDisplayValue(state.activePayload[0].value); 
+          }} onMouseLeave={() => setDisplayValue(null)}>
             <defs>
               <linearGradient id="multiColorStroke" x1="0" y1="0" x2="0" y2="1">
                 <stop offset={stop1} stopColor={topColor} /><stop offset={stop1} stopColor={middleColor} /><stop offset={stop2} stopColor={middleColor} /><stop offset={stop2} stopColor={bottomColor} />
@@ -247,9 +250,9 @@ export default function StockStyleSalesChart({ hideTabs = false }: { hideTabs?: 
               />
             )}
             <Area type="monotone" dataKey="sales" stroke="url(#multiColorStroke)" fill="url(#multiColorFill)" strokeWidth={3} label={activeTab === 'Today' ? <CustomLabel /> : false}
-              dot={(props: any) => {
+              dot={(props: { cx?: number; cy?: number; payload?: SalesDataPoint }) => {
                 const { cx, cy, payload } = props;
-                if (cx === undefined || cy === undefined) return null;
+                if (cx === undefined || cy === undefined || !payload) return null;
                 // Hide dots for 0 values to keep it neat (first point is 0)
                 if (payload.sales === 0 && processedData.indexOf(payload) === 0) return null;
                 if (processedData.length > 20 && activeTab !== 'Today') return null;
