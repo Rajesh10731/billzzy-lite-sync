@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import PushSubscription from '@/models/PushSubscription';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { id?: string | null; email?: string | null } } | null;
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const subscription = await req.json();

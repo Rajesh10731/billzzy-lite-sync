@@ -2,7 +2,7 @@
 // import { NextResponse } from "next/server";
 // import connectToDatabase from "@/lib/mongodb";
 // import Sale from "@/models/Sales"; // Importing 'Sale' to match your model export
-// import { getServerSession } from "next-auth";
+// import { getServerSession } from "next-auth/next";
 // import { authOptions } from "@/lib/auth";
 // import { startOfDay, subDays, subMonths, subYears, startOfYear } from "date-fns";
 
@@ -80,7 +80,7 @@
 import { NextResponse } from "next/server";
 import connectToDatabase from "@/lib/mongodb";
 import Sale from "@/models/Sales"; // Importing 'Sale' to match your model export
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 // --- MODIFIED: Ensure endOfDay is imported for accurate date range filtering ---
 import { startOfDay, endOfDay, subDays, subMonths, format } from "date-fns";
@@ -94,7 +94,7 @@ export async function GET(req: Request) {
     if (tenant) {
       userEmail = tenant.ownerEmail || tenant.subdomain;
     } else {
-      const session = await getServerSession(authOptions);
+      const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
       userEmail = session?.user?.email;
     }
 

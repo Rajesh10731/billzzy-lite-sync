@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 export async function GET() {
   try {
     // Get the user's session
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null; name?: string | null } } | null;
     
     if (!session || !session.user?.email) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

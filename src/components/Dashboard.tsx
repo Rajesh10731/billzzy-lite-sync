@@ -7,7 +7,6 @@ import { Package, AlertTriangle, XCircle, Loader2 } from "lucide-react";
 // 1. IMPORT THE CHART DYNAMICALLY (Fixes 500 Error / SSR issues)
 import dynamic from 'next/dynamic';
 import SalesSummary from "./SalesSummary";
-import AIInsights from "./AIInsights";
 const StockStyleSalesChart = dynamic(() => import("./StockStyleSalesChart"), { ssr: false });
 
 interface Product {

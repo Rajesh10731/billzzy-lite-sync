@@ -51,19 +51,20 @@ export default function AppLayout({
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const sessionUser = session?.user as { role?: string; phoneNumber?: string | null } | undefined;
 
   // FINAL FAILSAFE: Redirect if user is logged in but has no phone (and is not admin)
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      const isAdmin = session.user.role === 'admin';
-      const hasPhone = session.user.phoneNumber && session.user.phoneNumber.trim().length > 0;
+    if (status === 'authenticated' && sessionUser) {
+      const isAdmin = sessionUser.role === 'admin';
+      const hasPhone = sessionUser.phoneNumber && sessionUser.phoneNumber.trim().length > 0;
 
       if (!isAdmin && !hasPhone && pathname !== '/verify-phone') {
         console.log('[Layout Failsafe] Redirecting to /verify-phone');
         router.push('/verify-phone');
       }
     }
-  }, [session, status, pathname, router]);
+  }, [sessionUser, status, pathname, router]);
 
   // Prevent flicker: Show loading screen while checking status
   if (status === 'loading') {
@@ -78,8 +79,8 @@ export default function AppLayout({
   }
 
   // Block rendering dashboard content for unverified users while redirecting
-  const isAdmin = session?.user?.role === 'admin';
-  const hasPhone = session?.user?.phoneNumber && session.user.phoneNumber.trim().length > 0;
+  const isAdmin = sessionUser?.role === 'admin';
+  const hasPhone = sessionUser?.phoneNumber && sessionUser.phoneNumber.trim().length > 0;
   if (status === 'authenticated' && !isAdmin && !hasPhone && pathname !== '/verify-phone') {
     return null; // Keep screen empty while router.push works
   }

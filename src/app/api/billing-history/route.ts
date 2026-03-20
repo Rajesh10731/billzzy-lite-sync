@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     if (tenant) {
       tenantId = tenant.ownerEmail || tenant.subdomain;
     } else {
-      const session = await getServerSession(authOptions);
+      const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
       tenantId = session?.user?.email;
     }
 

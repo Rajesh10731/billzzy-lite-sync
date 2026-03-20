@@ -353,8 +353,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Edit2, Check, X, Copy, Key, Filter, ExternalLink } from 'lucide-react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -377,7 +375,6 @@ interface User {
 }
 
 export default function OnboardedClients() {
-  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -573,11 +570,6 @@ export default function OnboardedClients() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = async () => {
-    await signOut({ redirect: false });
-    router.push('/');
   };
 
   const onboardedUsers = users.filter((user: User) =>

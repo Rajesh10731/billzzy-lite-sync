@@ -73,8 +73,8 @@ import Customer from '@/models/Customer';
 
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as { role: string }).role !== 'admin') {
+  const session = await getServerSession(authOptions) as { user?: { role?: string } } | null;
+  if (!session?.user || session.user.role !== 'admin') {
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
@@ -121,9 +121,9 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions) as { user?: { role?: string } } | null;
 
-  if (!session || (session.user as { role: string }).role !== 'admin') {
+  if (!session?.user || session.user.role !== 'admin') {
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 
@@ -157,9 +157,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions) as { user?: { role?: string } } | null;
 
-  if (!session || (session.user as { role: string }).role !== 'admin') {
+  if (!session?.user || session.user.role !== 'admin') {
     return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
   }
 

@@ -88,7 +88,7 @@ const UserSchema: Schema = new Schema({
     type: String,
     required: false,
   },
-  defaultCountryCode: {
+    defaultCountryCode: {
     type: String,
     required: false,
     default: 'IN', // Default to India

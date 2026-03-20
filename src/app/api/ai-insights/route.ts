@@ -10,7 +10,7 @@ const AI_APIKEY = process.env.AI_APIKEY;
 
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
         if (!session?.user?.email) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }

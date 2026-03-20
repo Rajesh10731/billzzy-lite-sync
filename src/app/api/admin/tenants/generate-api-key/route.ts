@@ -1,7 +1,7 @@
 // src/app/api/admin/tenants/generate-api-key/route.ts
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Tenant from '@/models/Tenant';
@@ -10,7 +10,7 @@ import { generateAPIKey, hashKey } from '@/lib/api-keys';
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession(authOptions) as { user?: { email?: string | null; role?: string } } | null;
         if (!session?.user?.email) {
             // Allow master admin bypass if environmental variables match (optional, but sticking to DB check is safer)
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
