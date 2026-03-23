@@ -13,6 +13,8 @@ export interface IPurchase extends Document {
   date: string;
   products: IPurchaseProduct[];
   totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
   paymentStatus: "paid" | "pending";
   createdAt: Date;
   updatedAt: Date;
@@ -29,6 +31,8 @@ const PurchaseSchema = new Schema(
     date: { type: String, required: true },
     products: { type: [Object], required: true },
     totalAmount: { type: Number, required: true },
+    paidAmount: { type: Number, default: 0 },
+    balanceAmount: { type: Number, default: 0 },
     paymentStatus: { type: String, enum: ["paid", "pending"], default: "pending" },
   },
   { 

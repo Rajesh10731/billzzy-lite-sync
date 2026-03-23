@@ -9,8 +9,9 @@ import {
   CheckCircle,
   ChevronRight,
   DollarSign, MessageSquare,
-  Nfc
+  Nfc, Filter
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import SuccessTick from './ui/SuccessTick';
 import CountryCodeSelector from './ui/CountryCodeSelector';
 import { countries } from '@/lib/countries';
@@ -109,6 +110,10 @@ export default function BillingPage() {
   const [suggestions, setSuggestions] = React.useState<((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[]>([]);
   const [showSuggestions, setShowSuggestions] = React.useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = React.useState(false);
+  const [searchType, setSearchType] = React.useState<'all' | 'product' | 'service'>('all');
+  const [showFilterMenu, setShowFilterMenu] = React.useState(false);
+  const filterMenuRef = React.useRef<HTMLDivElement>(null);
+  const suggestionsRef = React.useRef<HTMLDivElement>(null);
 
   // States for flow
   const [showWhatsAppSharePanel, setShowWhatsAppSharePanel] = React.useState(false);
@@ -159,7 +164,6 @@ export default function BillingPage() {
 
   const [scannerError, setScannerError] = React.useState<string>('');
   const [modal, setModal] = React.useState<{ isOpen: boolean; title: string; message: string | React.ReactNode; onConfirm?: (() => void); confirmText: string; showCancel: boolean; }>({ isOpen: false, title: '', message: '', confirmText: 'OK', showCancel: false });
-  const suggestionsRef = React.useRef<HTMLDivElement | null>(null);
 
   const [discountInput, setDiscountInput] = React.useState<string>('');
   const [discountType, setDiscountType] = React.useState<'percentage' | 'fixed'>('percentage');
@@ -266,27 +270,34 @@ export default function BillingPage() {
     if (!productName.trim()) { setShowSuggestions(false); return; }
     const query = productName.trim().toLowerCase();
     
-    const prodFiltered = inventory
+    let prodFiltered: ((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[] = [];
+    let servFiltered: ((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[] = [];
+    
+    if (searchType === 'all' || searchType === 'product') {
+      prodFiltered = inventory
         .filter(p => p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query))
         .map(p => ({ ...p, itemType: 'product' as const }));
+    }
 
-    const servFiltered = services
+    if (searchType === 'all' || searchType === 'service') {
+      servFiltered = services
         .filter(s => s.name.toLowerCase().includes(query))
         .map(s => ({ ...s, itemType: 'service' as const }));
+    }
     
     const combined = [...prodFiltered, ...servFiltered].slice(0, 8);
     setSuggestions(combined);
     setShowSuggestions(combined.length > 0);
-  }, [productName, inventory, services]);
+  }, [productName, inventory, services, searchType]);
 
   React.useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
-      // if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-      //   setShowFilterMenu(false);
-      // }
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setShowFilterMenu(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -294,25 +305,13 @@ export default function BillingPage() {
 
   // --- WHATSAPP LOGIC ---
   const sendWhatsAppMessage = React.useCallback(async (phoneNumber: string, messageType: string) => {
-    if (!phoneNumber.trim() || phoneNumber.length < 7 || phoneNumber.length > 15) {
-      setModal({
-        isOpen: true,
-        title: 'Invalid Number',
-        message: 'Please enter a valid phone number (7-15 digits).',
-        showCancel: false,
-        confirmText: 'Got it',
-      });
-      return false;
-    }
+    if (!phoneNumber.trim() || phoneNumber.length < 7 || phoneNumber.length > 15) { return false; }
 
     try {
       const dialCode = countries.find(c => c.code === customerCountryCode)?.dialCode || '+91';
       const cleanDialCode = dialCode.replace(/\+/g, '');
       const cleanInput = phoneNumber.replace(/\D/g, '');
 
-      // If the number already starts with the dial code, don't prepend it
-      // but ensure it doesn't double-prefix (e.g., 9191...) if the number itself starts with those digits
-      // A safer way: if input starts with cleanDialCode, use input. Else dialCode + input.
       const formattedPhone = cleanInput.startsWith(cleanDialCode) ? cleanInput : `${cleanDialCode}${cleanInput}`;
 
       const orderId = `INV-${Date.now().toString().slice(-6)}`;
@@ -321,22 +320,12 @@ export default function BillingPage() {
       const itemsList = itemsListRaw.length > 500 ? itemsListRaw.substring(0, 497) + "..." : itemsListRaw;
 
       let templateName = '';
-      let bodyParameters: string[] = [];
-
       switch (messageType) {
         case 'cashPayment': templateName = 'payment_receipt_cashh'; break;
         case 'qrPayment': templateName = 'payment_receipt_upii'; break;
         case 'cardPayment': templateName = 'payment_receipt_card'; break;
         default: templateName = 'payment_receipt_cashh';
       }
-
-      bodyParameters = [
-        orderId,
-        merchantName,
-        `₹${totalAmount.toFixed(2)}`,
-        itemsList,
-        discountAmount > 0 ? `₹${discountAmount.toFixed(2)}` : '₹0.00',
-      ];
 
       const messageData = {
         messaging_product: 'whatsapp',
@@ -346,7 +335,7 @@ export default function BillingPage() {
         template: {
           name: templateName,
           language: { code: 'en' },
-          components: [{ type: 'body', parameters: bodyParameters.map((text) => ({ type: 'text', text })) }],
+          components: [{ type: 'body', parameters: [orderId, merchantName, `₹${totalAmount.toFixed(2)}`, itemsList, discountAmount > 0 ? `₹${discountAmount.toFixed(2)}` : '₹0.00'].map((text) => ({ type: 'text', text })) }],
         },
       };
 
@@ -356,21 +345,14 @@ export default function BillingPage() {
         body: JSON.stringify(messageData),
       });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Failed to send message');
-      if (!result.success) throw new Error(result.message || 'WhatsApp API returned success: false');
-
-      return true;
-    } catch (error) {
-      console.error('WhatsApp API error:', error);
-      setModal({
-        isOpen: true,
-        title: 'Messaging Error',
-        message: `Failed to send WhatsApp message: ${error instanceof Error ? error.message : 'Unknown error'}.`,
-        showCancel: false,
-        confirmText: 'OK',
-      });
-      return false;
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("WhatsApp API Error:", errorData);
+      }
+      return response.ok;
+    } catch (error) { 
+      console.error("WhatsApp Network Error:", error);
+      return false; 
     }
   }, [cart, totalAmount, discountAmount, merchantName, customerCountryCode]);
 
@@ -421,20 +403,7 @@ export default function BillingPage() {
           : item);
       }
 
-      const newItem: CartItem = {
-        id: Date.now(),
-        type,
-        productId: type === 'product' ? id : undefined,
-        serviceId: type === 'service' ? id : undefined,
-        name,
-        quantity: 1,
-        price,
-        gstRate,
-        profitPerUnit: profitPerUnit || 0,
-        isEditing
-      };
-      
-      return [newItem, ...prev];
+      return [{ id: Date.now(), type, productId: type === 'product' ? id : undefined, serviceId: type === 'service' ? id : undefined, name, quantity: 1, price, gstRate, profitPerUnit: profitPerUnit || 0, isEditing }, ...prev];
     });
     setProductName('');
     setShowSuggestions(false);
@@ -455,16 +424,9 @@ export default function BillingPage() {
     }
   }, [inventory, addToCart]);
 
-  const handleScanError = React.useCallback((error: unknown) => {
-    setScannerError(error instanceof Error ? error.message : 'Unknown scanner error');
-  }, []);
-
   const handleManualAdd = React.useCallback(() => {
     const name = productName.trim();
-    if (!name) {
-      setModal({ isOpen: true, title: 'Item Name Required', message: 'Please enter a name for the custom item.', showCancel: false, confirmText: 'OK' });
-      return;
-    }
+    if (!name) return;
     addToCart('product', `manual-${Date.now()}`, name, 0, 0, 0, true);
   }, [productName, addToCart]);
 
@@ -478,16 +440,7 @@ export default function BillingPage() {
         if (updatedValues.quantity !== undefined && item.productId) {
           const product = inventory.find(p => p.id === item.productId);
           const newQty = Number(updatedValues.quantity);
-          if (product && newQty > product.quantity) {
-            setModal({
-              isOpen: true,
-              title: 'Insufficient Stock',
-              message: `Cannot set quantity to ${newQty}. Only ${product.quantity} available.`,
-              confirmText: 'OK',
-              showCancel: false
-            });
-            return item; // Return original item without update
-          }
+          if (product && newQty > product.quantity) return item;
         }
         return { ...item, ...updatedValues };
       }
@@ -510,38 +463,17 @@ export default function BillingPage() {
   }, [modal, checkPhoneNumber]);
 
   const handleProceedToPayment = React.useCallback(async () => {
-    if (showWhatsAppSharePanel && cart.length > 0) {
-      if (whatsAppNumber.trim() !== '') {
-        const phoneRegex = /^\d{7,15}$/;
-        if (!phoneRegex.test(whatsAppNumber)) {
-          alert("Please enter a valid phone number (7-15 digits)");
-          return;
-        }
-      }
-    }
-
-    if (cart.length === 0) {
-      setModal({ isOpen: true, title: 'Cart Empty', message: 'Please add items to the cart before finalizing.', confirmText: 'OK', showCancel: false });
-      return;
-    }
+    if (cart.length === 0) return;
     setShowWhatsAppSharePanel(false);
     setShowPaymentOptions(true);
-  }, [cart.length, showWhatsAppSharePanel, whatsAppNumber]);
+  }, [cart.length]);
 
   // --- FINAL PAYMENT HANDLER ---
   const handlePaymentSuccess = React.useCallback(async (useNfc: boolean = false) => {
-    // 1. Set Loading UI based on action
-    if (useNfc) {
-      setIsCreatingLink(true);
-    } else {
-      setIsMessaging(true);
-    }
+    if (useNfc) { setIsCreatingLink(true); } else { setIsMessaging(true); }
 
     try {
-      // 2. Prepare Variables
       let nfcToken = '';
-
-      // Prepare sanitized cart with valid numbers for API
       const safeCart = cart.map(item => ({
         ...item,
         quantity: Number(item.quantity) || 0,
@@ -549,51 +481,33 @@ export default function BillingPage() {
       }));
 
       // 3. Update Inventory (ALWAYS run this for both)
-      const updatePromises = safeCart.filter(item => item.productId).map(item =>
+      await Promise.all(safeCart.filter(item => item.productId).map(item =>
         fetch(`/api/products/${item.productId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ quantityToDecrement: item.quantity })
         })
-      );
-      await Promise.all(updatePromises).catch(err => console.error("Inventory update failed:", err));
+      )).catch(err => console.error("Inventory update failed:", err));
 
       if (customerName.trim() && whatsAppNumber.trim()) {
-  const dialCode = (countries.find(c => c.code === customerCountryCode) || countries[0]).dialCode.replace('+', '');
-  const cleanPhone = whatsAppNumber.trim().replace(/\D/g, '');
-  const formattedPhone = cleanPhone.startsWith(dialCode) ? cleanPhone : `${dialCode}${cleanPhone}`;
-  fetch('/api/customers', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: customerName.trim(), phoneNumber: formattedPhone })
-  }).catch(err => console.error("Customer save error", err));
-}
+        fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: customerName.trim(), phoneNumber: whatsAppNumber.trim() })
+        }).catch(err => console.error("Customer save error", err));
+      }
 
-      // Calculate total profit based on safeCart
       const totalProfit = safeCart.reduce((sum, item) => sum + ((item.profitPerUnit || 0) * item.quantity), 0);
 
-      // 5. HANDLE PAYMENT & SALE CREATION
       if (useNfc) {
-        // === NFC FLOW ===
-        // Calling /api/nfc-link creates the Order/Sale in the backend AND returns the ID
-        // The 'paymentMethod' (Cash vs QR) is passed here, so the backend saves it correctly.
         const nfcRes = await fetch('/api/nfc-link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cart: safeCart, totalAmount, paymentMethod: selectedPayment, profit: totalProfit }),
         });
         const nfcData = await nfcRes.json();
-
-        if (nfcData.success && nfcData.orderId) {
-          nfcToken = nfcData.orderId;
-        } else {
-          throw new Error(nfcData.message || 'Failed to generate NFC link');
-        }
-        // NOTE: We do NOT call /api/sales here to avoid Double Bill.
-
+        if (nfcData.success && nfcData.orderId) { nfcToken = nfcData.orderId; }
       } else {
-        // === REGULAR CONFIRM FLOW (CASH / QR) ===
-        // Manually create the sale record
         const response = await fetch('/api/sales', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -602,48 +516,27 @@ export default function BillingPage() {
             paymentMethod: selectedPayment,
             profit: totalProfit,
             items: safeCart,
-            customerPhone: whatsAppNumber ? `${(countries.find(c => c.code === customerCountryCode) || countries[0]).dialCode.replace('+', '')}${whatsAppNumber}` : '',
-            customerName: customerName,
-            merchantName: merchantName,
+            customerPhone: whatsAppNumber || '',
+            customerName,
+            merchantName,
             discount: discountAmount
           })
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to save sale');
-        }
-
-        // Send WhatsApp only for Manual Confirm
-        if (whatsAppNumber && whatsAppNumber.trim()) {
+        if (response.ok && whatsAppNumber.trim()) {
           await sendWhatsAppReceipt(selectedPayment);
         }
       }
 
-      // 6. Launch NFC App (Only for NFC Flow)
       if (useNfc && nfcToken) {
-        const packageName = "com.billzzylite.bridge";
-        const bridgeUrl = `intent://nfc/${nfcToken}#Intent;scheme=billzzylite;package=${packageName};end`;
+        const bridgeUrl = `intent://nfc/${nfcToken}#Intent;scheme=billzzylite;package=com.billzzylite.bridge;end`;
         window.location.href = bridgeUrl;
       }
 
-      // 7. Close Modals before showing success animation
       setIsCashModalOpen(false);
       setIsQRModalOpen(false);
-
-      // 8. Show Success Animation
       setShowSuccessAnimation(true);
-      // The SuccessTick component will call handleTransactionDone (or we can chain it)
-      // For now, we rely on the onComplete callback of SuccessTick to show the final modal or reset.
-
-      // NOTE: We refrain from showing the "Success!" modal here immediately.
-      // Instead, we wait for the animation.
-
-      // Let's rely on the animation onComplete to trigger the next step.
-      // However, we need to pass the "modal setting" logic to that callback or use an effect.
-      // To keep it simple, I will Define a "finisher" function.
-    } catch (error) {
-      console.error("Payment Process Error:", error);
+    } catch {
       setModal({
         isOpen: true,
         title: 'Error',
@@ -655,7 +548,7 @@ export default function BillingPage() {
       setIsCreatingLink(false);
       setIsMessaging(false);
     }
-  }, [selectedPayment, totalAmount, cart, whatsAppNumber, sendWhatsAppReceipt, customerName, merchantName, discountAmount, customerCountryCode]);
+  }, [selectedPayment, totalAmount, cart, whatsAppNumber, sendWhatsAppReceipt, customerName, merchantName, discountAmount]);
 
   const toggleScanner = React.useCallback(() => {
     setScanning(prev => {
@@ -669,17 +562,7 @@ export default function BillingPage() {
 
   const onSuccessAnimationComplete = React.useCallback(() => {
     setShowSuccessAnimation(false);
-
-    // DIRECTLY RESET - SKIP MODAL
-    // GPay style: The tick was the feedback. Now we just prep for next customer.
-    // If we want to show a "New Bill" button explicitly we would need a clean state, 
-    // but the user said "remove the modal pop".
-    // So we just call handleTransactionDone() which clears the cart.
-
     handleTransactionDone();
-
-    // Optional: If we want to stay on the "success screen" (tick) longer, the component handles that duration.
-    // When it calls onComplete, we interpret that as "user is done watching, next".
   }, [handleTransactionDone]);
 
   return (
@@ -701,16 +584,10 @@ export default function BillingPage() {
         <div className="flex-1 min-h-0 overflow-y-auto px-2 pt-1 pb-3">
           <div className="space-y-2">
 
-            {hasOpenedScanner && settingsComplete && (
+            {hasOpenedScanner && (
               <div className={`bg-white rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
                 <div className="max-w-sm mx-auto">
-                  <Scanner
-                    onScan={handleScan}
-                    onError={handleScanError}
-                    scanDelay={300}
-                    paused={!scanning}
-                    styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }}
-                  />
+                  <Scanner onScan={handleScan} onError={(error: unknown) => setScannerError(error instanceof Error ? error.message : 'Unknown scanner error')} scanDelay={300} paused={!scanning} styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }} />
                 </div>
                 {scannerError && <p className="text-center text-xs text-red-500 mt-2">{scannerError}</p>}
                 <button onClick={toggleScanner} className="w-full mt-3 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-semibold hover:bg-red-100">
@@ -722,29 +599,31 @@ export default function BillingPage() {
             <div className="bg-white rounded-xl p-3 shadow-md border border-gray-200">
               <div className="flex gap-2">
                 <div ref={suggestionsRef} className="relative flex-1">
-                  <input type="text" placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? "Search or add item..." : "Settings required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 text-base focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={checkingSettings || !settingsComplete} />
+                  <div className="relative">
+                    <input type="text" placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? `Search in ${searchType === 'all' ? 'Inventory' : searchType + 's'}...` : "Required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={checkingSettings || !settingsComplete} />
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 font-bold" ref={filterMenuRef}>
+                      <button onClick={() => setShowFilterMenu(!showFilterMenu)} className={`w-8 h-8 rounded-md transition-all flex items-center justify-center text-xs bg-[#5a4fcf] text-white shadow-sm ring-2 ring-transparent hover:ring-indigo-200`} title="Filter Category">{searchType === 'product' ? 'P' : searchType === 'service' ? 'S' : <Filter size={16} />}</button>
+                      <AnimatePresence>
+                        {showFilterMenu && (
+                          <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="absolute right-0 top-full mt-2 w-36 bg-white border border-gray-200 rounded-xl shadow-xl z-[60] overflow-hidden">
+                            {(['all', 'product', 'service'] as const).map((type) => (
+                              <button key={type} onClick={() => { setSearchType(type); setShowFilterMenu(false); }} className={`w-full text-left px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors ${searchType === type ? 'bg-indigo-50 text-[#5a4fcf]' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>{type === 'all' ? 'All Items' : type === 'product' ? 'Products' : 'Services'}</button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
                   {showSuggestions && settingsComplete && (
                     <div className="absolute z-10 mt-2 w-full rounded-xl border-2 border-[#5a4fcf] bg-white shadow-xl max-h-48 overflow-y-auto">
                       {suggestions.map((s) => {
                         const isProduct = s.itemType === 'product';
                         const id = isProduct ? (s as InventoryProduct).id : (s as InventoryService)._id;
                         const price = isProduct ? (s as InventoryProduct).sellingPrice : (s as InventoryService).price;
-                        const name = s.name;
-                        const gstRate = isProduct ? (s as InventoryProduct).gstRate : 0;
-                        const profitPerUnit = isProduct ? (s as InventoryProduct).profitPerUnit : 0;
-                        const sku = isProduct ? (s as InventoryProduct).sku : undefined;
                         const type = s.itemType;
-
                         return (
-                          <div key={id} onClick={() => addToCart(type, id, name, price, gstRate, profitPerUnit)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0">
-                            <div className="flex justify-between items-center">
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-gray-800 text-sm">{name}</span>
-                                <span className="text-[10px] uppercase font-bold text-gray-400">{type}</span>
-                              </div>
-                              <span className="text-[#5a4fcf] font-bold text-sm">{formatCurrency(price)}</span>
-                            </div>
-                            {sku && <p className="text-xs text-gray-500 mt-0.5">SKU: {sku}</p>}
+                          <div key={id} onClick={() => addToCart(type, id, s.name, price, isProduct ? (s as InventoryProduct).gstRate : 0, isProduct ? (s as InventoryProduct).profitPerUnit : 0)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0">
+                            <div className="flex justify-between items-center"><div className="flex flex-col"><span className="font-semibold text-gray-800 text-xs">{s.name}</span><span className="text-[9px] uppercase font-bold text-gray-400">{type}</span></div><span className="text-[#5a4fcf] font-bold text-xs">{formatCurrency(price)}</span></div>
                           </div>
                         );
                       })}
@@ -752,109 +631,19 @@ export default function BillingPage() {
                   )}
                 </div>
               </div>
-              {!scanning && settingsComplete && (<button onClick={toggleScanner} className="w-full mt-2 flex items-center justify-center gap-2 bg-indigo-50 text-[#5a4fcf] py-2 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors"><Scan size={16} /> Scan Barcode</button>)}
+              {!scanning && settingsComplete && (<button onClick={toggleScanner} className="w-full mt-2 flex items-center justify-center gap-2 bg-indigo-50 text-[#5a4fcf] py-2 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-colors"><Scan size={14} /> Scan Barcode</button>)}
             </div>
 
             {cart.length === 0 ? (
-              <div className="bg-white rounded-xl p-8 text-center shadow-md border border-gray-200">
-                <div className="text-5xl mb-3">{checkingSettings ? "🔄" : "🛒"}</div>
-                <p className="text-gray-600 font-medium">
-                  {checkingSettings ? "Checking Settings..." : settingsComplete ? "Cart is Empty" : "Settings Required"}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {checkingSettings ? "Please wait a moment" : settingsComplete ? "Add items to get started" : "Please complete your settings to start billing"}
-                </p>
-              </div>
+              <div className="bg-white rounded-xl p-8 text-center shadow-md border border-gray-200"><div className="text-5xl mb-3">{checkingSettings ? "🔄" : "🛒"}</div><p className="text-gray-600 font-medium">{checkingSettings ? "Checking Settings..." : settingsComplete ? "Cart is Empty" : "Settings Required"}</p><p className="text-xs text-gray-500 mt-1">{checkingSettings ? "Please wait a moment" : settingsComplete ? "Add items to get started" : "Please complete your settings"}</p></div>
             ) : (
               <div className="space-y-2">{cart.map((item) => {
-                const { gstAmount, totalPrice } = calculateGstDetails(Number(item.price) || 0, item.gstRate); const totalItemPrice = totalPrice * (Number(item.quantity) || 0); return (
+                const { totalPrice } = calculateGstDetails(Number(item.price) || 0, item.gstRate); return (
                   <div key={item.id} className={`rounded-lg p-2.5 shadow-sm border transition-all ${item.isEditing ? 'bg-indigo-50 border-[#5a4fcf]' : 'bg-white border-gray-200'}`}>
-
                     {item.isEditing ? (
-                      /* === COMPACT EDIT MODE === */
-                      <div className="flex flex-col gap-2">
-                        {/* Row 1: Name */}
-                        <input
-                          type="text"
-                          value={item.name}
-                          onChange={(e) => updateCartItem(item.id, { name: e.target.value })}
-                          className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-base focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white"
-                          placeholder="Item Name"
-                          disabled={!settingsComplete}
-                        />
-
-                        {/* Row 2: Qty | Price | Actions */}
-                        <div className="flex items-center gap-2">
-                          <div className="relative flex-[1]">
-                            <input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => updateCartItem(item.id, { quantity: e.target.value === '' ? '' : parseInt(e.target.value, 10) })}
-                              className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-base focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white font-medium text-center"
-                              placeholder="Qty"
-                              disabled={!settingsComplete}
-                            />
-                            <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">Qty</span>
-                          </div>
-
-                          <div className="relative flex-[1.5]">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span>
-                            <input
-                              type="number"
-                              value={item.price}
-                              onChange={(e) => updateCartItem(item.id, { price: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                              className="w-full pl-5 pr-2 py-1.5 rounded-md border border-gray-300 text-base focus:ring-1 focus:ring-[#5a4fcf] outline-none bg-white font-medium"
-                              placeholder="Price"
-                              disabled={!settingsComplete}
-                            />
-                          </div>
-
-                          {/* Actions */}
-                          <button
-                            onClick={() => toggleEdit(item.id)}
-                            className="flex items-center justify-center p-1.5 rounded-md bg-[#5a4fcf] text-white hover:bg-[#4c42b8] shadow-sm transition-all"
-                            title="Save"
-                          >
-                            <Check size={16} />
-                          </button>
-                          <button
-                            onClick={() => deleteCartItem(item.id)}
-                            className="flex items-center justify-center p-1.5 rounded-md bg-red-100 text-red-500 hover:bg-red-200 shadow-sm transition-all"
-                            title="Remove"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
+                      <div className="flex flex-col gap-2"><input type="text" value={item.name} onChange={(e) => updateCartItem(item.id, { name: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none" placeholder="Item Name" /><div className="flex items-center gap-2"><div className="relative flex-1"><input type="number" value={item.quantity} onChange={(e) => updateCartItem(item.id, { quantity: e.target.value === '' ? '' : parseInt(e.target.value, 10) })} className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none text-center" placeholder="Qty" /><span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-gray-400">Qty</span></div><div className="relative flex-[1.5]"><span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span><input type="number" value={item.price} onChange={(e) => updateCartItem(item.id, { price: e.target.value === '' ? '' : parseFloat(e.target.value) })} className="w-full pl-5 pr-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none" placeholder="Price" /></div><button onClick={() => toggleEdit(item.id)} className="p-1.5 rounded-md bg-[#5a4fcf] text-white hover:bg-[#4c42b8]"><Check size={16} /></button><button onClick={() => deleteCartItem(item.id)} className="p-1.5 rounded-md bg-red-100 text-red-500"><Trash2 size={16} /></button></div></div>
                     ) : (
-                      /* === VIEW MODE UI (Compact) === */
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-gray-900 text-sm truncate leading-tight">{item.name}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Qty: {item.quantity}</span>
-                            <span className="text-[10px] text-gray-400">×</span>
-                            <span className="text-xs text-gray-500">{formatCurrency(totalPrice)}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-[#5a4fcf]">
-                            {formatCurrency(totalItemPrice)}
-                          </span>
-
-                          <div className="flex gap-1">
-                            <button onClick={() => toggleEdit(item.id)} disabled={!settingsComplete} className="p-1 rounded bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-[#5a4fcf] transition-colors"><Edit2 size={14} /></button>
-                            <button onClick={() => deleteCartItem(item.id)} disabled={!settingsComplete} className="p-1 rounded bg-red-50 text-red-500 hover:bg-red-100 transition-colors"><Trash2 size={14} /></button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {!item.isEditing && item.gstRate > 0 && (
-                      <div className="mt-1.5 pt-1.5 border-t border-dashed border-gray-100 text-[10px] text-gray-400">
-                        Base: {formatCurrency(Number(item.price) || 0)} + GST ({item.gstRate}%): {formatCurrency(gstAmount)}
-                      </div>
+                      <div className="flex justify-between items-start gap-2"><div className="flex-1 min-w-0"><p className="font-bold text-gray-900 text-xs truncate">{item.name}</p><div className="flex items-center gap-1.5 mt-1"><span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Qty: {item.quantity}</span><span className="text-[10px] text-gray-400">×</span><span className="text-[10px] text-gray-500">{formatCurrency(totalPrice)}</span></div></div><div className="flex items-center gap-2"><span className="text-xs font-bold text-[#5a4fcf]">{formatCurrency(totalPrice * (Number(item.quantity) || 0))}</span><div className="flex gap-1"><button onClick={() => toggleEdit(item.id)} className="p-1 rounded bg-gray-100 text-gray-600"><Edit2 size={12} /></button><button onClick={() => deleteCartItem(item.id)} className="p-1 rounded bg-red-50 text-red-500"><Trash2 size={12} /></button></div></div></div>
                     )}
                   </div>
                 );
@@ -863,297 +652,161 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="flex-shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-gray-100/50 p-2 space-y-2">
+        <div className="flex-shrink-0 bg-white shadow-[0_-8px_30_rgba(0,0,0,0.05)] border-t border-gray-100/50 p-2 space-y-2">
           <div className="max-w-2xl mx-auto space-y-2">
-            <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : 'hover:border-[#1D4ED8]'}`}>
-              <input
-                type="number"
-                placeholder="Enter Discount"
-                value={discountInput}
-                onChange={(e) => setDiscountInput(e.target.value)}
-                className="flex-1 bg-transparent px-3 py-2 text-base font-medium outline-none placeholder:text-gray-400 text-gray-700"
-                disabled={cart.length === 0 || !settingsComplete}
-              />
-              <button
-                onClick={() => setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')}
-                className="bg-[#5a4fcf] px-4 text-[9px] font-black uppercase tracking-widest text-white transition-all hover:bg-[#4c42b8] active:bg-[#3d34a4] disabled:bg-gray-400"
-                disabled={cart.length === 0 || !settingsComplete}
-              >
-                {discountType === 'percentage' ? '%' : '₹'}
-              </button>
-            </div>
-
-            {/* --- SUMMARY TABLE --- */}
-            <div className="space-y-1 px-1">
-              <div className="flex justify-between items-center text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                <span>Subtotal</span>
-                <span className="text-gray-600 font-black">{formatCurrency(subtotal)}</span>
-              </div>
-
-              {discountAmount > 0 && (
-                <div className="flex justify-between items-center text-[9px] font-bold text-emerald-600 animate-in slide-in-from-top-1 duration-200">
-                  <span className="uppercase tracking-widest">Discount ({discountType === 'percentage' ? `${discountInput}%` : 'Fixed'})</span>
-                  <span className="font-black">-{formatCurrency(discountAmount)}</span>
-                </div>
-              )}
-
-              <div className="h-[1px] w-full bg-gray-50 my-0.5" />
-
-              <div className="flex justify-between items-end">
-                <span className="text-xs font-black text-gray-900 tracking-tight uppercase">Total Due</span>
-                <span className="text-base font-black text-[#5a4fcf] tracking-tighter leading-none">
-                  {formatCurrency(totalAmount)}
-                </span>
-              </div>
-            </div>
-
-            {/* --- ACTION BUTTONS --- */}
-            {!showWhatsAppSharePanel && !showPaymentOptions && (
-              <button
-                onClick={() => {
-                  if (cart.length === 0) {
-                    setModal({ isOpen: true, title: 'Cart Empty', message: 'Please add items to the cart before finalizing.', confirmText: 'OK', showCancel: false });
-                    return;
-                  }
-                  setShowWhatsAppSharePanel(true);
-                  setShowPaymentOptions(false);
-                }}
-                className="w-full group relative flex items-center justify-center gap-2 rounded-lg bg-[#5a4fcf] py-2 text-[13px] font-bold text-white shadow-md shadow-indigo-100 transition-all hover:bg-[#4c42b8] active:scale-[0.98] disabled:bg-gray-300 disabled:shadow-none"
-                disabled={cart.length === 0 || !settingsComplete}
-              >
-                <span>Proceed to Payment</span>
-                <ChevronRight size={14} className="transition-transform group-hover:translate-x-1" />
-              </button>
-            )}
+            <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : ''}`}><input type="number" placeholder="Enter Discount" value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-sm font-medium outline-none" /><button onClick={() => setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')} className="bg-[#5a4fcf] px-4 text-[10px] font-black uppercase tracking-widest text-white">{discountType === 'percentage' ? '%' : '₹'}</button></div>
+            <div className="space-y-1 px-1"><div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>{discountAmount > 0 && (<div className="flex justify-between items-center text-[10px] font-bold text-emerald-600"><span>Discount</span><span>-{formatCurrency(discountAmount)}</span></div>)}<div className="h-[1px] w-full bg-gray-50 my-1" /><div className="flex justify-between items-end"><span className="text-xs font-black text-gray-900">Total Due</span><span className="text-base font-black text-[#5a4fcf]">{formatCurrency(totalAmount)}</span></div></div>
+            {!showWhatsAppSharePanel && !showPaymentOptions && (<button onClick={() => { if (cart.length === 0) return; setShowWhatsAppSharePanel(true); }} className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#5a4fcf] py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-100 hover:bg-[#4c42b8] active:scale-[0.98] disabled:bg-gray-300" disabled={cart.length === 0 || !settingsComplete}><span>Proceed to Payment</span><ChevronRight size={14} /></button>)}
           </div>
         </div>
 
-        {/* --- CUSTOMER PANEL --- */}
         {showWhatsAppSharePanel && cart.length > 0 && settingsComplete && (
           <div className="space-y-3 rounded-2xl bg-gradient-to-br from-green-50/50 to-emerald-50/50 p-3 border border-green-100 animate-in fade-in zoom-in-95 duration-300">
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2 items-center">
-                <div className="w-[85px] shrink-0">
-                  <CountryCodeSelector
-                    selectedCountryCode={customerCountryCode}
-                    onSelect={(c) => setCustomerCountryCode(c.code)}
-                  />
-                </div>
-                <input
-                  type="tel"
-                  value={whatsAppNumber}
-                  onChange={(e) => setWhatsAppNumber(e.target.value)}
-                  placeholder="Phone Number"
-                  className="flex-1 rounded-xl border border-green-200 p-2.5 text-sm font-medium outline-none focus:border-green-500 bg-white transition-all shadow-sm"
-                />
-              </div>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Customer Name (Optional)"
-                className="w-full rounded-xl border border-green-200 p-2.5 text-sm font-medium outline-none focus:border-green-500 bg-white transition-all shadow-sm"
-              />
-            </div>
-            <button onClick={handleProceedToPayment} disabled={isMessaging} className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-bold text-white hover:bg-green-700 transition-all shadow-lg shadow-green-100 active:scale-[0.98]">
-              {isMessaging ? (
-                <div className="flex items-center gap-2 font-medium">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                  <span className="text-sm">Processing...</span>
-                </div>
-              ) : (
-                <><MessageSquare size={16} /><span className="text-sm">{whatsAppNumber.trim() ? 'Continue to Payment' : 'Skip & Continue'}</span></>
-              )}
-            </button>
+            <div className="flex flex-col gap-2"><div className="flex gap-2 items-center"><div className="w-[85px] shrink-0"><CountryCodeSelector selectedCountryCode={customerCountryCode} onSelect={(c) => setCustomerCountryCode(c.code)} /></div><input type="tel" value={whatsAppNumber} onChange={(e) => setWhatsAppNumber(e.target.value)} placeholder="Phone Number" className="flex-1 rounded-xl border border-green-200 p-2.5 text-xs outline-none bg-white" /></div><input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer Name (Optional)" className="w-full rounded-xl border border-green-200 p-2.5 text-xs outline-none bg-white" /></div>
+            <button onClick={handleProceedToPayment} className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-bold text-white hover:bg-green-700"><MessageSquare size={16} /><span className="text-xs">{whatsAppNumber.trim() ? 'Continue to Payment' : 'Skip & Continue'}</span></button>
           </div>
         )}
 
         {showPaymentOptions && cart.length > 0 && settingsComplete && (
-          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <p className="text-[10px] font-black text-gray-400 text-center uppercase tracking-widest">Select Payment Method</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {[{ method: 'cash', label: 'Cash' }, { method: 'qr-code', label: 'QR' }].map(({ method, label }) => (
-                <button
-                  key={method}
-                  onClick={() => {
-                    setSelectedPayment(method);
-                    if (method === 'cash') setIsCashModalOpen(true);
-                    if (method === 'qr-code') setIsQRModalOpen(true);
-                  }}
-                  className={`rounded-lg py-3 text-sm font-bold capitalize transition-all border flex items-center justify-center gap-2 ${selectedPayment === method ? 'bg-[#5a4fcf] text-white border-transparent shadow-lg shadow-indigo-100 -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50 hover:shadow-md'}`}
-                >
-                  {method === 'cash' ? <DollarSign size={16} /> : <Scan size={16} />}
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300"><p className="text-[10px] font-black text-gray-400 text-center uppercase tracking-widest">Select Payment Method</p><div className="grid grid-cols-2 gap-1.5">{[{ method: 'cash', label: 'Cash' }, { method: 'qr-code', label: 'QR' }].map(({ method, label }) => (<button key={method} onClick={() => { setSelectedPayment(method); if (method === 'cash') setIsCashModalOpen(true); if (method === 'qr-code') setIsQRModalOpen(true); }} className={`rounded-lg py-3 text-xs font-bold capitalize transition-all border flex items-center justify-center gap-2 ${selectedPayment === method ? 'bg-[#5a4fcf] text-white border-transparent shadow-lg shadow-indigo-100' : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}>{method === 'cash' ? <DollarSign size={16} /> : <Scan size={16} />}{label}</button>))}</div></div>
         )}
       </div>
 
-      {/* --- CASH PAYMENT MODAL --- */}
       {isCashModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="w-[95%] max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-1 bg-[#5a4fcf]"></div>
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-tight">Cash Payment</h3>
-                  <p className="text-sm text-gray-400 font-medium">Accept cash from customer</p>
-                </div>
-                <button onClick={() => setIsCashModalOpen(false)} className="p-2 -mr-1 rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all">
-                  <X size={20} />
-                </button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+          <div className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
+            <div className="h-1 bg-[#5a4fcf] absolute top-0 left-0 right-0" />
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Cash Payment</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Accept cash from customer</p>
               </div>
+              <button onClick={() => setIsCashModalOpen(false)} className="p-2 rounded-full bg-slate-50 text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
 
-              <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Amount</span>
-                  <span className="text-2xl font-black text-[#5a4fcf]">{formatCurrency(totalAmount)}</span>
-                </div>
-              </div>
+            <div className="bg-slate-50/80 rounded-[24px] p-6 mb-8 flex flex-col items-center justify-center border border-slate-100">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">TOTAL AMOUNT</span>
+              <span className="text-4xl font-black text-[#5a4fcf]">{formatCurrency(totalAmount)}</span>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cash Received</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
-                    <input
-                      type="number"
-                      placeholder="0.00"
-                      value={amountGiven}
-                      onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                      className="w-full rounded-xl border-2 border-gray-100 p-3 pl-7 text-lg font-black focus:border-[#5a4fcf] focus:ring-0 outline-none bg-white transition-all shadow-sm"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Change to Return</label>
-                  <div className={`w-full rounded-xl p-3 flex items-center justify-center border-2 ${balance < 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                    <span className={`font-black text-lg ${balance < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{formatCurrency(balance)}</span>
-                  </div>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CASH RECEIVED</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
+                  <input
+                    type="number"
+                    value={amountGiven}
+                    onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    className="w-full rounded-2xl border-2 border-slate-100 p-4 pl-9 text-xl font-black focus:border-[#5a4fcf] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
+                    autoFocus
+                  />
                 </div>
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CHANGE TO RETURN</label>
+                <div className={`w-full h-[62px] rounded-2xl flex items-center justify-center border-2 ${balance < 0 ? 'bg-red-50 border-red-100' : 'bg-[#eefcf4] border-[#eefcf4]'}`}>
+                  <span className={`font-black text-xl ${balance < 0 ? 'text-red-600' : 'text-[#0da06a]'}`}>
+                    {formatCurrency(balance)}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handlePaymentSuccess(true)}
-                  disabled={isCreatingLink || isMessaging}
-                  className="flex-1 rounded-2xl bg-indigo-50 text-indigo-600 py-3 font-black flex items-center justify-center shadow-sm hover:bg-indigo-100 active:scale-95 transition-all gap-2"
-                >
-                  {isCreatingLink ? (<div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent"></div>) : (<><Nfc size={18} /> <span className="text-[10px] uppercase tracking-widest">NFC</span></>)}
-                </button>
-                <button
-                  onClick={() => {
-                    handlePaymentSuccess(false);
-                  }}
-                  disabled={isMessaging || isCreatingLink || (amountGiven !== '' && amountGiven < totalAmount)}
-                  className="flex-[3] flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 font-black text-white hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 active:scale-95 disabled:bg-gray-200 disabled:shadow-none"
-                >
-                  {isMessaging ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      <span className="text-[10px] uppercase tracking-widest">Saving...</span>
-                    </div>
-                  ) : (
-                    <><Check size={18} /><span className="text-[10px] uppercase tracking-widest">Confirm Cash Payment</span></>
-                  )}
-                </button>
-              </div>
+                <div className="flex gap-3">
+              <button 
+                onClick={() => handlePaymentSuccess(true)} 
+                disabled={isCreatingLink || isMessaging} 
+                className="flex-[0.35] h-[56px] rounded-full bg-slate-50 text-[#5a4fcf] font-black flex items-center justify-center gap-2 hover:bg-slate-100 transition-all border border-slate-100"
+              >
+                {isCreatingLink ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-3 border-[#5a4fcf] border-t-transparent"></div>
+                ) : (
+                  <><Nfc size={20} /><span className="text-xs uppercase font-black">NFC</span></>
+                )}
+              </button>
+              <button 
+                onClick={() => handlePaymentSuccess(false)} 
+                disabled={isMessaging || isCreatingLink || (amountGiven !== '' && amountGiven < totalAmount)} 
+                className="flex-1 h-[56px] flex items-center justify-center gap-2 rounded-full bg-[#0da06a] font-black text-white shadow-lg shadow-emerald-100 hover:bg-[#0b8a5c] active:scale-[0.98] disabled:bg-slate-200 disabled:shadow-none transition-all"
+              >
+                {isMessaging ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-3 border-white border-t-transparent"></div>
+                ) : (
+                  <><Check size={20} /><span className="text-xs uppercase font-black tracking-wider">CONFIRM CASH PAYMENT</span></>
+                )}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- QR PAYMENT MODAL --- */}
       {isQRModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="w-[95%] max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-1 bg-[#5a4fcf]"></div>
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-xl font-black text-gray-900 leading-tight">Scan to Pay</h3>
-                  <p className="text-sm text-gray-400 font-medium">Customer scans QR code</p>
-                </div>
-                <button onClick={() => setIsQRModalOpen(false)} className="p-2 -mr-1 rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all">
-                  <X size={20} />
-                </button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+          <div className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
+            <div className="h-1 bg-[#5a4fcf] absolute top-0 left-0 right-0" />
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Scan to Pay</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Customer scans QR code</p>
               </div>
+              <button onClick={() => setIsQRModalOpen(false)} className="p-2 rounded-full bg-slate-50 text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
 
-              {upiQR ? (
-                <div className="flex flex-col items-center">
-                  <div className="w-full bg-gray-50/80 rounded-3xl p-6 mb-6 flex flex-col items-center border border-gray-100/50">
-                    <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 mb-4 transition-transform hover:scale-[1.02] duration-300">
-                      <QRCode value={upiQR} size={180} style={{ height: 'auto', width: '100%' }} />
-                    </div>
-
-                    <div className="text-center w-full">
-                      <p className="text-[#5a4fcf] font-black text-xs tracking-[0.15em]">{merchantUpi}</p>
-                    </div>
+            {upiQR ? (
+              <div className="flex flex-col items-center">
+                <div className="w-full bg-slate-50/80 rounded-[32px] p-8 mb-6 flex flex-col items-center border border-slate-100">
+                  <div className="bg-white p-6 rounded-[24px] shadow-sm mb-4">
+                    <QRCode value={upiQR} size={180} style={{ height: 'auto', maxWidth: '100%', width: '100%' }} />
                   </div>
-
-                  <div className="text-center mb-8">
-                    <p className="text-2xl font-black text-gray-900 tracking-tighter">{formatCurrency(totalAmount)}</p>
-                  </div>
-
-                  <div className="flex w-full gap-3">
-                    <button
-                      onClick={() => handlePaymentSuccess(true)}
-                      disabled={isCreatingLink || isMessaging}
-                      className="flex-1 rounded-2xl bg-indigo-50 text-indigo-600 py-3 font-black flex items-center justify-center shadow-sm hover:bg-indigo-100 active:scale-95 transition-all gap-2"
-                    >
-                      {isCreatingLink ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent"></div>) : (<><Nfc size={18} /> <span className="text-[10px] uppercase tracking-widest">NFC</span></>)}
-                    </button>
-                    <button
-                      onClick={() => {
-                        handlePaymentSuccess(false);
-                      }}
-                      disabled={isMessaging || isCreatingLink}
-                      className="flex-[3] flex items-center justify-center gap-2 rounded-2xl bg-[#5a4fcf] py-3 font-black text-white hover:bg-[#4c42b8] transition-all shadow-lg shadow-indigo-100 active:scale-95 group"
-                    >
-                      {isMessaging ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                          <span className="text-[10px] uppercase tracking-widest text-white">Saving...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <CheckCircle size={18} className="text-white group-hover:scale-110 transition-transform" />
-                          <span className="text-[10px] uppercase tracking-widest">Collect Payment</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  <p className="text-[#5a4fcf] font-black text-sm tracking-widest select-all select-none">{merchantUpi}</p>
                 </div>
-              ) : (
-                <div className="py-12 text-center">
-                  <div className="h-16 w-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertTriangle className="h-8 w-8 text-red-500" />
-                  </div>
-                  <p className="text-sm font-bold text-gray-600 px-8">UPI ID not configured in settings. Please update your profile to accept QR payments.</p>
-                  <button onClick={() => window.location.assign('/settings')} className="mt-6 text-[#5a4fcf] font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:gap-3 transition-all">
-                    Go to Settings <ChevronRight size={14} />
+                
+                <p className="text-3xl font-black text-slate-900 mb-8">{formatCurrency(totalAmount)}</p>
+
+                <div className="flex w-full gap-3">
+                  <button 
+                    onClick={() => handlePaymentSuccess(true)} 
+                    disabled={isCreatingLink || isMessaging} 
+                    className="flex-[0.35] h-[56px] rounded-full bg-slate-50 text-[#5a4fcf] font-black flex items-center justify-center gap-2 hover:bg-slate-100 transition-all border border-slate-100"
+                  >
+                    {isCreatingLink ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-3 border-[#5a4fcf] border-t-transparent"></div>
+                    ) : (
+                      <><Nfc size={20} /><span className="text-xs uppercase font-black">NFC</span></>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => handlePaymentSuccess(false)} 
+                    disabled={isMessaging || isCreatingLink} 
+                    className="flex-1 h-[56px] flex items-center justify-center gap-2 rounded-full bg-[#5a4fcf] font-black text-white shadow-lg shadow-indigo-100 hover:bg-[#4c42b8] active:scale-[0.98] transition-all"
+                  >
+                    {isMessaging ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-3 border-white border-t-transparent"></div>
+                    ) : (
+                      <><CheckCircle size={20} /><span className="text-xs uppercase font-black tracking-wider">COLLECT PAYMENT</span></>
+                    )}
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center flex flex-col items-center">
+                <AlertTriangle className="h-10 w-10 text-red-500 mb-4" />
+                <p className="text-sm font-bold text-gray-600 px-8 uppercase">UPI ID not configured</p>
+                <button onClick={() => window.location.assign('/settings')} className="mt-6 text-[#5a4fcf] font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                  Go to Settings <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      <Modal
-        isOpen={modal.isOpen}
-        onClose={() => setModal({ ...modal, isOpen: false, message: '' })}
-        title={modal.title}
-        onConfirm={modal.onConfirm}
-        confirmText={modal.confirmText}
-        showCancel={modal.showCancel}
-      >
-        {modal.message}
-      </Modal>
+      <Modal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false, message: '' })} title={modal.title} onConfirm={modal.onConfirm} confirmText={modal.confirmText} showCancel={modal.showCancel}>{modal.message}</Modal>
     </>
   );
 }
