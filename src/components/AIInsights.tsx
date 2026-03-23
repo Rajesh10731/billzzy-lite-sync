@@ -1,7 +1,7 @@
 // src/components/AIInsights.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Clock, Sparkles, TrendingUp, ShoppingBag, Lightbulb, Loader2, RefreshCw, Bot, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -27,7 +27,7 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
     const [error, setError] = useState<string | null>(null);
     const [showDaily, setShowDaily] = useState(false);
 
-    const fetchInsights = async () => {
+    const fetchInsights = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -42,11 +42,11 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
         } finally {
             setLoading(false);
         }
-    };
+    }, [mode]);
 
     useEffect(() => {
         fetchInsights();
-    }, []);
+    }, [fetchInsights]);
 
     return (
         <motion.div 
@@ -54,7 +54,7 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
         >
-            {/* Header */}
+            {/* Header */}  
             <div className={`p-3.5 flex items-center justify-between border-b border-gray-50 bg-gradient-to-r ${mode === "service" ? "from-purple-50/50 to-white" : "from-indigo-50/50 to-white"}`}>
                 <div className="flex items-center gap-2.5">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${mode === "service" ? "bg-purple-500" : "bg-indigo-500"}`}>

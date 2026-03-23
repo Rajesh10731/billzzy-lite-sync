@@ -80,11 +80,11 @@ export async function GET(request: Request) {
                 const isService = item.type === "service";
                 const stats = isService ? serviceStats : productStats;
                 
-                if (!stats[name]) {
-                    stats[name] = { quantity: 0, revenue: 0 };
+                // Only process items that exist in current inventory (pre-initialized)
+                if (stats[name]) {
+                    stats[name].quantity += item.quantity;
+                    stats[name].revenue += (item.quantity * item.price);
                 }
-                stats[name].quantity += item.quantity;
-                stats[name].revenue += (item.quantity * item.price);
             });
         });
 
