@@ -179,7 +179,7 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
                                     <TrendingUp className="w-5 h-5 text-emerald-500 group-hover/item:scale-110 transition-transform" />
                                 </div>
                                 <div className="text-[14px] text-slate-600 font-medium leading-snug">
-                                    <Typewriter text={insights?.salesInsight || ""} delay={30} />
+                                    <Typewriter text={insights?.salesInsight || ""} delay={50} />
                                 </div>
                             </div>
 
@@ -212,7 +212,7 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
                                 </div>
                                 <div className="text-[14px] text-slate-600 font-medium leading-snug">
                                     <span className="font-black text-slate-900 uppercase text-[11px] tracking-wider mr-1.5 opacity-70">Guidance:</span>
-                                    <Typewriter text={insights?.suggestion || ""} delay={20} />
+                                    <Typewriter text={insights?.suggestion || ""} delay={50} />
                                 </div>
                             </div>
                             
@@ -231,7 +231,7 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
                                     </div>
                                     <div className="text-[14px] text-slate-700 font-medium leading-snug relative z-10">
                                         <span className="font-black text-indigo-900 uppercase text-[11px] tracking-wider mr-1.5 opacity-70">Off-Peak Strategy:</span>
-                                        <Typewriter text={insights.offPeakTip} delay={25} />
+                                        <Typewriter text={insights.offPeakTip} delay={50} />
                                     </div>
                                 </motion.div>
                             )}
@@ -275,20 +275,20 @@ function Typewriter({ text, delay = 50 }: { text: string; delay?: number }) {
     const [displayedText, setDisplayedText] = useState("");
     
     useEffect(() => {
-        setDisplayedText(""); // Reset when text changes
-        let index = 0;
-        if (!text) return;
+        let isActive = true;
+        setDisplayedText(""); 
         
-        const timer = setInterval(() => {
-            if (index < text.length) {
-                setDisplayedText(prev => prev + text.charAt(index));
-                index++;
-            } else {
-                clearInterval(timer);
+        async function startTyping() {
+            if (!text) return;
+            for (let i = 1; i <= text.length; i++) {
+                if (!isActive) break;
+                setDisplayedText(text.slice(0, i));
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
-        }, delay);
+        }
         
-        return () => clearInterval(timer);
+        startTyping();
+        return () => { isActive = false; };
     }, [text, delay]);
 
     return (

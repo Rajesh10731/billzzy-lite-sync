@@ -158,6 +158,20 @@ export async function GET(request: Request) {
             peakTimeStr = `${hour12}:00 ${period} on ${days[Number(peakDay)]}s`;
         }
 
+        // Identify Quiet Hours (Off-Peak) - Focus on 9 AM to 9 PM window
+        const businessHours = Array.from({ length: 13 }, (_, i) => i + 9); // 9 AM to 9 PM
+        const quietHours = businessHours
+            .map(h => ({ hour: h, count: hourCounts[h] || 0 }))
+            .sort((a, b) => a.count - b.count)
+            .slice(0, 3) // Get top 3 quietest hours
+            .map(item => {
+                const period = item.hour >= 12 ? "PM" : "AM";
+                const h12 = item.hour % 12 || 12;
+                return `${h12}${period}`;
+            });
+
+        const quietHoursStr = quietHours.join(", ");
+
         // Customer Insights
         const customerStats: Record<string, { count: number; lastDate: Date }> = {};
         salesHistory.forEach(sale => {
@@ -200,7 +214,7 @@ export async function GET(request: Request) {
         });
 
         const prompt = `You are an AI business ${type === "service" ? "service advisor" : type === "product" ? "inventory advisor" : "advisor"} for small retail shop owners.
-Analyze following data and generate short, professional, and actionable insights.
+Analyze following data and generate short, professional, and actionable insights. Use perfect spelling and clear business terminology.
 
 Data Summary:
 ${type !== "service" ? `- Top Product (Revenue): ${topProduct}
@@ -208,17 +222,21 @@ ${type !== "service" ? `- Top Product (Revenue): ${topProduct}
 ${type !== "product" ? `- Top Service (Revenue): ${topService}
 - Slow Service (Sales): ${slowService}` : ""}
 - Peak Sales Time: ${peakTimeStr}
+- Identified Quiet Hours (Off-Peak): ${quietHoursStr}
 - Churn Rate: ${churnRateVal.toFixed(1)}%
 - At-Risk Customers: ${atRiskCustomers}
 ${type !== "service" ? `- Purchase Suggestions: ${purchaseSuggestions.slice(0, 3).join(", ") || "None"}` : ""}
 
 Rules (STRICT JSON):
-1. salesInsight: ${type === "service" ? "Booking trends & peak hours" : "Stock performance & peak times"}. (under 12 words)
-2. topProduct/topService: ${type === "service" ? "Most popular service" : "Best selling items"}. (under 10 words total)
-3. slowProduct/slowService: ${type === "service" ? "Service improvement fix" : "Inventory/Discount fix"}. (under 10 words total)
-4. suggestion: Actionable step for ${type === "service" ? "customer retention" : "inventory/churn"}. (under 12 words)
-5. retargeting: Specific group message. (under 10 words)
-6. offPeakTip: Specific actionable tip to improve ${type === "service" ? "bookings" : "sales"} during non-peak hours. (under 15 words)
+Rules (STRICT JSON):
+1. salesInsight: A one-sentence summary of trends and peak performance. (under 12 words)
+2. topProduct/topService: Identifies the highest revenue item or service. (under 8 words)
+3. slowProduct/slowService: Identifies a low-performance item/service and suggests a improvement. (under 12 words)
+4. suggestion: An actionable business growth step. (under 12 words)
+5. retargeting: A specific marketing message for customers. (under 10 words)
+6. offPeakTip: A specific actionable strategy to drive ${type === "service" ? "bookings" : "sales"} specifically during the quiet hours of ${quietHoursStr}. (under 15 words)
+
+CRITICAL: Use perfect spelling. Do not truncate words. Ensure the JSON is valid.
 
 Return valid JSON:
 {
@@ -303,7 +321,7 @@ Return valid JSON:
                 suggestion: purchaseSuggestions[0] || "Maintain current inventory levels.",
                 retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers.",
                 churnRate: `${churnRateVal.toFixed(1)}%`,
-                offPeakTip: type === "service" ? "Offer happy hour discounts for mid-day bookings." : "Run flash sales during early morning hours.",
+                offPeakTip: type === "service" ? `Offer special deals for ${quietHours[0]} bookings.` : `Run limited-time flash sales at ${quietHours[0]}.`,
                 lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isFallback: true
             });
