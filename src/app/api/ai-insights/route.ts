@@ -218,6 +218,7 @@ Rules (STRICT JSON):
 3. slowProduct/slowService: ${type === "service" ? "Service improvement fix" : "Inventory/Discount fix"}. (under 10 words total)
 4. suggestion: Actionable step for ${type === "service" ? "customer retention" : "inventory/churn"}. (under 12 words)
 5. retargeting: Specific group message. (under 10 words)
+6. offPeakTip: Specific actionable tip to improve ${type === "service" ? "bookings" : "sales"} during non-peak hours. (under 15 words)
 
 Return valid JSON:
 {
@@ -229,7 +230,8 @@ Return valid JSON:
   "slowService": "${slowService}",
   "suggestion": "",
   "retargeting": "",
-  "churnRate": "${churnRateVal.toFixed(1)}%"
+  "churnRate": "${churnRateVal.toFixed(1)}%",
+  "offPeakTip": ""
 }
 `;
 
@@ -301,6 +303,7 @@ Return valid JSON:
                 suggestion: purchaseSuggestions[0] || "Maintain current inventory levels.",
                 retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers.",
                 churnRate: `${churnRateVal.toFixed(1)}%`,
+                offPeakTip: type === "service" ? "Offer happy hour discounts for mid-day bookings." : "Run flash sales during early morning hours.",
                 lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isFallback: true
             });
