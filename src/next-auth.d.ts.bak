@@ -1,6 +1,5 @@
+
 import { DefaultSession } from "next-auth"
-import type { GetServerSidePropsContext, NextApiRequest } from "next"
-import type { NextRequest } from "next/server"
 // import { JWT } from "next-auth/jwt"
 
 declare module "next-auth" {
@@ -31,19 +30,5 @@ declare module "next-auth/jwt" {
         id: string
         tenantId?: string
         phoneNumber?: string
-        email?: string
     }
-
-    export function getToken<R extends boolean = false>(params: {
-        req: GetServerSidePropsContext["req"] | NextRequest | NextApiRequest
-        secret?: string
-        raw?: R
-        cookieName?: string
-        secureCookie?: boolean
-    }): Promise<R extends true ? string : JWT | null>
-}
-
-declare module "next-auth/next" {
-    import type { Session } from "next-auth"
-    export function getServerSession(...args: unknown[]): Promise<Session | null>
 }

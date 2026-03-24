@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       tenantId = tenant.ownerEmail || tenant.subdomain;
       console.log(`[API/Customers] Authenticated via Hook. TenantIdentifier: ${tenantId}`);
     } else {
-      const session = await getServerSession(authOptions);
+      const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
       tenantId = session?.user?.email;
       if (tenantId) console.log(`[API/Customers] Authenticated via Session. UserEmail: ${tenantId}`);
     }
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
 
     if (!session?.user?.email) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
 
     if (!session?.user?.email) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

@@ -5,7 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
 
     if (!session || !session.user) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -31,7 +31,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
 
     if (!session || !session.user) {
         return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -44,7 +44,9 @@ export async function PUT(request: Request) {
         console.log("PUT /api/users/settings - Body:", JSON.stringify(body, null, 2));
 
         // Whitelist allowed fields to update
-        const { name, phoneNumber, address, shopName, shopAddress, merchantUpiId, defaultCountryCode } = body;
+        const { 
+            name, phoneNumber, address, shopName, shopAddress, merchantUpiId, defaultCountryCode
+        } = body;
 
         // Update the user
         const updatedUser = await User.findOneAndUpdate(

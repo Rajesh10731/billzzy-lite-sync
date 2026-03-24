@@ -25,8 +25,6 @@ export async function middleware(req: NextRequest) {
     // console.log(`[Middleware] Path: ${pathname}, LoggedIn: ${isLoggedIn}, Phone: ${token?.phoneNumber}`);
   }
 
-  // Define route categories
-
   // 4. Redirect logged-in users away from the Landing Page OR force verification
   if (isLoggedIn) {
     // If logged in but NOT verified and NOT admin, force verification

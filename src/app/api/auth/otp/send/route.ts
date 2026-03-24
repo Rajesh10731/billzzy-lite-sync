@@ -13,7 +13,7 @@ const generateOTP = () => {
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
 
         if (!session?.user?.email) {
             return NextResponse.json({

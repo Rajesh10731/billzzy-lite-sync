@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Tenant from '@/models/Tenant';
@@ -9,7 +9,7 @@ import { generateAPIKey, hashKey } from '@/lib/api-keys';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null; name?: string | null } } | null;
     if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     await dbConnect();
@@ -30,7 +30,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null; name?: string | null } } | null;
     if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     await dbConnect();

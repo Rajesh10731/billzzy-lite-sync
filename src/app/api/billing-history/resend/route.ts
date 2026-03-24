@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb";
 import Sales from "@/models/Sales";
 import Customer from "@/models/Customer";
 import { authOptions } from "@/lib/auth";
+import { sendWhatsAppMessage, type WhatsAppPayload } from "@/lib/whatsapp";
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   console.log("Resend API: Hit");
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions) as { user?: { email?: string | null } } | null;
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -86,10 +87,10 @@ export async function POST(req: Request) {
     }
 
     const discount = updatedSale.discount || 0;
-    const subtotal = updatedSale.amount + discount;
 
-    const whatsappPayload = {
+    const whatsappPayload: WhatsAppPayload = {
       messaging_product: "whatsapp",
+      recipient_type: "individual",
       to: cleanPhone,
       type: "template",
       template: {
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
           parameters: [
             { type: "text", text: String(updatedSale.billId || updatedSale._id) },
             { type: "text", text: updatedSale.merchantName || "Merchant" },
-            { type: "text", text: `₹${subtotal.toFixed(2)}` },
+            { type: "text", text: `₹${updatedSale.amount.toFixed(2)}` },
             { type: "text", text: displayItems },
             { type: "text", text: discount > 0 ? `₹${discount.toFixed(2)}` : "₹0.00" }
           ]
@@ -109,21 +110,10 @@ export async function POST(req: Request) {
     };
 
     // 3. Send WhatsApp
-    const wsResponse = await fetch(
-      `https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_BUSINESS_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(whatsappPayload),
-      }
-    );
-
-    if (!wsResponse.ok) {
-      const errData = await wsResponse.json();
-      console.error("WhatsApp API Error:", errData);
+    try {
+      await sendWhatsAppMessage(session.user.email as string, whatsappPayload);
+    } catch (wsError) {
+      console.error("WhatsApp API Error via Utility:", wsError);
       return NextResponse.json({ success: false, message: "WhatsApp API Failed" }, { status: 400 });
     }
 

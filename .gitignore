@@ -47,5 +47,13 @@ public/test.txt
 server.js
 src/components/SideBar.tsx.backup
 src/components/forms/loginform.tsx.backup
+<<<<<<< HEAD
 
 certificates
+=======
+<<<<<<< HEAD
+=======
+
+certificates
+>>>>>>> 019bc73 (Initial commit from Harish)
+>>>>>>> billzzy/harish-new

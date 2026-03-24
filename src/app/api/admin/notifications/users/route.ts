@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import PushSubscription from '@/models/PushSubscription';
 import User from '@/models/User';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'admin') {
+        const session = await getServerSession(authOptions) as { user?: { role?: string } } | null;
+        if (!session?.user || session.user.role !== 'admin') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
