@@ -2,11 +2,7 @@
 
 import { useEffect } from 'react';
 
-/**
- * ViewportFix helps stabilize the PWA layout on iOS by:
- * 1. Preventing pinch-zoom gestures that break fixed-element layouts.
- * 2. Handling the visual viewport discrepancy.
- */
+
 export default function ViewportFix() {
     useEffect(() => {
         // 1. Prevent Pinch Zoom (iOS Safari 10+)

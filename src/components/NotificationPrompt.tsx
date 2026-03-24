@@ -34,9 +34,7 @@ export default function NotificationPrompt() {
         }
 
         // 1. Strict Support Check
-        // Must support Notifications, Service Workers, AND the Push API.
-        // If PushManager is missing (e.g., iOS standalone missing, or Android in-app browsers like FB/IG), 
-        // we silently hide the prompt entirely to prevent confusing setup errors.
+
         const isSupported = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
         if (!isSupported) {
             console.log('🔇 Notifications/Push not supported in this specific browser environment. Hiding prompt.');
