@@ -586,8 +586,37 @@ export default function BillingPage() {
 
             {hasOpenedScanner && (
               <div className={`bg-white rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
-                <div className="max-w-sm mx-auto">
-                  <Scanner onScan={handleScan} onError={(error: unknown) => setScannerError(error instanceof Error ? error.message : 'Unknown scanner error')} scanDelay={300} paused={!scanning} styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }} />
+                <div className="max-w-sm mx-auto relative rounded-xl overflow-hidden group">
+                  <Scanner 
+                    onScan={handleScan} 
+                    onError={(error: unknown) => setScannerError(error instanceof Error ? error.message : 'Unknown scanner error')} 
+                    scanDelay={300} 
+                    paused={!scanning} 
+                    styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }} 
+                  />
+                  
+                  {/* Modern Scanning Animation Overlay */}
+                  <div className="absolute inset-0 pointer-events-none z-10">
+                    {/* Scanning Line */}
+                    <motion.div 
+                      animate={{ top: ["5%", "95%", "5%"] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                      className="absolute left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.8),0_0_5px_rgba(79,70,229,1)]"
+                    />
+                    
+                    {/* Corner Borders */}
+                    <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-sm" />
+                    <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-sm" />
+                    <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-sm" />
+                    <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-sm" />
+                    
+                    {/* Scanning Grid Pulse (Subtle) */}
+                    <motion.div 
+                      animate={{ opacity: [0.1, 0.2, 0.1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(79,70,229,0.05)_100%)]"
+                    />
+                  </div>
                 </div>
                 {scannerError && <p className="text-center text-xs text-red-500 mt-2">{scannerError}</p>}
                 <button onClick={toggleScanner} className="w-full mt-3 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-semibold hover:bg-red-100">
