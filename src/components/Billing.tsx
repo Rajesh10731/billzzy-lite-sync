@@ -134,6 +134,7 @@ export default function BillingPage() {
 
   const [settingsComplete, setSettingsComplete] = React.useState(false);
   const [checkingSettings, setCheckingSettings] = React.useState(true);
+  const [scanSuccess, setScanSuccess] = React.useState(false);
 
   // Sync state with LocalStorage immediately on mount (before even first render if possible, but inside component for access to session)
   React.useLayoutEffect(() => {
@@ -414,10 +415,14 @@ export default function BillingPage() {
       const scannedValue = results[0].rawValue;
       const foundProduct = inventory.find(p => p.id === scannedValue || p.sku?.toLowerCase() === scannedValue.toLowerCase() || p.name.toLowerCase() === scannedValue.toLowerCase());
       if (foundProduct) {
+        setScanSuccess(true);
+        setTimeout(() => setScanSuccess(false), 600);
         addToCart('product', foundProduct.id, foundProduct.name, foundProduct.sellingPrice, foundProduct.gstRate, foundProduct.profitPerUnit);
         setScanning(false);
       } else {
         // Fallback for custom item if not found in inventory
+        setScanSuccess(true);
+        setTimeout(() => setScanSuccess(false), 600);
         addToCart('product', `custom-${Date.now()}`, scannedValue, 0, 0, 0, true);
         setScanning(false);
       }
@@ -596,19 +601,40 @@ export default function BillingPage() {
                   />
                   
                   {/* Modern Scanning Animation Overlay */}
-                  <div className="absolute inset-0 pointer-events-none z-10">
-                    {/* Scanning Line */}
+                  <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+                    {/* Focus Masking - Darken outside scan area */}
+                    <div className="absolute inset-0 bg-black/10" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.3)_70%)]" />
+
+                    {/* Scanning Line with Dynamic Glow */}
                     <motion.div 
                       animate={{ top: ["5%", "95%", "5%"] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                      className="absolute left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.8),0_0_5px_rgba(79,70,229,1)]"
+                      className={`absolute left-0 right-0 h-0.5 shadow-[0_0_15px_rgba(79,70,229,0.8),0_0_5px_rgba(79,70,229,1)] ${scanSuccess ? 'bg-emerald-500 shadow-emerald-500/80' : 'bg-indigo-500 shadow-indigo-500/80'}`}
+                      style={{
+                        background: scanSuccess 
+                          ? 'linear-gradient(90deg, transparent, #10b981, transparent)' 
+                          : 'linear-gradient(90deg, transparent, #6366f1, transparent)'
+                      }}
                     />
                     
-                    {/* Corner Borders */}
-                    <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-sm" />
-                    <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-sm" />
-                    <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-sm" />
-                    <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-sm" />
+                    {/* Corner Borders with Success Snap Animation */}
+                    <motion.div 
+                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
+                      className={`absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 rounded-tl-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
+                    />
+                    <motion.div 
+                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
+                      className={`absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 rounded-tr-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
+                    />
+                    <motion.div 
+                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
+                      className={`absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 rounded-bl-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
+                    />
+                    <motion.div 
+                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
+                      className={`absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 rounded-br-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
+                    />
                     
                     {/* Scanning Grid Pulse (Subtle) */}
                     <motion.div 
