@@ -209,7 +209,7 @@ export async function GET(request: Request) {
             if (daysOfStockLeft < 14 || p.quantity <= (p.lowStockThreshold || 10)) {
                 const weeklyNeed = Math.ceil(dailyVelocity * 7);
                 const suggestQty = Math.max(weeklyNeed * 2, 10);
-                purchaseSuggestions.push(`${p.name}: Low stock, suggest restock ~${suggestQty} units.`);
+                purchaseSuggestions.push(`${p.name} (Stock: ${p.quantity}, Suggest: restock ~${suggestQty})`);
             }
         });
 
@@ -225,14 +225,14 @@ ${type !== "product" ? `- Top Service (Revenue): ${topService}
 - Identified Quiet Hours (Off-Peak): ${quietHoursStr}
 - Churn Rate: ${churnRateVal.toFixed(1)}%
 - At-Risk Customers: ${atRiskCustomers}
-${type !== "service" ? `- Purchase Suggestions: ${purchaseSuggestions.slice(0, 3).join(", ") || "None"}` : ""}
+- Inventory Alerts: ${purchaseSuggestions.slice(0, 3).join(", ") || "All stock levels healthy."}
 
 Rules (STRICT JSON):
 Rules (STRICT JSON):
 1. salesInsight: A one-sentence summary of trends and peak performance. (under 12 words)
 2. topProduct/topService: Identifies the highest revenue item or service. (under 8 words)
 3. slowProduct/slowService: Identifies a low-performance item/service and suggests a improvement. (under 12 words)
-4. suggestion: An actionable business growth step. (under 12 words)
+4. suggestion: An actionable business step. If there are Inventory Alerts, prioritize a restock suggestion. (under 12 words)
 5. retargeting: A specific marketing message for customers. (under 10 words)
 6. offPeakTip: A specific actionable strategy to drive ${type === "service" ? "bookings" : "sales"} specifically during the quiet hours of ${quietHoursStr}. (under 15 words)
 
@@ -318,7 +318,9 @@ Return valid JSON:
                 slowProduct: `Improve ${slowProduct} sales.`,
                 topService: `Top revenue from ${topService}.`,
                 slowService: `Improve ${slowService} sales.`,
-                suggestion: purchaseSuggestions[0] || "Maintain current inventory levels.",
+                suggestion: purchaseSuggestions.length > 0 
+                    ? `Restock ${purchaseSuggestions[0].split('(')[0].trim()} and other low items.` 
+                    : "Maintain current inventory levels and service quality.",
                 retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers.",
                 churnRate: `${churnRateVal.toFixed(1)}%`,
                 offPeakTip: type === "service" ? `Offer special deals for ${quietHours[0]} bookings.` : `Run limited-time flash sales at ${quietHours[0]}.`,
