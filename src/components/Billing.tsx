@@ -134,7 +134,6 @@ export default function BillingPage() {
 
   const [settingsComplete, setSettingsComplete] = React.useState(false);
   const [checkingSettings, setCheckingSettings] = React.useState(true);
-  const [scanSuccess, setScanSuccess] = React.useState(false);
 
   // Sync state with LocalStorage immediately on mount (before even first render if possible, but inside component for access to session)
   React.useLayoutEffect(() => {
@@ -250,12 +249,12 @@ export default function BillingPage() {
           fetch('/api/products'),
           fetch('/api/services')
         ]);
-        
+
         if (prodRes.ok) {
           const data: InventoryProduct[] = await prodRes.json();
           setInventory(data.map(p => ({ ...p, gstRate: p.gstRate || 0 })));
         }
-        
+
         if (servRes.ok) {
           const data: InventoryService[] = await servRes.json();
           setServices(data);
@@ -270,10 +269,10 @@ export default function BillingPage() {
   React.useEffect(() => {
     if (!productName.trim()) { setShowSuggestions(false); return; }
     const query = productName.trim().toLowerCase();
-    
+
     let prodFiltered: ((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[] = [];
     let servFiltered: ((InventoryProduct | InventoryService) & { itemType: 'product' | 'service' })[] = [];
-    
+
     if (searchType === 'all' || searchType === 'product') {
       prodFiltered = inventory
         .filter(p => p.name.toLowerCase().includes(query) || p.sku?.toLowerCase().includes(query))
@@ -285,7 +284,7 @@ export default function BillingPage() {
         .filter(s => s.name.toLowerCase().includes(query))
         .map(s => ({ ...s, itemType: 'service' as const }));
     }
-    
+
     const combined = [...prodFiltered, ...servFiltered].slice(0, 8);
     setSuggestions(combined);
     setShowSuggestions(combined.length > 0);
@@ -351,9 +350,9 @@ export default function BillingPage() {
         console.error("WhatsApp API Error:", errorData);
       }
       return response.ok;
-    } catch (error) { 
+    } catch (error) {
       console.error("WhatsApp Network Error:", error);
-      return false; 
+      return false;
     }
   }, [cart, totalAmount, discountAmount, merchantName, customerCountryCode]);
 
@@ -394,13 +393,13 @@ export default function BillingPage() {
     }
 
     setCart(prev => {
-      const existingItem = type === 'product' 
-        ? prev.find(item => item.productId === id) 
+      const existingItem = type === 'product'
+        ? prev.find(item => item.productId === id)
         : prev.find(item => item.serviceId === id);
 
       if (existingItem) {
-        return prev.map(item => (type === 'product' ? item.productId === id : item.serviceId === id) 
-          ? { ...item, quantity: (Number(item.quantity) || 0) + 1 } 
+        return prev.map(item => (type === 'product' ? item.productId === id : item.serviceId === id)
+          ? { ...item, quantity: (Number(item.quantity) || 0) + 1 }
           : item);
       }
 
@@ -415,14 +414,10 @@ export default function BillingPage() {
       const scannedValue = results[0].rawValue;
       const foundProduct = inventory.find(p => p.id === scannedValue || p.sku?.toLowerCase() === scannedValue.toLowerCase() || p.name.toLowerCase() === scannedValue.toLowerCase());
       if (foundProduct) {
-        setScanSuccess(true);
-        setTimeout(() => setScanSuccess(false), 600);
         addToCart('product', foundProduct.id, foundProduct.name, foundProduct.sellingPrice, foundProduct.gstRate, foundProduct.profitPerUnit);
         setScanning(false);
       } else {
         // Fallback for custom item if not found in inventory
-        setScanSuccess(true);
-        setTimeout(() => setScanSuccess(false), 600);
         addToCart('product', `custom-${Date.now()}`, scannedValue, 0, 0, 0, true);
         setScanning(false);
       }
@@ -590,70 +585,38 @@ export default function BillingPage() {
           <div className="space-y-2">
 
             {hasOpenedScanner && (
-              <div className={`bg-slate-900 rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
+              <div className={`bg-white rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
                 <div className="max-w-sm mx-auto relative rounded-xl overflow-hidden group">
-                  <Scanner 
-                    onScan={handleScan} 
-                    onError={(error: unknown) => setScannerError(error instanceof Error ? error.message : 'Unknown scanner error')} 
-                    scanDelay={300} 
-                    paused={!scanning} 
-                    styles={{ 
-                      container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden', backgroundColor: 'black' },
-                      video: { objectFit: 'cover' }
-                    }} 
-                    components={{
-                      finder: false, // Attempt to hide default red dashed finder
-                    }}
+                  <Scanner
+                    onScan={handleScan}
+                    onError={(error: unknown) => setScannerError(error instanceof Error ? error.message : 'Unknown scanner error')}
+                    scanDelay={300}
+                    paused={!scanning}
+                    styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }}
                   />
-                  
-                  {/* Modern Scanning Animation Overlay */}
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="absolute inset-0 pointer-events-none z-10 overflow-hidden"
-                  >
-                    {/* Focus Masking - Darken outside scan area */}
-                    <div className="absolute inset-0 bg-black/10" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.3)_70%)]" />
 
-                    {/* Scanning Line with Dynamic Glow */}
-                    <motion.div 
+                  {/* Modern Scanning Animation Overlay */}
+                  <div className="absolute inset-0 pointer-events-none z-10">
+                    {/* Scanning Line */}
+                    <motion.div
                       animate={{ top: ["5%", "95%", "5%"] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                      className={`absolute left-0 right-0 h-0.5 shadow-[0_0_15px_rgba(79,70,229,0.8),0_0_5px_rgba(79,70,229,1)] ${scanSuccess ? 'bg-emerald-500 shadow-emerald-500/80' : 'bg-indigo-500 shadow-indigo-500/80'}`}
-                      style={{
-                        background: scanSuccess 
-                          ? 'linear-gradient(90deg, transparent, #10b981, transparent)' 
-                          : 'linear-gradient(90deg, transparent, #6366f1, transparent)'
-                      }}
+                      className="absolute left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.8),0_0_5px_rgba(79,70,229,1)]"
                     />
-                    
-                    {/* Corner Borders with Success Snap Animation */}
-                    <motion.div 
-                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
-                      className={`absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 rounded-tl-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
-                    />
-                    <motion.div 
-                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
-                      className={`absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 rounded-tr-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
-                    />
-                    <motion.div 
-                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
-                      className={`absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 rounded-bl-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
-                    />
-                    <motion.div 
-                      animate={scanSuccess ? { scale: [1, 1.2, 1], borderColor: "#10b981" } : {}}
-                      className={`absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 rounded-br-sm transition-colors duration-300 ${scanSuccess ? 'border-emerald-500' : 'border-white/80'}`} 
-                    />
-                    
+
+                    {/* Corner Borders */}
+                    <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-sm" />
+                    <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-sm" />
+                    <div className="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-sm" />
+                    <div className="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-sm" />
+
                     {/* Scanning Grid Pulse (Subtle) */}
-                    <motion.div 
+                    <motion.div
                       animate={{ opacity: [0.1, 0.2, 0.1] }}
                       transition={{ duration: 2, repeat: Infinity }}
                       className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(79,70,229,0.05)_100%)]"
                     />
-                  </motion.div>
+                  </div>
                 </div>
                 {scannerError && <p className="text-center text-xs text-red-500 mt-2">{scannerError}</p>}
                 <button onClick={toggleScanner} className="w-full mt-3 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-semibold hover:bg-red-100">
@@ -781,10 +744,10 @@ export default function BillingPage() {
               </div>
             </div>
 
-                <div className="flex gap-3">
-              <button 
-                onClick={() => handlePaymentSuccess(true)} 
-                disabled={isCreatingLink || isMessaging} 
+            <div className="flex gap-3">
+              <button
+                onClick={() => handlePaymentSuccess(true)}
+                disabled={isCreatingLink || isMessaging}
                 className="flex-[0.35] h-[56px] rounded-full bg-slate-50 text-[#5a4fcf] font-black flex items-center justify-center gap-2 hover:bg-slate-100 transition-all border border-slate-100"
               >
                 {isCreatingLink ? (
@@ -793,9 +756,9 @@ export default function BillingPage() {
                   <><Nfc size={20} /><span className="text-xs uppercase font-black">NFC</span></>
                 )}
               </button>
-              <button 
-                onClick={() => handlePaymentSuccess(false)} 
-                disabled={isMessaging || isCreatingLink || (amountGiven !== '' && amountGiven < totalAmount)} 
+              <button
+                onClick={() => handlePaymentSuccess(false)}
+                disabled={isMessaging || isCreatingLink || (amountGiven !== '' && amountGiven < totalAmount)}
                 className="flex-1 h-[56px] flex items-center justify-center gap-2 rounded-full bg-[#0da06a] font-black text-white shadow-lg shadow-emerald-100 hover:bg-[#0b8a5c] active:scale-[0.98] disabled:bg-slate-200 disabled:shadow-none transition-all"
               >
                 {isMessaging ? (
@@ -831,13 +794,13 @@ export default function BillingPage() {
                   </div>
                   <p className="text-[#5a4fcf] font-black text-sm tracking-widest select-all select-none">{merchantUpi}</p>
                 </div>
-                
+
                 <p className="text-3xl font-black text-slate-900 mb-8">{formatCurrency(totalAmount)}</p>
 
                 <div className="flex w-full gap-3">
-                  <button 
-                    onClick={() => handlePaymentSuccess(true)} 
-                    disabled={isCreatingLink || isMessaging} 
+                  <button
+                    onClick={() => handlePaymentSuccess(true)}
+                    disabled={isCreatingLink || isMessaging}
                     className="flex-[0.35] h-[56px] rounded-full bg-slate-50 text-[#5a4fcf] font-black flex items-center justify-center gap-2 hover:bg-slate-100 transition-all border border-slate-100"
                   >
                     {isCreatingLink ? (
@@ -846,9 +809,9 @@ export default function BillingPage() {
                       <><Nfc size={20} /><span className="text-xs uppercase font-black">NFC</span></>
                     )}
                   </button>
-                  <button 
-                    onClick={() => handlePaymentSuccess(false)} 
-                    disabled={isMessaging || isCreatingLink} 
+                  <button
+                    onClick={() => handlePaymentSuccess(false)}
+                    disabled={isMessaging || isCreatingLink}
                     className="flex-1 h-[56px] flex items-center justify-center gap-2 rounded-full bg-[#5a4fcf] font-black text-white shadow-lg shadow-indigo-100 hover:bg-[#4c42b8] active:scale-[0.98] transition-all"
                   >
                     {isMessaging ? (
