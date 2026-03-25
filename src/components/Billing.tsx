@@ -590,18 +590,29 @@ export default function BillingPage() {
           <div className="space-y-2">
 
             {hasOpenedScanner && (
-              <div className={`bg-white rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
+              <div className={`bg-slate-900 rounded-xl p-3 shadow-md border border-indigo-100 ${!scanning ? 'hidden' : ''}`}>
                 <div className="max-w-sm mx-auto relative rounded-xl overflow-hidden group">
                   <Scanner 
                     onScan={handleScan} 
                     onError={(error: unknown) => setScannerError(error instanceof Error ? error.message : 'Unknown scanner error')} 
                     scanDelay={300} 
                     paused={!scanning} 
-                    styles={{ container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden' } }} 
+                    styles={{ 
+                      container: { width: '100%', height: 180, borderRadius: '12px', overflow: 'hidden', backgroundColor: 'black' },
+                      video: { objectFit: 'cover' }
+                    }} 
+                    components={{
+                      finder: false, // Attempt to hide default red dashed finder
+                    }}
                   />
                   
                   {/* Modern Scanning Animation Overlay */}
-                  <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className="absolute inset-0 pointer-events-none z-10 overflow-hidden"
+                  >
                     {/* Focus Masking - Darken outside scan area */}
                     <div className="absolute inset-0 bg-black/10" />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.3)_70%)]" />
@@ -642,7 +653,7 @@ export default function BillingPage() {
                       transition={{ duration: 2, repeat: Infinity }}
                       className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(79,70,229,0.05)_100%)]"
                     />
-                  </div>
+                  </motion.div>
                 </div>
                 {scannerError && <p className="text-center text-xs text-red-500 mt-2">{scannerError}</p>}
                 <button onClick={toggleScanner} className="w-full mt-3 flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg text-sm font-semibold hover:bg-red-100">
