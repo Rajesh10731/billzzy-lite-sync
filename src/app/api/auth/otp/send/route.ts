@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
-import { whatsappConfig, whatsappTemplates } from "@/lib/whatsapp-config";
+import { defaultWhatsappConfig as whatsappConfig, whatsappTemplates } from "@/lib/whatsapp-config";
 
 // Helper to generate 6 digit OTP
 const generateOTP = () => {

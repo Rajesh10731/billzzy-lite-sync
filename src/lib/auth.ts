@@ -7,7 +7,8 @@ import bcrypt from 'bcryptjs';
 
 import { clientPromise } from "@/lib/mongodb";
 import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+import User, { IUser } from "@/models/User";
+import { User as NextAuthUser } from "next-auth";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const uri = new URL(MONGODB_URI!);
@@ -63,35 +64,54 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
 
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger }) {
+      // 1. Initial Sign In
       if (user) {
-      //   const u = user as { id: string; role?: string; tenantId?: string; subdomain?: string; email?: string; phoneNumber?: string };
-      //   token.id = u.id;
-      //   token.role = (u.role as "admin" | "user" | "tenant") || 'user';
-      //   token.tenantId = u.tenantId || u.subdomain || u.email;
-      //   token.phoneNumber = u.phoneNumber;
-      //    token.plan = u.plan;
-      //   token.features = u.features;
-      // }
-      const u = user as any;
+        const u = user as NextAuthUser;
         token.id = u.id;
         token.role = u.role || 'user';
         token.tenantId = u.tenantId;
         token.phoneNumber = u.phoneNumber;
         token.plan = u.plan || 'FREE';
         token.features = u.features || { productAI: false, serviceAI: false, customWhatsapp: false };
+
+        // For OAuth users (Google), the initial 'user' object lacks 'plan' and 'features'.
+        // We must fetch them from our database to avoid default 'FREE' values in the JWT.
+        if (token.email && (trigger === 'signIn' || trigger === 'signUp' || !u.plan)) {
+          await dbConnect();
+          const dbUser = await User.findOne({ email: token.email });
+          if (dbUser) {
+            token.id = dbUser._id.toString();
+            token.plan = dbUser.plan || 'FREE';
+            token.features = {
+              productAI: dbUser.features?.productAI || false,
+              serviceAI: dbUser.features?.serviceAI || false,
+              customWhatsapp: dbUser.features?.customWhatsapp || false
+            };
+            token.role = dbUser.role || 'user';
+            if (dbUser.phoneNumber) token.phoneNumber = dbUser.phoneNumber;
+          }
+        }
       }
 
-      // if (trigger === "update") {
-      //   if (session?.phoneNumber) token.phoneNumber = session.phoneNumber;
-      //   if (session?.name) token.name = session.name;
-      // }
-       if (trigger === "update" && session) {
-        if (session.phoneNumber) token.phoneNumber = session.phoneNumber;
-        if (session.plan) token.plan = session.plan;
-        if (session.features) token.features = session.features;
+      // 2. Session Update (Sync)
+      if (trigger === "update") {
+        await dbConnect();
+        const userEmail = token.email;
+        if (userEmail) {
+          const dbUser = await User.findOne({ email: userEmail });
+          if (dbUser) {
+            token.plan = dbUser.plan || 'FREE';
+            token.features = {
+              productAI: dbUser.features?.productAI || false,
+              serviceAI: dbUser.features?.serviceAI || false,
+              customWhatsapp: dbUser.features?.customWhatsapp || false
+            };
+            if (dbUser.phoneNumber) token.phoneNumber = dbUser.phoneNumber;
+            if (dbUser.name) token.name = dbUser.name;
+          }
+        }
       }
-
 
       return token;
     },
@@ -105,7 +125,7 @@ export const authOptions: NextAuthOptions = {
         session.user.tenantId = token.tenantId as string;
         session.user.phoneNumber = token.phoneNumber as string;
         session.user.plan = token.plan as 'FREE' | 'PRO';
-        session.user.features = token.features as any;
+        session.user.features = token.features as IUser['features'];
       }
       return session;
     },

@@ -23,6 +23,20 @@ export async function GET(request: Request) {
         if (!session?.user?.email) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
+
+        const features = session.user.features;
+        // Feature Gating: Check if user has access to the requested AI type
+        if (type === "product" && !features?.productAI) {
+            return NextResponse.json({ message: "Product AI Insight is locked for your plan." }, { status: 403 });
+        }
+        if (type === "service" && !features?.serviceAI) {
+            return NextResponse.json({ message: "Service AI Insight is locked for your plan." }, { status: 403 });
+        }
+        if (type === "all" && (!features?.productAI || !features?.serviceAI)) {
+            // If requesting all (default), ensure at least one is enabled or handle accordingly
+            // For now, if 'all' is requested but either is missing, we could restrict or just allow if they have either.
+            // But usually the UI requests specific types.
+        }
         
         // ... (existing logic for tenantQuery and fetching data)
         const tenantId = session.user.email;

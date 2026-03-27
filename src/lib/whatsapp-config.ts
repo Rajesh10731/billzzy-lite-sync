@@ -47,6 +47,7 @@
 
 
 
+import { Session } from "next-auth";
 import WhatsappSetting from "@/models/WhatsappSetting";
 import dbConnect from "@/lib/mongodb";
 
@@ -61,18 +62,18 @@ export const defaultWhatsappConfig = {
  * 2. New Dynamic Resolver: 
  * Determines if we should use System keys (Free) or Merchant keys (Pro)
  */
-export async function getWhatsAppConfig(session: any) {
+export async function getWhatsAppConfig(session: Session | null) {
   const plan = session?.user?.plan;
   const features = session?.user?.features;
-  const userId = session?.user?.id;
+  const shopId = session?.user?.email; // Use email as shopId
 
   // Logic: Only PRO users with the 'customWhatsapp' feature enabled can use custom keys
-  if (plan === 'PRO' && features?.customWhatsapp) {
+  if (plan === 'PRO' && features?.customWhatsapp && shopId) {
     await dbConnect();
-    const customSettings = await WhatsappSetting.findOne({ userId });
+    const customSettings = await WhatsappSetting.findOne({ shopId });
 
-    // If they have settings configured and active, return them
-    if (customSettings && customSettings.isActive) {
+    // If they have settings configured (check if key fields are present), return them
+    if (customSettings && customSettings.phoneNumberId && customSettings.accessToken) {
       return {
         phoneNumberId: customSettings.phoneNumberId,
         accessToken: customSettings.accessToken,

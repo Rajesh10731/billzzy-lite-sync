@@ -15,7 +15,7 @@ export async function GET() {
         await dbConnect();
 
         const user = await User.findOne({ email: (session.user as { email: string }).email })
-            .select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode');
+            .select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode plan features');
 
         if (!user) {
             return NextResponse.json({ message: 'User not found' }, { status: 404 });

@@ -3,11 +3,12 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Package, AlertTriangle, XCircle, Loader2, Lock } from "lucide-react";
-// 1. IMPORT THE CHART DYNAMICALLY (Fixes 500 Error / SSR issues)
-import dynamic from 'next/dynamic'; 
+import { Package, AlertTriangle, Loader2, Lock, RefreshCw } from "lucide-react";
+import { IUser } from "@/models/User";
+import dynamic from "next/dynamic"; 
 import SalesSummary from "./SalesSummary";
 import AIInsights from "./AIInsights";
+
 const StockStyleSalesChart = dynamic(() => import("./StockStyleSalesChart"), { ssr: false });
 
 interface Product {
@@ -23,19 +24,11 @@ type InventorySummary = {
   outOfStock: number;
 };
 
-
-// --- CONSTANTS ---
 const LOW_STOCK_THRESHOLD = 10;
 
-// --- COMPONENT ---
 export default function Dashboard() {
-  // const { status } = useSession();
   const { data: session, status, update } = useSession();
-  const features = session?.user?.features;
-
-
-  // State for Sales Data
-  // State for Inventory Summary
+  const [dbData, setDbData] = useState<Partial<IUser> | null>(null);
   const [inventorySummary, setInventorySummary] = useState<InventorySummary>({
     inStock: 0, lowStock: 0, outOfStock: 0,
   });
@@ -43,7 +36,16 @@ export default function Dashboard() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status !== 'authenticated') {
+    if (status === "authenticated") {
+      fetch("/api/users/settings")
+        .then(res => res.json())
+        .then(data => setDbData(data))
+        .catch(err => console.error("Dashboard Sync Failed:", err));
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
       setIsSummaryLoading(false);
       return;
     }
@@ -52,9 +54,8 @@ export default function Dashboard() {
       setIsSummaryLoading(true);
       setSummaryError(null);
       try {
-        const res = await fetch('/api/products');
-        if (!res.ok) throw new Error('Failed to fetch product data');
-
+        const res = await fetch("/api/products");
+        if (!res.ok) throw new Error("Failed to fetch product data");
         const products: Product[] = await res.json();
         const summary: InventorySummary = products.reduce((acc, product) => {
           const threshold = product.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
@@ -75,19 +76,21 @@ export default function Dashboard() {
         setIsSummaryLoading(false);
       }
     };
-
     fetchInventorySummary();
   }, [status]);
 
-  // SMART ENGAGEMENT: Trigger "Alive" notifications when landing on dashboard
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetch('/api/notifications/engage', { method: 'POST' })
+    if (status === "authenticated") {
+      fetch("/api/notifications/engage", { method: "POST" })
         .catch(err => console.error("Engagement Trigger Failed:", err));
+      if (session?.user?.plan === "FREE") {
+        update();
+      }
     }
-  }, [status]);
+  }, [status, session?.user?.plan, update]);
 
-  // 3. Helper Component for Locked Features
+  const features = session?.user?.features || dbData?.features;
+
   const LockedFeature = ({ title }: { title: string }) => (
     <div className="relative group cursor-pointer overflow-hidden rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 flex flex-col items-center justify-center min-h-[120px]">
       <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center">
@@ -95,10 +98,7 @@ export default function Dashboard() {
           <Lock className="w-4 h-4 text-amber-500" />
         </div>
         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Pro Feature</p>
-        <button 
-          onClick={() => window.location.href = '/billing'} 
-          className="mt-1 text-[10px] text-blue-600 font-bold hover:underline"
-        >
+        <button onClick={() => window.location.href = "/billing"} className="mt-1 text-[10px] text-blue-600 font-bold hover:underline">
           Upgrade to Unlock
         </button>
       </div>
@@ -106,40 +106,17 @@ export default function Dashboard() {
     </div>
   );
 
+  if (status === "loading") return null;
+
   return (
     <div className="h-full bg-gray-50 overflow-y-auto p-2.5 pb-20">
-      <div className="max-w-2xl mx-auto space-y-4"> {/* Increased spacing slightly */}
-
-        {/* Sales Card */}
+      <div className="max-w-2xl mx-auto space-y-4">
         <SalesSummary enableTabs={false} />
-
-        {/* 2. Today's Performance Graph */}
         <StockStyleSalesChart hideTabs />
-
-        {/* AI Business Insights
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AIInsights mode="product" />
-          <AIInsights mode="service" />
-        </div> */}
-
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Product AI Check */}
-          {features?.productAI ? (
-            <AIInsights mode="product" />
-          ) : (
-            <LockedFeature title="Product AI Insights" />
-          )}
-
-          {/* Service AI Check */}
-          {features?.serviceAI ? (
-            <AIInsights mode="service" />
-          ) : (
-            <LockedFeature title="Service AI Insights" />
-          )}
+          {features?.productAI ? <AIInsights mode="product" /> : <LockedFeature title="Product AI Insights" />}
+          {features?.serviceAI ? <AIInsights mode="service" /> : <LockedFeature title="Service AI Insights" />}
         </div>
-
-
-        {/* Inventory Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5">
           <div className="flex items-center gap-2 mb-2.5">
             <div className="w-8 h-8 bg-[#5a4fcf] rounded-lg flex items-center justify-center">
@@ -150,7 +127,6 @@ export default function Dashboard() {
               <p className="text-xs text-gray-500">Stock levels</p>
             </div>
           </div>
-
           {isSummaryLoading ? (
             <div className="py-6 flex flex-col items-center justify-center text-gray-400">
               <Loader2 className="w-5 h-5 animate-spin mb-1.5 text-[#5a4fcf]" />
@@ -159,50 +135,38 @@ export default function Dashboard() {
           ) : summaryError ? (
             <div className="py-6 flex flex-col items-center justify-center text-red-500">
               <AlertTriangle className="w-5 h-5 mb-1.5" />
-              <span className="text-xs">{summaryError}</span>
+              <span className="text-xs text-center">{summaryError}</span>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3">
-              {/* In Stock */}
               <div className="bg-indigo-50 rounded-xl border-2 border-indigo-200 p-2 flex flex-col items-center justify-center text-center h-24">
-                <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center mb-1">
-                  <Package className="w-4 h-4 text-white" />
-                </div>
-                <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">All Stock</p>
-                <p className="text-lg font-extrabold text-gray-900">{inventorySummary.inStock}</p>
+                <p className="text-[10px] uppercase text-indigo-500 font-bold">All Stock</p>
+                <p className="text-lg font-bold">{inventorySummary.inStock}</p>
               </div>
-
-              {/* Low Stock */}
               <div className="bg-orange-50 rounded-xl border-2 border-orange-200 p-2 flex flex-col items-center justify-center text-center h-24">
-                <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center mb-1">
-                  <AlertTriangle className="w-4 h-4 text-white" />
-                </div>
-                <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wide">Low Stock</p>
-                <p className="text-lg font-extrabold text-gray-900">{inventorySummary.lowStock}</p>
+                <p className="text-[10px] uppercase text-orange-500 font-bold">Low Stock</p>
+                <p className="text-lg font-bold">{inventorySummary.lowStock}</p>
               </div>
-
-              {/* Out of Stock */}
               <div className="bg-red-50 rounded-xl border-2 border-red-200 p-2 flex flex-col items-center justify-center text-center h-24">
-                <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center mb-1">
-                  <XCircle className="w-4 h-4 text-white" />
-                </div>
-                <p className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Out Stock</p>
-                <p className="text-lg font-extrabold text-gray-900">{inventorySummary.outOfStock}</p>
+                <p className="text-[10px] uppercase text-red-500 font-bold">Out Stock</p>
+                <p className="text-lg font-bold">{inventorySummary.outOfStock}</p>
               </div>
             </div>
-            )}
-             
-             {/* Corrected: Use JSX comment syntax and proper spacing */}
-          {session?.user.plan === 'FREE' && (
-            <button 
-              onClick={() => update()} 
-              className="w-full mt-4 py-2 text-[10px] text-gray-400 hover:text-gray-600 italic border-t border-gray-100"
-            >
-              Recently upgraded? Click here to sync your account.
-            </button>
+          )}
+          {session?.user.plan === "FREE" && (
+            <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-lg"><RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" /></div>
+                <div>
+                  <p className="text-[11px] font-bold text-indigo-900">Account Sync</p>
+                  <p className="text-[10px] text-indigo-600">Sync your data.</p>
+                </div>
+              </div>
+              <button onClick={() => update()} className="px-4 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg">Sync Now</button>
+            </div>
           )}
         </div>
       </div>
     </div>
   );
-}
+} 

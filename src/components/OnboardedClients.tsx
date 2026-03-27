@@ -372,6 +372,12 @@ interface User {
   merchantId?: string;
   apiKey?: string;
   billzzyHook?: string; // New Field
+  plan: 'FREE' | 'PRO';
+  features: {
+    productAI: boolean;
+    serviceAI: boolean;
+    customWhatsapp: boolean;
+  };
 }
 
 export default function OnboardedClients() {
@@ -572,6 +578,39 @@ export default function OnboardedClients() {
     }
   };
 
+  const handleUpdatePlan = async (user: User, newPlan: 'FREE' | 'PRO') => {
+    const action = newPlan === 'PRO' ? 'promote' : 'demote';
+    if (!confirm(`Are you sure you want to ${action} "${user.name}" to ${newPlan}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // When promoting to PRO, enable all features by default
+      const features = {
+        productAI: newPlan === 'PRO',
+        serviceAI: newPlan === 'PRO',
+        customWhatsapp: newPlan === 'PRO'
+      };
+
+      const res = await fetch('/api/admin/users/update-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user._id, plan: newPlan, features }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to ${action} user`);
+
+      setUsers(users.map(u => u._id === user._id ? { ...u, plan: newPlan, features } : u));
+      alert(`User ${user.name} successfully ${newPlan === 'PRO' ? 'promoted to PRO' : 'demoted to FREE'}.`);
+
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onboardedUsers = users.filter((user: User) =>
     (user.onboarded) &&
@@ -736,6 +775,7 @@ export default function OnboardedClients() {
                 <th className="px-6 py-4 text-left">PIN</th>
                 <th className="px-6 py-4 text-left">Usage (Bills)</th>
                 <th className="px-6 py-4 text-left">Earnings</th>
+                <th className="px-6 py-4 text-left text-indigo-600">Plan</th>
                 <th className="px-6 py-4 text-left text-green-600">Status</th>
                 <th className="px-6 py-4 text-left">Actions</th>
               </tr>
@@ -878,6 +918,30 @@ export default function OnboardedClients() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900 font-bold bg-green-50/50 px-2 py-1 rounded-lg inline-block border border-green-100/50">
                       ₹{((user.billCount || 0) * 0.15).toFixed(2)}
+                    </div>
+                  </td>
+
+                  {/* PLAN */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col gap-1.5">
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-1 rounded-md inline-block w-fit ${user.plan === 'PRO' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {user.plan || 'FREE'}
+                      </span>
+                      {user.plan === 'PRO' ? (
+                        <button
+                          onClick={() => handleUpdatePlan(user, 'FREE')}
+                          className="text-[9px] font-bold text-red-600 hover:underline text-left"
+                        >
+                          Demote to FREE
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleUpdatePlan(user, 'PRO')}
+                          className="text-[9px] font-bold text-indigo-600 hover:underline text-left"
+                        >
+                          Promote to PRO
+                        </button>
+                      )}
                     </div>
                   </td>
 

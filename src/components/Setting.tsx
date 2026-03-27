@@ -398,6 +398,12 @@ type FormData = {
   gowhatsApiToken: string;
   phoneNumberId: string;
   whatsappBusinessAccountId: string;
+  plan?: 'FREE' | 'PRO';
+  features?: {
+    productAI: boolean;
+    serviceAI: boolean;
+    customWhatsapp: boolean;
+  };
 };
 
 type SettingsFieldProps = {
@@ -431,7 +437,7 @@ const SettingsField = ({ label, value, isEditing, name, onChange, type = 'text',
     ) : (
       <div className="flex items-center justify-between group">
         <div className={`text-sm font-semibold ${value ? 'text-gray-900' : 'text-gray-400 italic'}`}>
-          {name === 'gowhatsApiToken' && value ? '••••••••••••' : (displayValue || value || `No ${label.toLowerCase()} added`)}
+          {name === 'gowhatsApiToken' && value ? '••••••••••••' : (displayValue || (value as string) || `No ${label.toLowerCase()} added`)}
         </div>
         <ChevronRight size={14} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -440,14 +446,15 @@ const SettingsField = ({ label, value, isEditing, name, onChange, type = 'text',
 );
 
 export default function Settings() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
-  const features = session?.user?.features;
-  const isProWhatsapp = !!features?.customWhatsapp;
-
-  const sessionUser = session?.user as { name?: string | null; email?: string | null } | undefined;
-  const [editingSection, setEditingSection] = useState<string | null>(null);
+  // Proactive Sync for settings page
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.plan === 'FREE') {
+      update();
+    }
+  }, [status, session?.user?.plan, update]);
 
   const [formData, setFormData] = useState<FormData>({
     name: '', phoneNumber: '', address: '', shopName: '', shopAddress: '', merchantUpiId: '', defaultCountryCode: 'IN',
@@ -455,7 +462,19 @@ export default function Settings() {
     gowhatsApiToken: '',
     phoneNumberId: '',
     whatsappBusinessAccountId: '',
+    plan: 'FREE',
+    features: {
+      productAI: false,
+      serviceAI: false,
+      customWhatsapp: false
+    }
   });
+
+  const features = session?.user?.features || formData.features;
+  const isProWhatsapp = (session?.user?.plan === 'PRO' || formData.plan === 'PRO') && !!features?.customWhatsapp;
+
+  const sessionUser = session?.user as { name?: string | null; email?: string | null } | undefined;
+  const [editingSection, setEditingSection] = useState<string | null>(null);
 
   const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
     isOpen: false, title: '', message: '', type: 'info'
@@ -484,6 +503,8 @@ export default function Settings() {
             shopAddress: dbData.shopAddress || '',
             merchantUpiId: dbData.merchantUpiId || '',
             defaultCountryCode: dbData.defaultCountryCode || 'IN',
+            plan: dbData.plan || 'FREE',
+            features: dbData.features || { productAI: false, serviceAI: false, customWhatsapp: false }
           }));
         }
 

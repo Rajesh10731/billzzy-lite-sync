@@ -84,7 +84,7 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    const users = await User.find({ role: { $ne: 'admin' } }).select('name email createdAt phoneNumber onboarded pin');
+    const users = await User.find({ role: { $ne: 'admin' } }).select('name email createdAt phoneNumber onboarded pin plan features');
     const tenants = await Tenant.find({}); // Fetch keys
 
     const usersWithBillCount = await Promise.all(users.map(async (user: IUser) => {

@@ -130,7 +130,7 @@ export async function middleware(req: NextRequest) {
      */
     if (!isAdmin) {
       const plan = token.plan;
-      const features = (token.features as any) || {};
+      const features = token.features || { productAI: false, serviceAI: false, customWhatsapp: false };
 
       // A. PRODUCT AI ACCESS
       if (pathname.startsWith('/api/ai-insights') || pathname.includes('/inventory/ai')) {

@@ -11,6 +11,12 @@ export async function GET() {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  // Feature Gating: Check if User has 'customWhatsapp' enabled
+  const features = session.user.features;
+  if (!features?.customWhatsapp) {
+      return NextResponse.json({ message: 'Custom WhatsApp Integration is locked for your plan.' }, { status: 403 });
+  }
+
   try {
     await dbConnect();
 
@@ -32,6 +38,12 @@ export async function POST(request: Request) {
 
   if (!session || !session.user) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Feature Gating: Check if User has 'customWhatsapp' enabled
+  const features = session.user.features;
+  if (!features?.customWhatsapp) {
+      return NextResponse.json({ message: 'Custom WhatsApp Integration is locked for your plan.' }, { status: 403 });
   }
 
   try {
