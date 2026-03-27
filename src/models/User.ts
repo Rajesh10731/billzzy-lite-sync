@@ -17,6 +17,12 @@ export interface IUser extends Document {
   shopAddress?: string;
   address?: string; // Personal address
   defaultCountryCode?: string; // Default country for phone numbers
+  plan: 'FREE' | 'PRO';
+  features: {
+    productAI: boolean;
+    serviceAI: boolean;
+    customWhatsapp: boolean;
+  };
 }
 
 const UserSchema: Schema = new Schema({
@@ -92,6 +98,24 @@ const UserSchema: Schema = new Schema({
     type: String,
     required: false,
     default: 'IN', // Default to India
+  },
+  plan: {
+    type: String,
+    enum: ['FREE', 'PRO'],
+    default: 'FREE',
+  },
+  features: {
+    productAI: {
+      type: Boolean,
+      default: false,
+    },
+    serviceAI: {
+      type: Boolean,
+      default: false,
+    },
+    customWhatsapp: {type: Boolean,
+      default: false,
+    },
   },
 }, {
   timestamps: true,

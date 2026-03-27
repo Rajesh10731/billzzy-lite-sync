@@ -14,6 +14,12 @@ declare module "next-auth" {
             id: string
             tenantId?: string
             phoneNumber?: string
+            plan: 'FREE' | 'PRO';
+            features: {
+                productAI: boolean;
+                serviceAI: boolean;
+                customWhatsapp: boolean;
+            };
         } & DefaultSession["user"]
     }
 
@@ -21,6 +27,12 @@ declare module "next-auth" {
         role: 'user' | 'admin' | 'tenant'
         tenantId?: string
         phoneNumber?: string
+        plan: 'FREE' | 'PRO';
+        features: {
+            productAI: boolean;
+            serviceAI: boolean;
+            customWhatsapp: boolean;
+        };
     }
 }
 
@@ -32,6 +44,12 @@ declare module "next-auth/jwt" {
         tenantId?: string
         phoneNumber?: string
         email?: string
+        plan: 'FREE' | 'PRO';
+        features: {
+            productAI: boolean;
+            serviceAI: boolean;
+            customWhatsapp: boolean;
+        };
     }
 
     export function getToken<R extends boolean = false>(params: {

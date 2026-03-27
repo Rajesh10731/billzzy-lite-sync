@@ -3,9 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Package, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { Package, AlertTriangle, XCircle, Loader2, Lock } from "lucide-react";
 // 1. IMPORT THE CHART DYNAMICALLY (Fixes 500 Error / SSR issues)
-import dynamic from 'next/dynamic';
+import dynamic from 'next/dynamic'; 
 import SalesSummary from "./SalesSummary";
 import AIInsights from "./AIInsights";
 const StockStyleSalesChart = dynamic(() => import("./StockStyleSalesChart"), { ssr: false });
@@ -29,7 +29,10 @@ const LOW_STOCK_THRESHOLD = 10;
 
 // --- COMPONENT ---
 export default function Dashboard() {
-  const { status } = useSession();
+  // const { status } = useSession();
+  const { data: session, status, update } = useSession();
+  const features = session?.user?.features;
+
 
   // State for Sales Data
   // State for Inventory Summary
@@ -84,6 +87,25 @@ export default function Dashboard() {
     }
   }, [status]);
 
+  // 3. Helper Component for Locked Features
+  const LockedFeature = ({ title }: { title: string }) => (
+    <div className="relative group cursor-pointer overflow-hidden rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 flex flex-col items-center justify-center min-h-[120px]">
+      <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center">
+        <div className="bg-white p-2 rounded-full shadow-md mb-2">
+          <Lock className="w-4 h-4 text-amber-500" />
+        </div>
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Pro Feature</p>
+        <button 
+          onClick={() => window.location.href = '/billing'} 
+          className="mt-1 text-[10px] text-blue-600 font-bold hover:underline"
+        >
+          Upgrade to Unlock
+        </button>
+      </div>
+      <p className="text-xs font-semibold text-gray-400">{title}</p>
+    </div>
+  );
+
   return (
     <div className="h-full bg-gray-50 overflow-y-auto p-2.5 pb-20">
       <div className="max-w-2xl mx-auto space-y-4"> {/* Increased spacing slightly */}
@@ -94,11 +116,28 @@ export default function Dashboard() {
         {/* 2. Today's Performance Graph */}
         <StockStyleSalesChart hideTabs />
 
-        {/* AI Business Insights */}
+        {/* AI Business Insights
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <AIInsights mode="product" />
           <AIInsights mode="service" />
+        </div> */}
+
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Product AI Check */}
+          {features?.productAI ? (
+            <AIInsights mode="product" />
+          ) : (
+            <LockedFeature title="Product AI Insights" />
+          )}
+
+          {/* Service AI Check */}
+          {features?.serviceAI ? (
+            <AIInsights mode="service" />
+          ) : (
+            <LockedFeature title="Service AI Insights" />
+          )}
         </div>
+
 
         {/* Inventory Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5">
@@ -151,6 +190,16 @@ export default function Dashboard() {
                 <p className="text-lg font-extrabold text-gray-900">{inventorySummary.outOfStock}</p>
               </div>
             </div>
+            )}
+             
+             {/* Corrected: Use JSX comment syntax and proper spacing */}
+          {session?.user.plan === 'FREE' && (
+            <button 
+              onClick={() => update()} 
+              className="w-full mt-4 py-2 text-[10px] text-gray-400 hover:text-gray-600 italic border-t border-gray-100"
+            >
+              Recently upgraded? Click here to sync your account.
+            </button>
           )}
         </div>
       </div>
