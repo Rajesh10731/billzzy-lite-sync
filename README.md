@@ -53,3 +53,5 @@ To deploy this application on Netlify:
 5. Deploy the site
 
 For detailed instructions, see [NETLIFY_DEPLOYMENT.md](NETLIFY_DEPLOYMENT.md).
+
+Sonerque
