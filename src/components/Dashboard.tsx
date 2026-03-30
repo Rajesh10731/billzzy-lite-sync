@@ -83,7 +83,7 @@ export default function Dashboard() {
     if (status === "authenticated") {
       fetch("/api/notifications/engage", { method: "POST" })
         .catch(err => console.error("Engagement Trigger Failed:", err));
-      if (session?.user?.plan === "FREE") {
+      if (session?.user?.plan === "FREE" && dbData?.plan === "PRO") {
         update();
       }
     }
