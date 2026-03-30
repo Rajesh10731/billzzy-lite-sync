@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Package, AlertTriangle, Loader2, Lock, RefreshCw } from "lucide-react";
+import { Package, AlertTriangle, Loader2, Lock } from "lucide-react";
 import { IUser } from "@/models/User";
 import dynamic from "next/dynamic"; 
 import SalesSummary from "./SalesSummary";
@@ -98,10 +98,6 @@ export default function Dashboard() {
     serviceAI: isPro || dbData?.features?.serviceAI || session?.user?.features?.serviceAI || false,
     customWhatsapp: isPro || dbData?.features?.customWhatsapp || session?.user?.features?.customWhatsapp || false
   };
-  
-  // Check if session and database are out of sync
-  const needsSync = session?.user?.plan !== dbData?.plan || 
-                   JSON.stringify(session?.user?.features) !== JSON.stringify(dbData?.features);
 
   const LockedFeature = ({ title }: { title: string }) => (
     <div className="relative group cursor-pointer overflow-hidden rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 flex flex-col items-center justify-center min-h-[120px]">
@@ -163,29 +159,6 @@ export default function Dashboard() {
                 <p className="text-[10px] uppercase text-red-500 font-bold">Out Stock</p>
                 <p className="text-lg font-bold">{inventorySummary.outOfStock}</p>
               </div>
-            </div>
-          )}
-          {(session?.user.plan === "FREE" || needsSync) && (
-            <div className={`mt-6 p-4 rounded-xl border flex items-center justify-between ${needsSync ? 'bg-amber-50 border-amber-100' : 'bg-indigo-50 border-indigo-100'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${needsSync ? 'bg-amber-100' : 'bg-indigo-100'}`}>
-                  <RefreshCw className={`w-4 h-4 ${needsSync ? 'text-amber-600' : 'text-indigo-600'} ${needsSync ? 'animate-bounce' : 'animate-spin'}`} />
-                </div>
-                <div>
-                  <p className={`text-[11px] font-bold ${needsSync ? 'text-amber-900' : 'text-indigo-900'}`}>
-                    {needsSync ? "Account Update Available" : "Account Sync"}
-                  </p>
-                  <p className={`text-[10px] ${needsSync ? 'text-amber-600' : 'text-indigo-600'}`}>
-                    {needsSync ? "Click to refresh your plan and features." : "Sync your data."}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => update()} 
-                className={`px-4 py-1.5 text-white text-[10px] font-bold rounded-lg transition-all ${needsSync ? 'bg-amber-600 hover:bg-amber-700 shadow-sm' : 'bg-indigo-600'}`}
-              >
-                Sync Now
-              </button>
             </div>
           )}
         </div>
