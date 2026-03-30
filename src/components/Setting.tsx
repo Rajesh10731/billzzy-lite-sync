@@ -596,12 +596,6 @@ export default function Settings() {
       </div>
       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Pro Feature</p>
       <h3 className="text-sm font-bold text-gray-800 mb-2">{title}</h3>
-      <button 
-        onClick={() => router.push('/billing')} 
-        className="mt-1 px-4 py-1.5 bg-[#5a4fcf] text-white text-[11px] font-bold rounded-lg shadow-sm hover:bg-opacity-90 active:scale-95 transition-all"
-      >
-        Upgrade to Unlock
-      </button>
     </div>
   );
 

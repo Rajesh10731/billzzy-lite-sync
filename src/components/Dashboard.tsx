@@ -108,9 +108,6 @@ export default function Dashboard() {
           <Lock className="w-4 h-4 text-amber-500" />
         </div>
         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Pro Feature</p>
-        <button onClick={() => window.location.href = "/billing"} className="mt-1 text-[10px] text-blue-600 font-bold hover:underline">
-          Upgrade to Unlock
-        </button>
       </div>
       <p className="text-xs font-semibold text-gray-400">{title}</p>
     </div>
