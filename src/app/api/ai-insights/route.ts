@@ -26,10 +26,11 @@ export async function GET(request: Request) {
 
         const features = session.user.features;
         // Feature Gating: Check if user has access to the requested AI type
-        if (type === "product" && !features?.productAI) {
+        const isPro = session.user.plan === "PRO";
+        if (type === "product" && !features?.productAI && !isPro) {
             return NextResponse.json({ message: "Product AI Insight is locked for your plan." }, { status: 403 });
         }
-        if (type === "service" && !features?.serviceAI) {
+        if (type === "service" && !features?.serviceAI && !isPro) {
             return NextResponse.json({ message: "Service AI Insight is locked for your plan." }, { status: 403 });
         }
         if (type === "all" && (!features?.productAI || !features?.serviceAI)) {
@@ -85,8 +86,15 @@ export async function GET(request: Request) {
         const productStats: Record<string, { quantity: number; revenue: number }> = {};
         const serviceStats: Record<string, { quantity: number; revenue: number }> = {};
         
-        tenantProducts.forEach(p => productStats[p.name] = { quantity: 0, revenue: 0 });
-        tenantServices.forEach(s => serviceStats[s.name] = { quantity: 0, revenue: 0 });
+        // Initialize with trimmed and normalized keys
+        tenantProducts.forEach(p => {
+            const normalizedName = p.name.trim();
+            productStats[normalizedName] = { quantity: 0, revenue: 0 };
+        });
+        tenantServices.forEach(s => {
+            const normalizedName = s.name.trim();
+            serviceStats[normalizedName] = { quantity: 0, revenue: 0 };
+        });
 
         salesHistory.forEach(sale => {
             sale.items.forEach((item: SaleItem) => {
@@ -94,10 +102,17 @@ export async function GET(request: Request) {
                 const isService = item.type === "service";
                 const stats = isService ? serviceStats : productStats;
                 
-                // Only process items that exist in current inventory (pre-initialized)
+                // Try exact match first
                 if (stats[name]) {
                     stats[name].quantity += item.quantity;
                     stats[name].revenue += (item.quantity * item.price);
+                } else {
+                    // Fallback to case-insensitive match if direct match fails
+                    const matchingKey = Object.keys(stats).find(k => k.toLowerCase() === name.toLowerCase());
+                    if (matchingKey) {
+                        stats[matchingKey].quantity += item.quantity;
+                        stats[matchingKey].revenue += (item.quantity * item.price);
+                    }
                 }
             });
         });
@@ -242,13 +257,14 @@ ${type !== "product" ? `- Top Service (Revenue): ${topService}
 - Inventory Alerts: ${purchaseSuggestions.slice(0, 3).join(", ") || "All stock levels healthy."}
 
 Rules (STRICT JSON):
-Rules (STRICT JSON):
 1. salesInsight: A one-sentence summary of trends and peak performance. (under 12 words)
-2. topProduct/topService: Identifies the highest revenue item or service. (under 8 words)
-3. slowProduct/slowService: Identifies a low-performance item/service and suggests a improvement. (under 12 words)
-4. suggestion: An actionable business step. If there are Inventory Alerts, prioritize a restock suggestion. (under 12 words)
-5. retargeting: A specific marketing message for customers. (under 10 words)
-6. offPeakTip: A specific actionable strategy to drive ${type === "service" ? "bookings" : "sales"} specifically during the quiet hours of ${quietHoursStr}. (under 15 words)
+2. topProduct: Highest revenue product name or summary. (under 8 words). Use "${topProduct}" as baseline if data matches.
+3. slowProduct: Low-performance product and improvement tip. (under 12 words). Use "${slowProduct}" as baseline if data matches.
+4. topService: Highest revenue service name or summary. (under 8 words). Use "${topService}" as baseline if data matches.
+5. slowService: Low-performance service and improvement tip. (under 12 words). Use "${slowService}" as baseline if data matches.
+6. suggestion: An actionable business step. If there are Inventory Alerts, prioritize a restock suggestion. (under 12 words)
+7. retargeting: A specific marketing message for customers. (under 10 words)
+8. offPeakTip: A specific actionable strategy to drive ${type === "service" ? "bookings" : "sales"} specifically during the quiet hours of ${quietHoursStr}. (under 15 words)
 
 CRITICAL: Use perfect spelling. Do not truncate words. Ensure the JSON is valid.
 
@@ -323,32 +339,25 @@ Return valid JSON:
             console.warn("AI call failed, using local processing:", error);
         }
 
-        if (!insights) {
-            return NextResponse.json({
-                salesInsight: `Stable performance, peak at ${peakTimeStr}.`,
-                peakTime: peakTimeStr,
-                dailyPeaks,
-                topProduct: `Top revenue from ${topProduct}.`,
-                slowProduct: `Improve ${slowProduct} sales.`,
-                topService: `Top revenue from ${topService}.`,
-                slowService: `Improve ${slowService} sales.`,
-                suggestion: purchaseSuggestions.length > 0 
-                    ? `Restock ${purchaseSuggestions[0].split('(')[0].trim()} and other low items.` 
-                    : "Maintain current inventory levels and service quality.",
-                retargeting: atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers.",
-                churnRate: `${churnRateVal.toFixed(1)}%`,
-                offPeakTip: type === "service" ? `Offer special deals for ${quietHours[0]} bookings.` : `Run limited-time flash sales at ${quietHours[0]}.`,
-                lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isFallback: true
-            });
-        }
-
-        return NextResponse.json({
-            ...insights,
+        const finalInsights = {
+            salesInsight: insights?.salesInsight || `Stable performance, peak at ${peakTimeStr}.`,
             peakTime: peakTimeStr,
             dailyPeaks,
-            lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
+            topProduct: insights?.topProduct || (type !== "service" ? `Top revenue from ${topProduct}.` : "N/A"),
+            slowProduct: insights?.slowProduct || (type !== "service" ? `Improve ${slowProduct} sales.` : "N/A"),
+            topService: insights?.topService || (type !== "product" ? `Top revenue from ${topService}.` : "N/A"),
+            slowService: insights?.slowService || (type !== "product" ? `Improve ${slowService} sales.` : "N/A"),
+            suggestion: insights?.suggestion || (purchaseSuggestions.length > 0 
+                ? `Restock ${purchaseSuggestions[0].split('(')[0].trim()} and other low items.` 
+                : "Maintain current inventory levels and service quality."),
+            retargeting: insights?.retargeting || (atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers."),
+            churnRate: insights?.churnRate || `${churnRateVal.toFixed(1)}%`,
+            offPeakTip: insights?.offPeakTip || (type === "service" ? `Offer special deals for ${quietHours[0]} bookings.` : `Run limited-time flash sales at ${quietHours[0]}.`),
+            lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isFallback: !insights
+        };
+
+        return NextResponse.json(finalInsights);
 
     } catch (error) {
         console.error("AI Insights Error:", error);

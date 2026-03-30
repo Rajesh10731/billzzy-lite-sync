@@ -89,7 +89,19 @@ export default function Dashboard() {
     }
   }, [status, session?.user?.plan, update]);
 
-  const features = session?.user?.features || dbData?.features;
+  // Prioritize fresh database data for features to avoid stale session issues
+  // ALSO: Automatically enable AI features if the plan is PRO in either DB or session
+  const isPro = session?.user?.plan === "PRO" || dbData?.plan === "PRO";
+  
+  const features = {
+    productAI: isPro || dbData?.features?.productAI || session?.user?.features?.productAI || false,
+    serviceAI: isPro || dbData?.features?.serviceAI || session?.user?.features?.serviceAI || false,
+    customWhatsapp: isPro || dbData?.features?.customWhatsapp || session?.user?.features?.customWhatsapp || false
+  };
+  
+  // Check if session and database are out of sync
+  const needsSync = session?.user?.plan !== dbData?.plan || 
+                   JSON.stringify(session?.user?.features) !== JSON.stringify(dbData?.features);
 
   const LockedFeature = ({ title }: { title: string }) => (
     <div className="relative group cursor-pointer overflow-hidden rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 flex flex-col items-center justify-center min-h-[120px]">
@@ -153,16 +165,27 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          {session?.user.plan === "FREE" && (
-            <div className="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center justify-between">
+          {(session?.user.plan === "FREE" || needsSync) && (
+            <div className={`mt-6 p-4 rounded-xl border flex items-center justify-between ${needsSync ? 'bg-amber-50 border-amber-100' : 'bg-indigo-50 border-indigo-100'}`}>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg"><RefreshCw className="w-4 h-4 text-indigo-600 animate-spin" /></div>
+                <div className={`p-2 rounded-lg ${needsSync ? 'bg-amber-100' : 'bg-indigo-100'}`}>
+                  <RefreshCw className={`w-4 h-4 ${needsSync ? 'text-amber-600' : 'text-indigo-600'} ${needsSync ? 'animate-bounce' : 'animate-spin'}`} />
+                </div>
                 <div>
-                  <p className="text-[11px] font-bold text-indigo-900">Account Sync</p>
-                  <p className="text-[10px] text-indigo-600">Sync your data.</p>
+                  <p className={`text-[11px] font-bold ${needsSync ? 'text-amber-900' : 'text-indigo-900'}`}>
+                    {needsSync ? "Account Update Available" : "Account Sync"}
+                  </p>
+                  <p className={`text-[10px] ${needsSync ? 'text-amber-600' : 'text-indigo-600'}`}>
+                    {needsSync ? "Click to refresh your plan and features." : "Sync your data."}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => update()} className="px-4 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg">Sync Now</button>
+              <button 
+                onClick={() => update()} 
+                className={`px-4 py-1.5 text-white text-[10px] font-bold rounded-lg transition-all ${needsSync ? 'bg-amber-600 hover:bg-amber-700 shadow-sm' : 'bg-indigo-600'}`}
+              >
+                Sync Now
+              </button>
             </div>
           )}
         </div>
