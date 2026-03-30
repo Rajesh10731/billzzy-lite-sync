@@ -1,11 +1,11 @@
-// src/components/Dashboard.tsx
+﻿// src/components/Dashboard.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Package, AlertTriangle, Loader2, Lock } from "lucide-react";
 import { IUser } from "@/models/User";
-import dynamic from "next/dynamic"; 
+import dynamic from "next/dynamic";
 import SalesSummary from "./SalesSummary";
 import AIInsights from "./AIInsights";
 
@@ -94,7 +94,7 @@ export default function Dashboard() {
   // The source of truth is dbData. If not yet loaded, fall back to session.
   const currentPlan = dbData?.plan || session?.user?.plan;
   const isPro = currentPlan === "PRO";
-  
+
   const features = {
     productAI: isPro || dbData?.features?.productAI || session?.user?.features?.productAI || false,
     serviceAI: isPro || dbData?.features?.serviceAI || session?.user?.features?.serviceAI || false,

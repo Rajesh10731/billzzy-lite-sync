@@ -384,6 +384,7 @@ import {
 import Modal from '@/components/ui/Modal';
 import CountryCodeSelector from '@/components/ui/CountryCodeSelector';
 import { countries, formatPhoneNumber } from '@/lib/countries';
+import ProTag from './ui/ProTag';
 
 // --- TYPES ---
 type FormData = {
@@ -464,7 +465,7 @@ export default function Settings() {
     }
   });
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
-  
+
   // Proactive Sync for settings page - handles both upgrades and downgrades
   useEffect(() => {
     if (status === 'authenticated' && isSettingsLoaded && session?.user?.plan !== formData.plan) {
@@ -680,7 +681,12 @@ export default function Settings() {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-bold text-gray-900 truncate">{formData.name || session?.user?.name || 'Store Owner'}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-gray-900 truncate">
+                {formData.name || session?.user?.name || 'Store Owner'}
+              </h3>
+              {currentPlan === 'PRO' && <ProTag />}
+            </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
               <p className="text-[11px] text-gray-500 font-bold truncate">{session?.user?.email}</p>

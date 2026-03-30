@@ -4,7 +4,7 @@ import React, { Dispatch, SetStateAction } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { signOut } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import {
   Home,
   Package,
@@ -18,7 +18,9 @@ import {
   BarChart2,
   Bell,
   Briefcase,
+  User,
 } from 'lucide-react';
+import ProTag from './ui/ProTag';
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -61,6 +63,7 @@ NavLink.displayName = 'NavLink';
 
 export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const handleLogout = () => {
     signOut({ callbackUrl: '/' });
@@ -126,7 +129,20 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
           </NavLink>
         </nav>
 
-        <div className="p-4 mt-auto bg-gray-50 border-t">
+        <div className="p-4 mt-auto space-y-3 bg-gray-50 border-t">
+          {session?.user && (
+            <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-xl bg-white border border-gray-100 shadow-sm">
+              <div className="h-9 w-9 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                <User size={18} className="text-indigo-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-900 truncate">
+                  {session.user.name || 'User'}
+                </p>
+                {session.user.plan === 'PRO' && <ProTag className="mt-0.5" />}
+              </div>
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-red-600 transition-all hover:bg-red-50 active:bg-red-100 font-medium"
@@ -142,6 +158,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 
 export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
   const [hasUnread, setHasUnread] = React.useState(false);
+  const { data: session } = useSession();
 
   React.useEffect(() => {
     // Check if unread on load
@@ -166,6 +183,7 @@ export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
     <header className="z-40 flex h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] items-center justify-between border-b bg-white px-4 shadow-sm lg:hidden">
       <div className="flex items-center gap-3">
         <Image src="/assets/lite-logo.png" alt="BillzzyLite Logo" width={110} height={28} priority />
+        {session?.user?.plan === 'PRO' && <ProTag className="scale-90" />}
       </div>
 
       <div className="flex items-center gap-2">
