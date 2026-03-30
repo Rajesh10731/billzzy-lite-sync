@@ -54,4 +54,4 @@ To deploy this application on Netlify:
 
 For detailed instructions, see [NETLIFY_DEPLOYMENT.md](NETLIFY_DEPLOYMENT.md).
 
-Sonerque
+Sonerque -Yaml
