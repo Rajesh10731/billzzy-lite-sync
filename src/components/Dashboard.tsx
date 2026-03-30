@@ -83,15 +83,17 @@ export default function Dashboard() {
     if (status === "authenticated") {
       fetch("/api/notifications/engage", { method: "POST" })
         .catch(err => console.error("Engagement Trigger Failed:", err));
-      if (session?.user?.plan === "FREE" && dbData?.plan === "PRO") {
+      // Only sync if dbData has been fetched and there's a mismatch
+      if (dbData && session?.user?.plan !== dbData.plan) {
         update();
       }
     }
-  }, [status, session?.user?.plan, update]);
+  }, [status, session?.user?.plan, dbData?.plan, update]);
 
   // Prioritize fresh database data for features to avoid stale session issues
-  // ALSO: Automatically enable AI features if the plan is PRO in either DB or session
-  const isPro = session?.user?.plan === "PRO" || dbData?.plan === "PRO";
+  // The source of truth is dbData. If not yet loaded, fall back to session.
+  const currentPlan = dbData?.plan || session?.user?.plan;
+  const isPro = currentPlan === "PRO";
   
   const features = {
     productAI: isPro || dbData?.features?.productAI || session?.user?.features?.productAI || false,

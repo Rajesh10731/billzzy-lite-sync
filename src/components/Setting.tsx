@@ -449,12 +449,6 @@ export default function Settings() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
 
-  // Proactive Sync for settings page
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user?.plan === 'FREE') {
-      update();
-    }
-  }, [status, session?.user?.plan, update]);
 
   const [formData, setFormData] = useState<FormData>({
     name: '', phoneNumber: '', address: '', shopName: '', shopAddress: '', merchantUpiId: '', defaultCountryCode: 'IN',
@@ -469,9 +463,18 @@ export default function Settings() {
       customWhatsapp: false
     }
   });
+  const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
+  
+  // Proactive Sync for settings page - handles both upgrades and downgrades
+  useEffect(() => {
+    if (status === 'authenticated' && isSettingsLoaded && session?.user?.plan !== formData.plan) {
+      update();
+    }
+  }, [status, session?.user?.plan, formData.plan, isSettingsLoaded, update]);
 
   const features = session?.user?.features || formData.features;
-  const isProWhatsapp = (session?.user?.plan === 'PRO' || formData.plan === 'PRO') && !!features?.customWhatsapp;
+  const currentPlan = formData?.plan || session?.user?.plan;
+  const isProWhatsapp = currentPlan === 'PRO' && !!features?.customWhatsapp;
 
   const sessionUser = session?.user as { name?: string | null; email?: string | null } | undefined;
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -506,6 +509,7 @@ export default function Settings() {
             plan: dbData.plan || 'FREE',
             features: dbData.features || { productAI: false, serviceAI: false, customWhatsapp: false }
           }));
+          setIsSettingsLoaded(true);
         }
 
         if (whatsappSettingsRes.ok) {

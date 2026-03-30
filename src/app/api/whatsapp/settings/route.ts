@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import WhatsappSetting from '@/models/WhatsappSetting';
+import User from '@/models/User';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -11,15 +12,24 @@ export async function GET() {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  // --- NEW: RE-VALIDATE PLAN FROM DATABASE (Enforce Downgrades) ---
+  await dbConnect();
+  const dbUser = await User.findOne({ email: (session.user as { email: string }).email }).select('plan features');
+  
+  if (!dbUser) {
+    return NextResponse.json({ message: 'User not found.' }, { status: 404 });
+  }
+
+  const features = dbUser.features;
+  const plan = dbUser.plan;
+
   // Feature Gating: Check if User has 'customWhatsapp' enabled
-  const features = session.user.features;
-  if (!features?.customWhatsapp) {
+  if (!features?.customWhatsapp && plan !== 'PRO') {
       return NextResponse.json({ message: 'Custom WhatsApp Integration is locked for your plan.' }, { status: 403 });
   }
 
   try {
-    await dbConnect();
-
+    // dbConnect() already called above
     const settings = await WhatsappSetting.findOne({ shopId: (session.user as { email: string }).email });
 
     if (!settings) {
@@ -40,15 +50,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
+  // --- NEW: RE-VALIDATE PLAN FROM DATABASE (Enforce Downgrades) ---
+  await dbConnect();
+  const dbUser = await User.findOne({ email: (session.user as { email: string }).email }).select('plan features');
+  
+  if (!dbUser) {
+    return NextResponse.json({ message: 'User not found.' }, { status: 404 });
+  }
+
+  const features = dbUser.features;
+  const plan = dbUser.plan;
+
   // Feature Gating: Check if User has 'customWhatsapp' enabled
-  const features = session.user.features;
-  if (!features?.customWhatsapp) {
+  if (!features?.customWhatsapp && plan !== 'PRO') {
       return NextResponse.json({ message: 'Custom WhatsApp Integration is locked for your plan.' }, { status: 403 });
   }
 
   try {
-    await dbConnect();
-
+    // dbConnect() already called above
     const body = await request.json();
     const { 
       whatsappBusinessNumber, gowhatsApiToken, phoneNumberId, whatsappBusinessAccountId,

@@ -5,6 +5,7 @@ import dbConnect from "@/lib/mongodb";
 import Sale, { ISale } from "@/models/Sales";
 import Product from "@/models/Product";
 import Service from "@/models/Service";
+import User from "@/models/User";
 
 interface SaleItem {
     name: string;
@@ -24,9 +25,18 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
 
-        const features = session.user.features;
+        // --- NEW: RE-VALIDATE PLAN FROM DATABASE (Enforce Downgrades) ---
+        await dbConnect();
+        const dbUser = await User.findOne({ email: session.user.email }).select('plan features');
+        
+        if (!dbUser) {
+            return NextResponse.json({ message: "User not found." }, { status: 404 });
+        }
+
+        const features = dbUser.features;
+        const isPro = dbUser.plan === "PRO";
+
         // Feature Gating: Check if user has access to the requested AI type
-        const isPro = session.user.plan === "PRO";
         if (type === "product" && !features?.productAI && !isPro) {
             return NextResponse.json({ message: "Product AI Insight is locked for your plan." }, { status: 403 });
         }
@@ -41,7 +51,7 @@ export async function GET(request: Request) {
         
         // ... (existing logic for tenantQuery and fetching data)
         const tenantId = session.user.email;
-        await dbConnect();
+        // dbConnect() already called above
 
         const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const tenantQuery = {
