@@ -271,20 +271,22 @@ export default function NotificationsPage() {
                         {notifications.map((notif) => (
                             <div
                                 key={notif._id}
-                                onClick={() => !notif.isRead && markAsRead(notif._id)}
-                                className={`group relative bg-white border rounded-2xl p-4 transition-all duration-200 cursor-pointer hover:shadow-md active:scale-[0.99] ${notif.isRead ? 'opacity-80' : 'ring-1 ring-indigo-50 shadow-sm border-indigo-100'
-                                    }`}
+                                className={`group relative bg-white border rounded-2xl p-4 transition-all duration-200 hover:shadow-md active:scale-[0.99] ${notif.isRead ? 'opacity-80' : 'ring-1 ring-indigo-50 shadow-sm border-indigo-100'}`}
                             >
+                                {/* Invisible button that makes the whole card clickable to mark as read */}
                                 {!notif.isRead && (
-                                    <div className="absolute top-4 right-4 w-2 h-2 bg-indigo-600 rounded-full" />
+                                    <button
+                                        onClick={() => markAsRead(notif._id)}
+                                        className="absolute inset-0 w-full h-full cursor-pointer rounded-2xl z-0 focus-visible:ring-2 focus-visible:ring-indigo-500 outline-none"
+                                        aria-label="Mark as read"
+                                    />
                                 )}
 
-                                <div className="flex gap-4">
+                                <div className="flex gap-4 relative z-10 pointer-events-none">
                                     <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${notif.isRead ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-600'
                                         }`}>
                                         <MessageSquare size={24} />
                                     </div>
-
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start mb-1">
                                             <h3 className={`font-bold truncate ${notif.isRead ? 'text-gray-700' : 'text-gray-900'}`}>
@@ -306,7 +308,7 @@ export default function NotificationsPage() {
                                             {notif.url && notif.url !== '/dashboard' && (
                                                 <Link
                                                     href={notif.url}
-                                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
+                                                    className="relative z-20 pointer-events-auto text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
                                                 >
                                                     {notif.url.includes('billId') ? 'View Bill Details' : 'View Details'}
                                                 </Link>
