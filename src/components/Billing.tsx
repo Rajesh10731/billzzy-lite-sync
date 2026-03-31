@@ -407,7 +407,12 @@ function useInventoryData(status: string, productName: string, searchType: 'all'
         const [prodRes, servRes] = await Promise.all([fetch('/api/products'), fetch('/api/services')]);
         if (prodRes.ok) {
           const data: InventoryProduct[] = await prodRes.json();
-          setInventory(data.map(p => ({ ...p, gstRate: p.gstRate || 0 })));
+          setInventory(data.map((p: InventoryProduct & { _id?: string; quantity?: number }) => ({ 
+            ...p, 
+            id: p.id || p._id || '', 
+            stock: p.stock ?? p.quantity ?? 0,
+            gstRate: p.gstRate || 0 
+          })));
         }
         if (servRes.ok) setServices(await servRes.json());
       } catch (err) { console.error("Fetch error", err); }
