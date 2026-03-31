@@ -27,9 +27,9 @@ export async function validateMerchantRequest(req: Request) {
   // Find the tenant using the permanent Merchant ID, subdomain, or ownerEmail
   const tenant = await Tenant.findOne({
     $or: [
-      { merchantId: { $regex: new RegExp(`^${merchantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
-      { subdomain: { $regex: new RegExp(`^${merchantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
-      { ownerEmail: { $regex: new RegExp(`^${merchantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+      { merchantId: { $regex: new RegExp(`^${merchantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+      { subdomain: { $regex: new RegExp(`^${merchantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+      { ownerEmail: { $regex: new RegExp(`^${merchantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
     ]
   });
 

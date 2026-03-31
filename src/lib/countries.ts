@@ -57,14 +57,14 @@ export function formatPhoneNumber(phone: string | undefined): string {
     if (!phone) return '-';
 
     // Clean the phone number (remove spaces, dashes, etc.)
-    const cleaned = phone.replace(/\D/g, '');
+    const cleaned = phone.replaceAll(/\D/g, '');
 
     // Try to find a matching dial code
     // Sort countries by dialCode length descending to match longest first (e.g., +880 before +8)
     const sortedCountries = [...countries].sort((a, b) => b.dialCode.length - a.dialCode.length);
 
     for (const country of sortedCountries) {
-        const dialCodeDigits = country.dialCode.replace(/\D/g, '');
+        const dialCodeDigits = country.dialCode.replaceAll(/\D/g, '');
         if (cleaned.startsWith(dialCodeDigits)) {
             const number = cleaned.slice(dialCodeDigits.length);
             return `${country.flag} ${country.dialCode} ${number}`;

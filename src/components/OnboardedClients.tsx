@@ -506,7 +506,7 @@ export default function OnboardedClients() {
     setEditingPhoneUserId(user._id);
 
     // Attempt to extract country and number
-    const cleaned = (user.phoneNumber || '').replace(/\D/g, '');
+    const cleaned = (user.phoneNumber || '').replaceAll(/\D/g, '');
     const foundCountry = [...countries]
       .sort((a, b) => b.dialCode.length - a.dialCode.length)
       .find(c => cleaned.startsWith(c.dialCode.replace(/\D/g, '')));

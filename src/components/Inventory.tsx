@@ -266,9 +266,9 @@ interface ProductImageUploadProps {
 
 const ProductImageUpload: FC<ProductImageUploadProps> = ({ isSubmitting, imagePreview, handleImageChange, fileInputRef }) => (
     <div className="space-y-1.5">
-        <label className="text-xs font-medium text-gray-700">Product Image</label>
+        <label htmlFor="product-image" className="text-xs font-medium text-gray-700">Product Image</label>
         <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer hover:border-[#5a4fcf] transition-colors" onClick={() => !isSubmitting && fileInputRef.current?.click()}>
-            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
+            <input id="product-image" type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
             {imagePreview ? (
                 <div className="relative w-full h-full">
                     <Image src={imagePreview} alt="Product Preview" fill sizes="(max-width: 768px) 100vw, 512px" style={{ objectFit: 'contain' }} className="p-2" />
