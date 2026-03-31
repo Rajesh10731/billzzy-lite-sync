@@ -42,6 +42,30 @@ const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
 };
 
+const getExcelColumn = (row: ExcelRow, headers: string[]): string | number | undefined => {
+    const lowerHeaders = headers.map(h => h.toLowerCase());
+    for (const lowerHeader of lowerHeaders) {
+        for (const key in row) {
+            if (key.trim().toLowerCase() === lowerHeader) {
+                return row[key];
+            }
+        }
+    }
+    return undefined;
+};
+
+const mapExcelRowsToProducts = (rows: ExcelRow[]) => {
+    return rows.map((row) => ({
+        sku: String(getExcelColumn(row, ["Product ID", "SKU"]) || ""),
+        name: String(getExcelColumn(row, ["Product Name", "Name"]) || ""),
+        quantity: Number(getExcelColumn(row, ["Quantity", "Qty"])) || 0,
+        buyingPrice: Number(getExcelColumn(row, ["Buying Price"])) || 0,
+        sellingPrice: Number(getExcelColumn(row, ["Selling Price"])) || 0,
+        gstRate: Number(getExcelColumn(row, ["GST Rate", "GST"])) || 0,
+        profitPerUnit: Number(getExcelColumn(row, ["Profit Per Unit", "Profit"])) || undefined
+    }));
+};
+
 interface MobileProductCardProps {
     product: Product;
     isSwiped: boolean;
@@ -649,51 +673,32 @@ const Inventory: FC = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = async (event: ProgressEvent<FileReader>) => {
-            if (!event.target?.result) return;
-            try {
-                const data = new Uint8Array(event.target.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: "array" });
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rows: ExcelRow[] = XLSX.utils.sheet_to_json(sheet);
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet) as ExcelRow[];
 
-                const getColumn = (row: ExcelRow, headers: string[]): string | number | undefined => {
-                    const lowerHeaders = headers.map(h => h.toLowerCase());
-                    for (const lowerHeader of lowerHeaders) {
-                        for (const key in row) {
-                            if (key.trim().toLowerCase() === lowerHeader) {
-                                return row[key];
-                            }
-                        }
-                    }
-                    return undefined;
-                };
+            const uploaded = mapExcelRowsToProducts(rows);
 
-                const uploaded = rows.map((row) => ({
-                    sku: String(getColumn(row, ["Product ID", "SKU"]) || ""),
-                    name: String(getColumn(row, ["Product Name", "Name"]) || ""),
-                    quantity: Number(getColumn(row, ["Quantity", "Qty"])) || 0,
-                    buyingPrice: Number(getColumn(row, ["Buying Price"])) || 0,
-                    sellingPrice: Number(getColumn(row, ["Selling Price"])) || 0,
-                    gstRate: Number(getColumn(row, ["GST Rate", "GST"])) || 0,
-                    profitPerUnit: Number(getColumn(row, ["Profit Per Unit", "Profit"])) || undefined
-                }));
+            const response = await fetch('/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(uploaded)
+            });
 
-                const response = await fetch('/api/products', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(uploaded)
-                });
-                if (!response.ok) throw new Error((await response.json()).message || 'Failed to upload products');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to upload products');
+            }
 
-                refreshProducts();
-                alert(`${uploaded.length} products processed successfully!`);
-            } catch (err: unknown) {
-                alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-            } finally { e.target.value = ''; }
-        };
-        reader.readAsArrayBuffer(file);
+            refreshProducts();
+            alert(`${uploaded.length} products processed successfully!`);
+        } catch (err: unknown) {
+            alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        } finally {
+            e.target.value = '';
+        }
     }, [refreshProducts]);
 
     const uploadProductImage = async (imageFile: File): Promise<string> => {
