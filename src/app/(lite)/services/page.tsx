@@ -549,7 +549,7 @@ export default function ServicesPage() {
 
     const payload = {
       ...formData,
-      price: parseFloat(formData.price)
+      price: Number.parseFloat(formData.price)
     };
 
     try {

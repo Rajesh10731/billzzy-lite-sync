@@ -157,7 +157,7 @@ function calculateBusinessMetrics(data: BusinessData, tz: string): BusinessMetri
 
     salesHistory.forEach(sale => {
         const date = new Date(sale.createdAt);
-        const hour = parseInt(date.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", hour12: false })) || 0;
+        const hour = Number.parseInt(date.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", hour12: false })) || 0;
         const day = dayMap[date.toLocaleDateString("en-US", { timeZone: tz, weekday: "short" })] ?? 0;
         hourCounts[hour] = (hourCounts[hour] || 0) + 1;
         dayCounts[day] = (dayCounts[day] || 0) + 1;
@@ -172,7 +172,7 @@ function calculateBusinessMetrics(data: BusinessData, tz: string): BusinessMetri
         if (hoursForDay) {
             const bestHour = Object.entries(hoursForDay).sort((a, b) => b[1] - a[1])[0]?.[0];
             if (bestHour) {
-                const hNum = parseInt(bestHour);
+                const hNum = Number.parseInt(bestHour);
                 dailyPeaks[dayName] = `${hNum % 12 || 12}:00 ${hNum >= 12 ? "PM" : "AM"}`;
             } else dailyPeaks[dayName] = "N/A";
         } else dailyPeaks[dayName] = "N/A";
@@ -182,7 +182,7 @@ function calculateBusinessMetrics(data: BusinessData, tz: string): BusinessMetri
     const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
     let peakTimeStr = "N/A";
     if (peakHour && peakDay) {
-        const hNum = parseInt(peakHour);
+        const hNum = Number.parseInt(peakHour);
         peakTimeStr = `${hNum % 12 || 12}:00 ${hNum >= 12 ? "PM" : "AM"} on ${days[Number(peakDay)]}s`;
     }
 
