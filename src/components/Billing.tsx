@@ -471,6 +471,59 @@ function useWhatsAppMessaging(cart: CartItem[], totalAmount: number, discount: n
   }, [cart, totalAmount, discount, merchantName, customerCountryCode]);
   return { sendWhatsApp };
 }
+async function updateInventoryStock(cart: CartItem[]) {
+  const products = cart.filter(i => i.productId);
+  await Promise.all(products.map(i =>
+    fetch(`/api/products/${i.productId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantityToDecrement: i.quantity })
+    })
+  ));
+}
+
+async function saveCustomerData(name: string, phone: string) {
+  if (name.trim() && phone.trim()) {
+    try {
+      await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), phoneNumber: phone.trim() })
+      });
+    } catch (e) {
+      console.error("Failed to save customer data", e);
+    }
+  }
+}
+
+async function processNfcPayment(cart: CartItem[], totalAmount: number, paymentMethod: string, profit: number) {
+  const res = await fetch('/api/nfc-link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cart, totalAmount, paymentMethod, profit })
+  });
+  const data = await res.json();
+  if (data.success && data.orderId) {
+    window.location.href = `intent://nfc/${data.orderId}#Intent;scheme=billzzylite;package=com.billzzylite.bridge;end`;
+  }
+}
+
+async function processStandardPayment(
+  cart: CartItem[], totalAmount: number, paymentMethod: string, profit: number,
+  phone: string, name: string, merchantName: string, discount: number,
+  sendWhatsApp: (p: string, t: string) => Promise<boolean>
+) {
+  const res = await fetch('/api/sales', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount: totalAmount, paymentMethod, profit, items: cart, customerPhone: phone, customerName: name, merchantName, discount })
+  });
+
+  if (res.ok && phone.trim()) {
+    const whatsappType = paymentMethod === 'qr-code' ? 'qrPayment' : (paymentMethod === 'card' ? 'cardPayment' : 'cashPayment');
+    await sendWhatsApp(phone, whatsappType);
+  }
+}
 
 function usePaymentFlow(args: {
   cart: CartItem[]; totalAmount: number; discount: number; merchantName: string; payment: string; phone: string; name: string;
@@ -481,20 +534,25 @@ function usePaymentFlow(args: {
     setState({ isMessaging: !useNfc, isCreatingLink: useNfc });
     try {
       const safeCart = args.cart.map(i => ({ ...i, quantity: Number(i.quantity) || 0, price: Number(i.price) || 0 }));
-      await Promise.all(safeCart.filter(i => i.productId).map(i => fetch(`/api/products/${i.productId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quantityToDecrement: i.quantity }) })));
-      if (args.name.trim() && args.phone.trim()) fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: args.name.trim(), phoneNumber: args.phone.trim() }) });
       const profit = safeCart.reduce((s, i) => s + ((i.profitPerUnit || 0) * (Number(i.quantity) || 0)), 0);
+
+      await updateInventoryStock(safeCart);
+      await saveCustomerData(args.name, args.phone);
+
       if (useNfc) {
-        const res = await fetch('/api/nfc-link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cart: safeCart, totalAmount: args.totalAmount, paymentMethod: args.payment, profit }) });
-        const data = await res.json();
-        if (data.success && data.orderId) window.location.href = `intent://nfc/${data.orderId}#Intent;scheme=billzzylite;package=com.billzzylite.bridge;end`;
+        await processNfcPayment(safeCart, args.totalAmount, args.payment, profit);
       } else {
-        const res = await fetch('/api/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount: args.totalAmount, paymentMethod: args.payment, profit, items: safeCart, customerPhone: args.phone, customerName: args.name, merchantName: args.merchantName, discount: args.discount }) });
-        if (res.ok && args.phone.trim()) await args.sendWhatsApp(args.phone, args.payment === 'qr-code' ? 'qrPayment' : (args.payment === 'card' ? 'cardPayment' : 'cashPayment'));
+        await processStandardPayment(safeCart, args.totalAmount, args.payment, profit, args.phone, args.name, args.merchantName, args.discount, args.sendWhatsApp);
       }
-      args.setCashOpen(false); args.setQrOpen(false); args.setAnim(true);
-    } catch { args.setModal({ isOpen: true, title: 'Error', message: 'Transaction failed.', confirmText: 'OK', showCancel: false });
-    } finally { setState({ isMessaging: false, isCreatingLink: false }); }
+
+      args.setCashOpen(false);
+      args.setQrOpen(false);
+      args.setAnim(true);
+    } catch {
+      args.setModal({ isOpen: true, title: 'Error', message: 'Transaction failed.', confirmText: 'OK', showCancel: false });
+    } finally {
+      setState({ isMessaging: false, isCreatingLink: false });
+    }
   }, [args]);
   return { ...state, handlePaymentSuccess };
 }
