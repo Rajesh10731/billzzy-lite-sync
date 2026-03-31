@@ -81,6 +81,37 @@ const calculateGstDetails = (sellingPrice: number, gstRate: number) => {
   return { gstAmount, totalPrice };
 };
 
+const getUpdatedCartItem = (item: CartItem, values: Partial<CartItem>, inventory: InventoryProduct[]): CartItem => {
+  if (values.quantity !== undefined && item.productId) {
+    const p = inventory.find(prod => prod.id === item.productId);
+    if (p && Number(values.quantity) > (p.stock ?? 0)) return item;
+  }
+  return { ...item, ...values };
+};
+
+const mergeCartItem = (prev: CartItem[], type: 'product' | 'service', id: string, name: string, price: number, gstRate: number, profit?: number, edit = false): CartItem[] => {
+  const isMatch = (i: CartItem) => (type === 'product' ? i.productId === id : i.serviceId === id);
+  const existing = prev.find(isMatch);
+
+  if (existing) {
+    return prev.map(i => isMatch(i) ? { ...i, quantity: (Number(i.quantity) || 0) + 1 } : i);
+  }
+
+  const newItem: CartItem = {
+    id: Date.now(),
+    itemType: type,
+    productId: type === 'product' ? id : undefined,
+    serviceId: type === 'service' ? id : undefined,
+    name,
+    quantity: 1,
+    price,
+    gstRate,
+    profitPerUnit: profit || 0,
+    isEditing: edit
+  };
+  return [newItem, ...prev];
+};
+
 // --- SUB-COMPONENTS ---
 
 const Modal = ({ isOpen, onClose, title, children, onConfirm, confirmText = 'OK', showCancel = false }: {
@@ -396,8 +427,7 @@ function useInventoryData(status: string, productName: string, searchType: 'all'
 }
 
 function useCart(inventory: InventoryProduct[], setModal: (modal: ModalState) => void) {
-  const [cart, setCart] = React.useState<CartItem[]>([]);
-  const addToCart = React.useCallback((type: 'product' | 'service', id: string, name: string, price: number, gstRate: number, profit?: number, edit = false) => {
+  const [cart, setCart] = React.useState<CartItem[]>([]);  const addToCart = React.useCallback((type: 'product' | 'service', id: string, name: string, price: number, gstRate: number, profit?: number, edit = false) => {
     if (!name || price < 0) return;
     if (type === 'product') {
       const p = inventory.find(i => i.id === id);
@@ -407,27 +437,15 @@ function useCart(inventory: InventoryProduct[], setModal: (modal: ModalState) =>
         return;
       }
     }
-    setCart(prev => {
-      const existing = type === 'product' ? prev.find(i => i.productId === id) : prev.find(i => i.serviceId === id);
-      if (existing) return prev.map(i => (type === 'product' ? i.productId === id : i.serviceId === id) ? { ...i, quantity: (Number(i.quantity) || 0) + 1 } : i);
-      const newItem: CartItem = { id: Date.now(), itemType: type, productId: type === 'product' ? id : undefined, serviceId: type === 'service' ? id : undefined, name, quantity: 1, price, gstRate, profitPerUnit: profit || 0, isEditing: edit };
-      return [newItem, ...prev];
-    });
+    setCart(prev => mergeCartItem(prev, type, id, name, price, gstRate, profit, edit));
   }, [inventory, cart, setModal]);
+
   const deleteCartItem = (id: number) => setCart(prev => prev.filter(i => i.id !== id));
   const toggleEdit = (id: number) => setCart(prev => prev.map(i => i.id === id ? { ...i, isEditing: !i.isEditing } : { ...i, isEditing: false }));
   const updateCartItem = (id: number, values: Partial<CartItem>) => {
-    setCart(prev => prev.map(i => {
-      if (i.id === id) {
-        if (values.quantity !== undefined && i.productId) {
-          const p = inventory.find(prod => prod.id === i.productId);
-          if (p && Number(values.quantity) > (p.stock ?? 0)) return i;
-        }
-        return { ...i, ...values };
-      }
-      return i;
-    }));
+    setCart(prev => prev.map(i => i.id === id ? getUpdatedCartItem(i, values, inventory) : i));
   };
+
   return { cart, setCart, addToCart, deleteCartItem, toggleEdit, updateCartItem };
 }
 
