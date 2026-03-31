@@ -188,8 +188,10 @@ const CategoryFilterBar: FC<CategoryFilterBarProps> = ({ show, selectedCategory,
 
 const SearchBar: FC<{ value: string; onChange: (val: string) => void }> = ({ value, onChange }) => (
     <div className="relative w-full group">
+        <label htmlFor="search-services" className="sr-only">Search services</label>
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 group-focus-within:text-indigo-600 transition-colors" />
         <input
+            id="search-services"
             type="text"
             placeholder="Search services by name or category..."
             className="w-full pl-11 pr-4 py-3 text-sm border-2 border-transparent bg-white rounded-2xl shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-gray-400 font-medium"
@@ -353,8 +355,9 @@ const ServiceModal: FC<ServiceModalProps> = ({
 
                     <form onSubmit={onSubmit} className="p-4 space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-gray-700">Service Name</label>
+                            <label htmlFor="service-modal-name" className="text-xs font-medium text-gray-700">Service Name</label>
                             <input
+                                id="service-modal-name"
                                 type="text"
                                 required
                                 className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
@@ -365,10 +368,11 @@ const ServiceModal: FC<ServiceModalProps> = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-gray-700">Service Price</label>
+                            <label htmlFor="service-modal-price" className="text-xs font-medium text-gray-700">Service Price</label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
                                 <input
+                                    id="service-modal-price"
                                     type="number"
                                     required
                                     className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
@@ -380,8 +384,9 @@ const ServiceModal: FC<ServiceModalProps> = ({
                         </div>
 
                         <div className="space-y-1.5 relative" ref={categoryDropdownRef as React.RefObject<HTMLDivElement>}>
-                            <label className="text-xs font-medium text-gray-700">Category</label>
+                            <label htmlFor="service-modal-category" className="text-xs font-medium text-gray-700">Category</label>
                             <input
+                                id="service-modal-category"
                                 type="text"
                                 className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm"
                                 placeholder="e.g., Styling, Advisory"
