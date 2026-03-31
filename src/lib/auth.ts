@@ -9,10 +9,38 @@ import { clientPromise } from "@/lib/mongodb";
 import dbConnect from "@/lib/mongodb";
 import User, { IUser } from "@/models/User";
 import { User as NextAuthUser } from "next-auth";
+import { JWT } from "next-auth/jwt";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const uri = new URL(MONGODB_URI!);
 const dbName = uri.pathname.substring(1) || 'billzzyDB';
+
+function mapUserToToken(token: JWT, user: NextAuthUser) {
+  token.id = user.id;
+  token.role = user.role || 'user';
+  token.tenantId = user.tenantId;
+  token.phoneNumber = user.phoneNumber;
+  token.plan = user.plan || 'FREE';
+  token.features = user.features || { productAI: false, serviceAI: false, customWhatsapp: false };
+}
+
+async function syncTokenWithDb(token: JWT, overwriteId = false) {
+  if (!token.email) return;
+  await dbConnect();
+  const dbUser = await User.findOne({ email: token.email });
+  if (!dbUser) return;
+
+  if (overwriteId) token.id = dbUser._id.toString();
+  token.plan = dbUser.plan || 'FREE';
+  token.features = {
+    productAI: dbUser.features?.productAI || false,
+    serviceAI: dbUser.features?.serviceAI || false,
+    customWhatsapp: dbUser.features?.customWhatsapp || false
+  };
+  token.role = dbUser.role || 'user';
+  if (dbUser.phoneNumber) token.phoneNumber = dbUser.phoneNumber;
+  if (dbUser.name) token.name = dbUser.name;
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: MongoDBAdapter(clientPromise, { databaseName: dbName }) as Adapter,
@@ -65,52 +93,16 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user, trigger }) {
-      // 1. Initial Sign In
       if (user) {
         const u = user as NextAuthUser;
-        token.id = u.id;
-        token.role = u.role || 'user';
-        token.tenantId = u.tenantId;
-        token.phoneNumber = u.phoneNumber;
-        token.plan = u.plan || 'FREE';
-        token.features = u.features || { productAI: false, serviceAI: false, customWhatsapp: false };
+        mapUserToToken(token, u);
 
-        // For OAuth users (Google), the initial 'user' object lacks 'plan' and 'features'.
-        // We must fetch them from our database to avoid default 'FREE' values in the JWT.
-        if (token.email && (trigger === 'signIn' || trigger === 'signUp' || !u.plan)) {
-          await dbConnect();
-          const dbUser = await User.findOne({ email: token.email });
-          if (dbUser) {
-            token.id = dbUser._id.toString();
-            token.plan = dbUser.plan || 'FREE';
-            token.features = {
-              productAI: dbUser.features?.productAI || false,
-              serviceAI: dbUser.features?.serviceAI || false,
-              customWhatsapp: dbUser.features?.customWhatsapp || false
-            };
-            token.role = dbUser.role || 'user';
-            if (dbUser.phoneNumber) token.phoneNumber = dbUser.phoneNumber;
-          }
-        }
+        const shouldSync = token.email && (trigger === 'signIn' || trigger === 'signUp' || !u.plan);
+        if (shouldSync) await syncTokenWithDb(token, true);
       }
 
-      // 2. Session Update (Sync)
       if (trigger === "update") {
-        await dbConnect();
-        const userEmail = token.email;
-        if (userEmail) {
-          const dbUser = await User.findOne({ email: userEmail });
-          if (dbUser) {
-            token.plan = dbUser.plan || 'FREE';
-            token.features = {
-              productAI: dbUser.features?.productAI || false,
-              serviceAI: dbUser.features?.serviceAI || false,
-              customWhatsapp: dbUser.features?.customWhatsapp || false
-            };
-            if (dbUser.phoneNumber) token.phoneNumber = dbUser.phoneNumber;
-            if (dbUser.name) token.name = dbUser.name;
-          }
-        }
+        await syncTokenWithDb(token, false);
       }
 
       return token;

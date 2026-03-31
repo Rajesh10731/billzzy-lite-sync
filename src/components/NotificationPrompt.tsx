@@ -19,122 +19,88 @@ export default function NotificationPrompt() {
     });
     const [isProcessing, setIsProcessing] = useState(false);
 
+    const getDeviceInfo = useCallback(() => {
+        const nav = navigator as unknown as { standalone?: boolean };
+        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || 
+                          ('standalone' in navigator && nav.standalone === true);
+        const userAgent = navigator.userAgent || '';
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+        const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+        return { isStandalone, isMobile, isIOS };
+    }, []);
+
+    const handleGrantedSync = useCallback(async () => {
+        try {
+            console.log("💎 Notifications already granted. Checking subscription status...");
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            const registration = registrations.find(r => r.active || r.waiting || r.installing);
+
+            if (registration?.active) {
+                const subscription = await registration.pushManager.getSubscription();
+                if (!subscription) {
+                    await subscribeUserToPush().catch(e => console.warn("⚠️ Background re-subscribe failed:", e));
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Background subscription check skipped:', error);
+        }
+    }, []);
+
+    const handleDefaultAsk = useCallback(async (device: { isMobile: boolean, isIOS: boolean, isStandalone: boolean }) => {
+        if (device.isMobile) {
+            if (device.isIOS && !device.isStandalone) {
+                setModalState({
+                    isOpen: true, type: 'info', title: 'Mobile Alerts',
+                    message: 'To receive alerts on iPhone, tap the "Share" icon below and select "Add to Home Screen".'
+                });
+            } else {
+                setModalState({
+                    isOpen: true, type: 'ask', title: 'Enable Alerts?',
+                    message: 'Receive real-time updates about sales even when the app is closed.'
+                });
+            }
+            return;
+        }
+
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                await subscribeUserToPush();
+                setModalState({
+                    isOpen: true, type: 'success', title: 'Updates Active!',
+                    message: 'You are now ready to receive real-time notifications.'
+                });
+            }
+        } catch {
+            setModalState({
+                isOpen: true, type: 'ask', title: 'Enable Alerts?',
+                message: 'Tap Enable to allow real-time notifications on this device.'
+            });
+        }
+    }, []);
+
     const checkSubscription = useCallback(async () => {
         if (typeof window === 'undefined') return;
 
-        // 0. CHECK DISMISSAL - Don't show if dismissed within the last 7 days
-        const nav = navigator as unknown as { standalone?: boolean };
-        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || ('standalone' in navigator && nav.standalone === true);
+        const device = getDeviceInfo();
         const dismissedUntil = localStorage.getItem('notification_prompt_dismissed_until');
 
-        // PWA Users: Bypass dismissal logic so the button is always available in the UI if not enabled
-        if (!isStandalone && dismissedUntil && Date.now() < parseInt(dismissedUntil)) {
-            console.log("🤫 Notification prompt is currently silenced (Non-PWA).");
-            return;
-        }
-
-        // 1. Strict Support Check
+        if (!device.isStandalone && dismissedUntil && Date.now() < parseInt(dismissedUntil)) return;
 
         const isSupported = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
-        if (!isSupported) {
-            console.log('🔇 Notifications/Push not supported in this specific browser environment. Hiding prompt.');
-            return;
-        }
+        if (!isSupported) return;
 
-        // 2. Permission Check: Already Granted
         if (Notification.permission === 'granted') {
-            try {
-                console.log("💎 Notifications already granted. Checking subscription status in background...");
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                const registration = registrations.find(r => r.active || r.waiting || r.installing);
-
-                if (!registration?.active) {
-                    console.log("⏳ Worker not active yet. Skipping background sync.");
-                    return;
-                }
-
-                const subscription = await registration.pushManager.getSubscription();
-                if (!subscription) {
-                    console.log('🔄 No subscription found. Attempting silent re-subscribe...');
-                    // SILENT re-subscribe in background
-                    await subscribeUserToPush().catch(e => console.warn("⚠️ Background re-subscribe failed:", e));
-                }
-            } catch (error: unknown) {
-                console.warn('⚠️ Background subscription check skipped:', error);
-            }
-            return;
+            await handleGrantedSync();
+        } else if (Notification.permission === 'denied' && device.isStandalone) {
+            setModalState({
+                isOpen: true, type: 'info', title: 'Notifications Blocked',
+                message: 'Alerts are disabled. Please enable notifications in your device settings.'
+            });
+        } else if (Notification.permission === 'default') {
+            await handleDefaultAsk(device);
         }
-
-        // 2b. Permission Check: Blocked - Show instructions for PWA users
-        if (Notification.permission === 'denied') {
-            console.log("🚫 Notifications are blocked.");
-            if (isStandalone) {
-                setModalState({
-                    isOpen: true,
-                    type: 'info',
-                    title: 'Notifications Blocked',
-                    message: 'Alerts are disabled in your device settings. Please go to your browser/app settings and allow notifications for this app to receive updates.'
-                });
-            }
-            return;
-        }
-
-        // 3. Permission Check: Permission Default (Ask)
-        if (Notification.permission === 'default') {
-            const userAgent = navigator.userAgent || '';
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-            const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-            const nav = navigator as unknown as { standalone?: boolean };
-            const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || ('standalone' in navigator && nav.standalone === true);
-
-            console.log(`📱 Device info: isMobile: ${isMobile}, isIOS: ${isIOS}, isStandalone: ${isStandalone}`);
-
-            // 🔴 MOBILE: Show custom modal to capture user gesture
-            if (isMobile) {
-                if (isIOS && !isStandalone) {
-                    console.log("📱 iOS Safari: Guidance.");
-                    setModalState({
-                        isOpen: true,
-                        type: 'info',
-                        title: 'Mobile Alerts',
-                        message: 'To receive alerts on iPhone, tap the "Share" icon below and select "Add to Home Screen". Then open the app from your home screen.'
-                    });
-                } else {
-                    console.log("📱 Mobile: Custom Modal.");
-                    setModalState({
-                        isOpen: true,
-                        type: 'ask',
-                        title: 'Enable Alerts?',
-                        message: 'Receive real-time updates about sales even when the app is closed. Tap Enable to allow.'
-                    });
-                }
-                return;
-            }
-
-            // 🟢 DESKTOP: Try auto-request
-            console.log("🔔 Desktop: Auto-requesting...");
-            try {
-                const permission = await Notification.requestPermission();
-                if (permission === 'granted') {
-                    await subscribeUserToPush();
-                    setModalState({
-                        isOpen: true,
-                        title: 'Updates Active!',
-                        message: 'You are now ready to receive real-time notifications.',
-                        type: 'success'
-                    });
-                }
-            } catch (permError) {
-                console.error("❌ Desktop auto-request failed:", permError);
-                setModalState({
-                    isOpen: true,
-                    type: 'ask',
-                    title: 'Enable Alerts?',
-                    message: 'Tap Enable to allow real-time notifications on this device.'
-                });
-            }
-        }
-    }, []);
+    }, [getDeviceInfo, handleGrantedSync, handleDefaultAsk]);
 
     useEffect(() => {
         // PRE-REGISTER Service Worker early for speed on older devices!
@@ -168,88 +134,72 @@ export default function NotificationPrompt() {
         setModalState(prev => ({ ...prev, isOpen: false }));
     }, []);
 
+    const getSubscriptionError = useCallback((error: unknown) => {
+        const errorMessage = "Setup failed. Please try again.";
+        const title = 'Setup Error';
+
+        if (!(error instanceof Error)) return { title, message: errorMessage };
+
+        const msg = error.message.toLowerCase();
+        if (msg.includes('permission') || msg.includes('denied')) {
+            return {
+                title: 'Action Required',
+                message: "Your browser blocked the request. You must go to your browser settings to manually Allow notifications for this site."
+            };
+        }
+
+        if (msg.includes('not supported') || msg.includes('pushmanager')) {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            return {
+                title: 'Not Supported Here',
+                message: isIOS
+                    ? "Your current browser setup doesn't support background alerts yet. On iPhone/iPad, you MUST open Safari and tap 'Share' then 'Add to Home Screen' first."
+                    : "Your current browser (or in-app browser) lacks push support. Please open this app in Chrome."
+            };
+        }
+
+        if (msg.includes('vapid')) {
+            return { title: 'Config Error', message: "Push notification keys are missing. Please contact support." };
+        }
+
+        if (msg.includes('server')) {
+            return { title: 'Connection Error', message: "We couldn't sync your device with our server. Please check your internet and try again." };
+        }
+
+        return { title, message: `We couldn't set up notifications right now (${error.message}). Please check your connection and try again.` };
+    }, []);
+
     const handleSubscribe = async () => {
         setIsProcessing(true);
 
-        // Immediate check for explicitly blocked permissions
         if ('Notification' in window && Notification.permission === 'denied') {
             setModalState({
-                isOpen: true,
-                title: 'Permission Blocked',
-                message: "Notifications are BLOCKED. You must tap the lock icon 🔒 in your browser address bar, go to Site Settings, and change Notifications to 'Allow'.",
-                type: 'error'
+                isOpen: true, type: 'error', title: 'Permission Blocked',
+                message: "Notifications are BLOCKED. You must tap the lock icon 🔒 in your browser address bar and change Notifications to 'Allow'."
             });
             setIsProcessing(false);
             return;
         }
 
         try {
-            if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
-                throw new Error('Push configuration is missing (VAPID key).');
+            if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) throw new Error('Push configuration is missing (VAPID key).');
+
+            let granted = Notification.permission === 'granted';
+            if (!granted && 'Notification' in window && Notification.permission !== 'denied') {
+                granted = (await Notification.requestPermission()) === 'granted';
             }
 
-            // Immediately ask for permission if not already granted so we can optimistically show success
-            let permissionGranted = Notification.permission === 'granted';
-            if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-                const permission = await Notification.requestPermission();
-                permissionGranted = permission === 'granted';
-            }
-
-            if (!permissionGranted) {
-                throw new Error("Notification permission was not granted.");
-            }
-
-            // OPTIMISTIC UI: Show success instantly while working in background
-            setModalState({
-                isOpen: true,
-                title: 'Updates Active!',
-                message: 'You are now ready to receive real-time notifications.',
-                type: 'success'
-            });
-
-            // Delegate everything to subscribeUserToPush in background (Non-blocking)
-            subscribeUserToPush().catch(bgError => {
-                console.error("❌ Background Subscription Error:", bgError);
-            });
-
-            // We return early so the catch block below only catches permission errors
-            return;
-        } catch (error: unknown) {
-            console.error("❌ Subscription Error:", error);
-
-            let errorMessage = "Setup failed. Please try again.";
-            let title = 'Setup Error';
-
-            if (error instanceof Error) {
-                errorMessage = error.message;
-                if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
-                    title = 'Action Required';
-                    errorMessage = "Your browser blocked the request. You must go to your browser settings to manually Allow notifications for this site.";
-                } else if (errorMessage.toLowerCase().includes('not supported') || errorMessage.toLowerCase().includes('pushmanager')) {
-                    title = 'Not Supported Here';
-                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                    if (isIOS) {
-                        errorMessage = `Your current browser setup doesn't support background alerts yet. On iPhone/iPad, you MUST open Safari and tap 'Share' then 'Add to Home Screen' first. (Error: ${errorMessage})`;
-                    } else {
-                        errorMessage = `Your current browser (or in-app browser) lacks push support. Please open this app in Chrome. (Error: ${errorMessage})`;
-                    }
-                } else if (errorMessage.toLowerCase().includes('vapid')) {
-                    title = 'Config Error';
-                    errorMessage = "Push notification keys are missing. Please contact support.";
-                } else if (errorMessage.toLowerCase().includes('server')) {
-                    title = 'Connection Error';
-                    errorMessage = "We couldn't sync your device with our server. Please check your internet and try again.";
-                } else {
-                    errorMessage = `We couldn't set up notifications right now (${errorMessage}). Please check your connection and try again.`;
-                }
-            }
+            if (!granted) throw new Error("Notification permission was not granted.");
 
             setModalState({
-                isOpen: true,
-                title: title,
-                message: errorMessage,
-                type: 'error'
+                isOpen: true, type: 'success', title: 'Updates Active!',
+                message: 'You are now ready to receive real-time notifications.'
             });
+
+            subscribeUserToPush().catch(bgError => console.error("❌ Background Subscription Error:", bgError));
+        } catch (error) {
+            const { title, message } = getSubscriptionError(error);
+            setModalState({ isOpen: true, title, message, type: 'error' });
         } finally {
             setIsProcessing(false);
         }

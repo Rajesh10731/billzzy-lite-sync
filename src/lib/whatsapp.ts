@@ -1,5 +1,5 @@
 import dbConnect from './mongodb';
-import WhatsappSetting from '@/models/WhatsappSetting';
+import WhatsappSetting, { IWhatsappSetting } from '@/models/WhatsappSetting';
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v21.0';
 
@@ -21,83 +21,69 @@ export type WhatsAppTemplate = {
   [key: string]: unknown;
 };
 
-export async function sendWhatsAppMessage(userEmail: string, payload: WhatsAppPayload) {
-  await dbConnect();
-
-  // Fetch settings from the dedicated WhatsappSetting collection
-  const settings = await WhatsappSetting.findOne({ shopId: userEmail });
-
+function getWhatsAppCredentials(userEmail: string, settings: IWhatsappSetting | null) {
   const phoneNumberIdBase = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const accessTokenBase = process.env.WHATSAPP_BUSINESS_API_TOKEN;
-  let isCustom = false;
 
-  let finalPhoneNumberId: string | undefined;
-  let finalAccessToken: string | undefined;
-
-  // Use user-specific credentials if all required fields are present
-  if (settings && settings.gowhatsApiToken && settings.phoneNumberId) {
-    finalPhoneNumberId = settings.phoneNumberId.trim();
-    finalAccessToken = settings.gowhatsApiToken.trim();
-    isCustom = true;
-    console.log(`[WhatsApp] Using user-specific credentials for ${userEmail}. PhoneID: "${finalPhoneNumberId}", AccessToken length: ${finalAccessToken?.length || 0}`);
-  } else {
-    finalPhoneNumberId = phoneNumberIdBase?.trim();
-    finalAccessToken = accessTokenBase?.trim();
-    console.log(`[WhatsApp] Using official credentials for ${userEmail}. Fallback PhoneID: "${finalPhoneNumberId}", AccessToken length: ${finalAccessToken?.length || 0}`);
+  if (settings?.gowhatsApiToken && settings?.phoneNumberId) {
+    const creds = {
+      phoneNumberId: settings.phoneNumberId.trim(),
+      accessToken: settings.gowhatsApiToken.trim(),
+      isCustom: true
+    };
+    console.log(`[WhatsApp] Using user-specific credentials for ${userEmail}. PhoneID: "${creds.phoneNumberId}"`);
+    return creds;
   }
 
-  // Final validation before fetch
-  if (!finalPhoneNumberId || !finalAccessToken || finalAccessToken.length < 10) {
+  const creds = {
+    phoneNumberId: phoneNumberIdBase?.trim(),
+    accessToken: accessTokenBase?.trim(),
+    isCustom: false
+  };
+  console.log(`[WhatsApp] Using official credentials for ${userEmail}. Fallback PhoneID: "${creds.phoneNumberId}"`);
+  return creds;
+}
+
+function validateCredentials(creds: { phoneNumberId?: string; accessToken?: string }, userEmail: string) {
+  if (!creds.phoneNumberId || !creds.accessToken || creds.accessToken.length < 10) {
     const missing = [];
-    if (!finalPhoneNumberId) missing.push('Phone Number ID');
-    if (!finalAccessToken) missing.push('Access Token (missing or too short)');
+    if (!creds.phoneNumberId) missing.push('Phone Number ID');
+    if (!creds.accessToken) missing.push('Access Token (missing or too short)');
     console.error(`[WhatsApp] Invalid credentials for ${userEmail}: ${missing.join(', ')}`);
     throw new Error(`WhatsApp API credentials invalid: ${missing.join(', ')}`);
   }
+}
 
-  const effectiveToken = finalAccessToken.trim().replace(/^["']|["']$/g, ''); // Remove wrapping quotes if any
-
-  // Extra check for "Cannot parse access token" error:
-  // Ensure the token doesn't contain weird characters
-  if (/[^\x20-\x7E]/.test(effectiveToken)) {
+function getEffectiveToken(accessToken: string, userEmail: string) {
+  const token = accessToken.trim().replace(/^["']|["']$/g, '');
+  if (/[^\x20-\x7E]/.test(token)) {
     console.warn(`[WhatsApp] Warning: Access Token for ${userEmail} contains non-printable characters!`);
   }
+  return token;
+}
 
-  console.log(`[WhatsApp] Sending to ${payload.to} via ${isCustom ? 'User' : 'Official'} API...`);
-
-  // Support dynamic template names
+function applyTemplateOverrides(payload: WhatsAppPayload, settings: IWhatsappSetting | null, isCustom: boolean) {
   const templateName = payload.template?.name;
-  let effectiveTemplateName = templateName;
+  if (!isCustom || !settings || !templateName) return;
 
-  if (isCustom && settings) {
-    if (templateName === 'payment_receipt_cashh' && settings.templateNameCash) {
-      effectiveTemplateName = settings.templateNameCash;
-    } else if (templateName === 'payment_receipt_upii' && settings.templateNameUPI) {
-      effectiveTemplateName = settings.templateNameUPI;
-    } else if (templateName === 'payment_receipt_card' && settings.templateNameCard) {
-      effectiveTemplateName = settings.templateNameCard;
-    }
+  const mapping: Record<string, keyof typeof settings> = {
+    payment_receipt_cashh: 'templateNameCash',
+    payment_receipt_upii: 'templateNameUPI',
+    payment_receipt_card: 'templateNameCard',
+  };
 
-    if (effectiveTemplateName !== templateName) {
-      console.log(`[WhatsApp] Using custom template name: ${effectiveTemplateName} (Original: ${templateName})`);
-      payload.template.name = effectiveTemplateName;
-    }
+  const settingKey = mapping[templateName];
+  const effectiveName = settingKey ? settings[settingKey] : null;
+
+  if (effectiveName) {
+    console.log(`[WhatsApp] Using custom template name: ${effectiveName} (Original: ${templateName})`);
+    payload.template.name = String(effectiveName);
   }
+}
 
-  const response = await fetch(
-    `${WHATSAPP_API_URL}/${finalPhoneNumberId}/messages`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${effectiveToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-
+async function handleWhatsAppResponse(response: Response, isCustom: boolean) {
   const data = await response.json();
-
+  
   if (!response.ok) {
     if (isCustom && data.error?.code === 131047) {
       console.warn(`[WhatsApp] Custom integration hit 24-hour window / template limit error.`);
@@ -108,4 +94,31 @@ export async function sendWhatsAppMessage(userEmail: string, payload: WhatsAppPa
 
   console.log(`[WhatsApp] Success! Message ID: ${data.messages?.[0]?.id}`);
   return data;
+}
+
+export async function sendWhatsAppMessage(userEmail: string, payload: WhatsAppPayload) {
+  await dbConnect();
+  const settings = await WhatsappSetting.findOne({ shopId: userEmail });
+
+  const creds = getWhatsAppCredentials(userEmail, settings);
+  validateCredentials(creds, userEmail);
+
+  const effectiveToken = getEffectiveToken(creds.accessToken!, userEmail);
+  applyTemplateOverrides(payload, settings, creds.isCustom);
+
+  console.log(`[WhatsApp] Sending to ${payload.to} via ${creds.isCustom ? 'User' : 'Official'} API...`);
+
+  const response = await fetch(
+    `${WHATSAPP_API_URL}/${creds.phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${effectiveToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return handleWhatsAppResponse(response, creds.isCustom);
 }

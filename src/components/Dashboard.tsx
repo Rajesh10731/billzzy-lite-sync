@@ -1,4 +1,4 @@
-﻿// src/components/Dashboard.tsx
+// src/components/Dashboard.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -88,7 +88,7 @@ export default function Dashboard() {
         update();
       }
     }
-  }, [status, session?.user?.plan, dbData?.plan, update]);
+  }, [status, session?.user?.plan, dbData, update]);
 
   // Prioritize fresh database data for features to avoid stale session issues
   // The source of truth is dbData. If not yet loaded, fall back to session.
