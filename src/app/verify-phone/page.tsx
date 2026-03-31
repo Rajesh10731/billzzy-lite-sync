@@ -143,7 +143,7 @@ export default function VerifyPhonePage() {
                     {step === 'PHONE_INPUT' ? (
                         <form onSubmit={handleSendOTP} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="phone-number" className="block text-sm font-medium text-gray-700 mb-1">
                                     Phone Number
                                 </label>
                                 <div className="flex items-center gap-2">
@@ -155,11 +155,12 @@ export default function VerifyPhonePage() {
                                         />
                                     </div>
                                     <input
+                                        id="phone-number"
                                         type="tel"
                                         required
                                         value={phoneNumber}
                                         onChange={(e) => {
-                                            const val = e.target.value.replace(/\D/g, '');
+                                            const val = e.target.value.replaceAll(/\D/g, '');
                                             if (val.length <= 15) setPhoneNumber(val);
                                         }}
                                         className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -179,15 +180,16 @@ export default function VerifyPhonePage() {
                     ) : (
                         <form onSubmit={handleVerifyOTP} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="otp-input" className="block text-sm font-medium text-gray-700 mb-1">
                                     6-Digit OTP
                                 </label>
                                 <input
+                                    id="otp-input"
                                     type="text"
                                     required
                                     maxLength={6}
                                     value={otp}
-                                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                                    onChange={(e) => setOtp(e.target.value.replaceAll(/\D/g, ''))}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-center text-ls tracking-widest font-bold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     placeholder="------"
                                 />

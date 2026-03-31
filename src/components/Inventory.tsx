@@ -293,13 +293,13 @@ interface ProductBasicDetailsProps {
 const ProductBasicDetails: FC<ProductBasicDetailsProps> = ({ formData, handleInputChange, isSubmitting, setIsScannerOpen }) => (
     <>
         <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700">Product Name</label>
-            <input type="text" name="name" placeholder="Enter product name" className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" value={formData.name} onChange={handleInputChange} disabled={isSubmitting} />
+            <label htmlFor="product-name" className="text-xs font-medium text-gray-700">Product Name</label>
+            <input id="product-name" type="text" name="name" placeholder="Enter product name" className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" value={formData.name} onChange={handleInputChange} disabled={isSubmitting} />
         </div>
         <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700">Product ID (SKU)</label>
+            <label htmlFor="product-sku" className="text-xs font-medium text-gray-700">Product ID (SKU)</label>
             <div className="relative">
-                <input type="text" name="sku" placeholder="SKU, Barcode, or custom ID" className="w-full border-2 border-gray-200 px-3 py-2 pr-12 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none font-mono text-xs" value={formData.sku || ''} onChange={handleInputChange} disabled={isSubmitting} />
+                <input id="product-sku" type="text" name="sku" placeholder="SKU, Barcode, or custom ID" className="w-full border-2 border-gray-200 px-3 py-2 pr-12 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none font-mono text-xs" value={formData.sku || ''} onChange={handleInputChange} disabled={isSubmitting} />
                 <button type="button" onClick={() => setIsScannerOpen(true)} disabled={isSubmitting} className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] text-white rounded-xl hover:from-[#4a3fb5] hover:to-[#6b58de] shadow-md shadow-[#5a4fcf]/20 transition-all active:scale-95" aria-label="Scan barcode"><Camera className="w-4 h-4" /></button>
             </div>
         </div>
@@ -320,22 +320,21 @@ const StockManagement: FC<StockManagementProps> = ({ isEditing, isSubmitting, fo
     <>
         <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700">{isEditing ? 'Current Quantity' : 'Quantity'}</label>
-                <input type="number" name="quantity" placeholder="e.g., 50" value={isEditing ? product?.quantity : formData.quantity} readOnly={isEditing} onChange={!isEditing ? handleInputChange : undefined} className={`w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`} disabled={isSubmitting && !isEditing} />
+                <label htmlFor="product-quantity" className="text-xs font-medium text-gray-700">{isEditing ? 'Current Quantity' : 'Quantity'}</label>
+                <input id="product-quantity" type="number" name="quantity" placeholder="e.g., 50" value={isEditing ? product?.quantity : formData.quantity} readOnly={isEditing} onChange={!isEditing ? handleInputChange : undefined} className={`w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`} disabled={isSubmitting && !isEditing} />
             </div>
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700 flex items-center gap-1" title="Set a custom alert when quantity falls to this level. Leave blank for default.">Low Stock Alert <Info className="w-3 h-3 text-gray-400 cursor-help" /></label>
-                <input type="number" name="lowStockThreshold" placeholder={`Default: ${LOW_STOCK_THRESHOLD}`} className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all outline-none text-sm" value={formData.lowStockThreshold} onChange={handleInputChange} disabled={isSubmitting} />
+                <label htmlFor="low-stock-threshold" className="text-xs font-medium text-gray-700 flex items-center gap-1" title="Set a custom alert when quantity falls to this level. Leave blank for default.">Low Stock Alert <Info className="w-3 h-3 text-gray-400 cursor-help" /></label>
+                <input id="low-stock-threshold" type="number" name="lowStockThreshold" placeholder={`Default: ${LOW_STOCK_THRESHOLD}`} className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all outline-none text-sm" value={formData.lowStockThreshold} onChange={handleInputChange} disabled={isSubmitting} />
             </div>
         </div>
-
         {isEditing && product && (
             <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200 space-y-2">
-                <label className="text-xs font-medium text-indigo-800 block">Stock Adjustment</label>
+                <label htmlFor="stock-adjustment" className="text-xs font-medium text-indigo-800 block">Stock Adjustment</label>
                 <div className="flex items-center gap-2">
                     <div className="flex-1 text-center">
                         <p className="text-xs text-gray-600">Adjustment (+/-)</p>
-                        <input type="number" placeholder="e.g., 10 or -5" value={stockAdjustment} onChange={(e) => setStockAdjustment(e.target.value === '' ? '' : Number(e.target.value))} className="w-full mt-1 border-2 text-center border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" disabled={isSubmitting} />
+                        <input id="stock-adjustment" type="number" placeholder="e.g., 10 or -5" value={stockAdjustment} onChange={(e) => setStockAdjustment(e.target.value === '' ? '' : Number(e.target.value))} className="w-full mt-1 border-2 text-center border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" disabled={isSubmitting} />
                     </div>
                     <div className="text-2xl text-gray-400 font-light">=</div>
                     <div className="flex-1 text-center">
@@ -362,17 +361,17 @@ const PricingSection: FC<PricingSectionProps> = ({ isSubmitting, formData, handl
     <>
         <div className={`grid grid-cols-1 ${!isGstInclusive ? 'sm:grid-cols-2' : ''} gap-3`}>
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700">{isGstInclusive ? 'Total Price (incl. GST)' : 'Selling Price (excl. GST)'}</label>
+                <label htmlFor="selling-price" className="text-xs font-medium text-gray-700">{isGstInclusive ? 'Total Price (incl. GST)' : 'Selling Price (excl. GST)'}</label>
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
-                    <input type="number" name="sellingPrice" placeholder="e.g., 199.99" className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-sm" value={formData.sellingPrice} onChange={handleInputChange} disabled={isSubmitting} />
+                    <input id="selling-price" type="number" name="sellingPrice" placeholder="e.g., 199.99" className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-sm" value={formData.sellingPrice} onChange={handleInputChange} disabled={isSubmitting} />
                 </div>
             </div>
             {!isGstInclusive && (
                 <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-700">GST Rate</label>
+                    <label htmlFor="gst-rate" className="text-xs font-medium text-gray-700">GST Rate</label>
                     <div className="relative">
-                        <input type="number" name="gstRate" placeholder="e.g., 18" className="w-full border-2 border-gray-200 px-3 py-2 pr-10 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all outline-none text-sm" value={formData.gstRate} onChange={handleInputChange} disabled={isSubmitting} />
+                        <input id="gst-rate" type="number" name="gstRate" placeholder="e.g., 18" className="w-full border-2 border-gray-200 px-3 py-2 pr-10 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all outline-none text-sm" value={formData.gstRate} onChange={handleInputChange} disabled={isSubmitting} />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">%</span>
                     </div>
                 </div>
@@ -403,10 +402,10 @@ interface ProfitSectionProps {
 const ProfitSection: FC<ProfitSectionProps> = ({ isSubmitting, formData, handleInputChange, showProfitCalculation, profitCalculations }) => (
     <>
         <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700">Profit Per Unit</label>
+            <label htmlFor="profit-per-unit" className="text-xs font-medium text-gray-700">Profit Per Unit</label>
             <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
-                <input type="number" name="profitPerUnit" placeholder="e.g., 50.00" className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm" value={formData.profitPerUnit} onChange={handleInputChange} disabled={isSubmitting} />
+                <input id="profit-per-unit" type="number" name="profitPerUnit" placeholder="e.g., 50.00" className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm" value={formData.profitPerUnit} onChange={handleInputChange} disabled={isSubmitting} />
             </div>
         </div>
         {showProfitCalculation && (

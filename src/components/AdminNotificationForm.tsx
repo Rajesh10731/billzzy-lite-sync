@@ -96,9 +96,10 @@ export default function AdminNotificationForm() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative group">
-              <label className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Recipient Group</label>
+              <label htmlFor="target-category" className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Recipient Group</label>
               <div className="relative">
                 <select
+                  id="target-category"
                   className="w-full pl-10 pr-10 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:bg-white transition-all appearance-none"
                   value={targetCategory}
                   onChange={(e) => {
@@ -117,9 +118,10 @@ export default function AdminNotificationForm() {
             </div>
 
             <div className={`relative group transition-opacity duration-300 ${targetCategory === 'single' || targetCategory === 'all' ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-              <label className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Select Merchant</label>
+              <label htmlFor="selected-user" className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Select Merchant</label>
               <div className="relative">
                 <select
+                  id="selected-user"
                   className="w-full pl-10 pr-10 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:bg-white transition-all appearance-none"
                   value={selectedUserId}
                   onChange={(e) => {
@@ -149,9 +151,10 @@ export default function AdminNotificationForm() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="group">
-              <label className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Title</label>
+              <label htmlFor="notification-title" className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Title</label>
               <div className="relative">
                 <input
+                  id="notification-title"
                   type="text"
                   placeholder="e.g. New Order Received"
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:bg-white transition-all"
@@ -163,9 +166,10 @@ export default function AdminNotificationForm() {
               </div>
             </div>
             <div className="group">
-              <label className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Action Link (Route)</label>
+              <label htmlFor="notification-url" className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Action Link (Route)</label>
               <div className="relative">
                 <input
+                  id="notification-url"
                   type="text"
                   placeholder="e.g. /inventory"
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:bg-white transition-all"
@@ -179,9 +183,10 @@ export default function AdminNotificationForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div className="group">
-              <label className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Icon (Internal Path)</label>
+              <label htmlFor="notification-icon" className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Icon (Internal Path)</label>
               <div className="relative">
                 <input
+                  id="notification-icon"
                   type="text"
                   placeholder="/assets/icon-192.png"
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:bg-white transition-all"
@@ -192,9 +197,10 @@ export default function AdminNotificationForm() {
               </div>
             </div>
             <div className="group">
-              <label className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Banner Image URL (HTTPS)</label>
+              <label htmlFor="notification-image" className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Banner Image URL (HTTPS)</label>
               <div className="relative">
                 <input
+                  id="notification-image"
                   type="text"
                   placeholder="https://example.com/image.jpg"
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:bg-white transition-all"
@@ -207,9 +213,10 @@ export default function AdminNotificationForm() {
           </div>
 
           <div className="group pt-2">
-            <label className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Broadcast Message</label>
+            <label htmlFor="broadcast-message" className="text-[11px] font-bold text-gray-500 ml-1 mb-1 block">Broadcast Message</label>
             <div className="relative">
               <textarea
+                id="broadcast-message"
                 placeholder="Write your message here..."
                 className="w-full pl-10 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:bg-white transition-all h-32 resize-none"
                 value={message}
