@@ -242,8 +242,8 @@ const CartItemRow = ({ item, updateCartItem, toggleEdit, deleteCartItem }: {
         <div className="flex flex-col gap-2">
           <input type="text" value={item.name} onChange={(e) => updateCartItem(item.id, { name: e.target.value })} className="w-full px-2 py-1.5 rounded-md border text-sm" />
           <div className="flex items-center gap-2">
-            <input type="number" value={item.quantity} onChange={(e) => updateCartItem(item.id, { quantity: e.target.value === '' ? '' : parseInt(e.target.value, 10) })} className="w-16 px-2 py-1.5 rounded-md border text-sm" />
-            <input type="number" value={item.price} onChange={(e) => updateCartItem(item.id, { price: e.target.value === '' ? '' : parseFloat(e.target.value) })} className="flex-1 px-2 py-1.5 rounded-md border text-sm" />
+            <input type="number" value={item.quantity} onChange={(e) => updateCartItem(item.id, { quantity: e.target.value === '' ? '' : Number.parseInt(e.target.value, 10) })} className="w-16 px-2 py-1.5 rounded-md border text-sm" />
+            <input type="number" value={item.price} onChange={(e) => updateCartItem(item.id, { price: e.target.value === '' ? '' : Number.parseFloat(e.target.value) })} className="flex-1 px-2 py-1.5 rounded-md border text-sm" />
             <button onClick={() => toggleEdit(item.id)} className="p-1.5 rounded-md bg-[#5a4fcf] text-white"><Check size={16} /></button>
             <button onClick={() => deleteCartItem(item.id)} className="p-1.5 rounded-md bg-red-100 text-red-500"><Trash2 size={16} /></button>
           </div>
@@ -282,7 +282,7 @@ const CashModal = ({
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">GIVEN</label>
-          <input type="number" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full rounded-2xl border-2 p-4 text-xl font-black outline-none focus:border-[#5a4fcf]" autoFocus />
+          <input type="number" value={amountGiven} onChange={(e) => setAmountGiven(e.target.value === '' ? '' : Number.parseFloat(e.target.value))} className="w-full rounded-2xl border-2 p-4 text-xl font-black outline-none focus:border-[#5a4fcf]" autoFocus />
         </div>
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-400 ml-1 uppercase">CHANGE</label>
@@ -458,8 +458,8 @@ function useWhatsAppMessaging(cart: CartItem[], totalAmount: number, discount: n
   const sendWhatsApp = React.useCallback(async (phone: string, type: string) => {
     if (!phone.trim() || phone.length < 7) return false;
     try {
-      const dialCode = countries.find(c => c.code === customerCountryCode)?.dialCode?.replace('+', '') || '91';
-      const cleanPhone = phone.replace(/\D/g, '');
+      const dialCode = countries.find(c => c.code === customerCountryCode)?.dialCode?.replaceAll('+', '') || '91';
+      const cleanPhone = phone.replaceAll(/\D/g, '');
       const formatted = cleanPhone.startsWith(dialCode) ? cleanPhone : `${dialCode}${cleanPhone}`;
       const items = cart.map(i => `${i.name} (x${i.quantity})`).join(', ');
       const template = type === 'qrPayment' ? 'payment_receipt_upii' : (type === 'cardPayment' ? 'payment_receipt_card' : 'payment_receipt_cashh');
