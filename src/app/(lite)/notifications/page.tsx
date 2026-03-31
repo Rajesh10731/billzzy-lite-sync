@@ -77,6 +77,25 @@ export default function NotificationsPage() {
         }
     };
 
+    const getNotificationErrorTip = (errorMessage: string, isIOS: boolean): string => {
+        const lowerMessage = errorMessage.toLowerCase();
+        if (lowerMessage.includes('permission') || lowerMessage.includes('denied')) {
+            return "Action Required: Your browser blocked the request. You must go to your browser settings to manually Allow notifications for this site.";
+        }
+        if (lowerMessage.includes('not supported') || lowerMessage.includes('pushmanager')) {
+            return isIOS
+                ? `Your current browser doesn't support background alerts yet. On iPhone/iPad, you MUST use Safari and tap 'Share' then 'Add to Home Screen' first. (Error: ${errorMessage})`
+                : `Your current browser (or in-app browser) lacks push support. Please open this app in Chrome. (Error: ${errorMessage})`;
+        }
+        if (lowerMessage.includes('vapid')) {
+            return "Push notification keys are missing. Please contact support.";
+        }
+        if (lowerMessage.includes('server')) {
+            return "We couldn't sync your device with our server. Please check your internet and try again.";
+        }
+        return `We couldn't activate notifications (${errorMessage}). Please check your connection and try again.`;
+    };
+
     const handleEnableNotifications = async () => {
         setIsSubscribing(true);
         setErrorTip(null); // Reset tip on new attempt
@@ -95,22 +114,7 @@ export default function NotificationsPage() {
             }
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Failed to enable notifications";
-
-            if (errorMessage.toLowerCase().includes('permission') || errorMessage.toLowerCase().includes('denied')) {
-                setErrorTip("Action Required: Your browser blocked the request. You must go to your browser settings to manually Allow notifications for this site.");
-            } else if (errorMessage.toLowerCase().includes('not supported') || errorMessage.toLowerCase().includes('pushmanager')) {
-                if (isIOS) {
-                    setErrorTip(`Your current browser doesn't support background alerts yet. On iPhone/iPad, you MUST use Safari and tap 'Share' then 'Add to Home Screen' first. (Error: ${errorMessage})`);
-                } else {
-                    setErrorTip(`Your current browser (or in-app browser) lacks push support. Please open this app in Chrome. (Error: ${errorMessage})`);
-                }
-            } else if (errorMessage.toLowerCase().includes('vapid')) {
-                setErrorTip("Push notification keys are missing. Please contact support.");
-            } else if (errorMessage.toLowerCase().includes('server')) {
-                setErrorTip("We couldn't sync your device with our server. Please check your internet and try again.");
-            } else {
-                setErrorTip(`We couldn't activate notifications (${errorMessage}). Please check your connection and try again.`);
-            }
+            setErrorTip(getNotificationErrorTip(errorMessage, isIOS));
         } finally {
             setIsSubscribing(false);
         }
