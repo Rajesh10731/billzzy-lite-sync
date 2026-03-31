@@ -200,11 +200,10 @@ const SearchBar: FC<{ value: string; onChange: (val: string) => void }> = ({ val
 );
 
 interface PageHeaderProps {
-    activeTab: 'total' | 'categories';
     onAddService: () => void;
 }
 
-const PageHeader: FC<PageHeaderProps> = ({ activeTab, onAddService }) => (
+const PageHeader: FC<PageHeaderProps> = ({ onAddService }) => (
     <div className="flex flex-col md:flex-row justify-between md:items-center gap-3">
         <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-[#5a4fcf] rounded-lg flex items-center justify-center">
@@ -481,7 +480,12 @@ export default function ServicesPage() {
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   
   // Extract unique categories for dropdown
-  const existingCategories: string[] = Array.from(new Set(services.map(s => s.category?.trim()).filter((cat): cat is string => Boolean(cat)))).sort();
+  const existingCategories: string[] = Array.from(new Set(services.map(s => s.category?.trim()).filter((cat): cat is string => Boolean(cat))))
+    .sort((a, b) => {
+      const indexA = services.findIndex(s => s.category?.trim() === a);
+      const indexB = services.findIndex(s => s.category?.trim() === b);
+      return indexA - indexB;
+    });
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -607,7 +611,7 @@ export default function ServicesPage() {
             ? 'border-indigo-200 ring-2 ring-indigo-50/50 shadow-indigo-50/20' 
             : 'border-[#5a4fcf]/40 ring-2 ring-[#5a4fcf]/10 shadow-[#5a4fcf]/5'
         }`}>
-          <PageHeader activeTab={activeTab} onAddService={() => handleOpenModal()} />
+          <PageHeader onAddService={() => handleOpenModal()} />
           <StatsSection 
             activeTab={activeTab} 
             setActiveTab={setActiveTab} 
