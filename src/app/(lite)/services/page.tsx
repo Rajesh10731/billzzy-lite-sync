@@ -411,16 +411,17 @@ const ServiceModal: FC<ServiceModalProps> = ({
                                             existingCategories
                                                 .filter(cat => cat.toLowerCase().includes(formData.category.toLowerCase()))
                                                 .map(cat => (
-                                                    <div
+                                                    <button
                                                         key={cat}
-                                                        className="px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer transition-colors"
+                                                        type="button"
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 cursor-pointer transition-colors"
                                                         onClick={() => {
                                                             setFormData({ ...formData, category: cat });
                                                             setShowCategoryDropdown(false);
                                                         }}
                                                     >
                                                         {cat}
-                                                    </div>
+                                                    </button>
                                                 ))
                                         ) : (
                                             formData.category && (
