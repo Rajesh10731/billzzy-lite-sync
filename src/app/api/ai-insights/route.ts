@@ -226,61 +226,71 @@ function calculateBusinessMetrics(data: BusinessData, tz: string): BusinessMetri
 }
 
 /**
+ * Handles communication with OpenAI-compatible providers (Groq, OpenAI, DeepSeek).
+ */
+async function fetchOpenAICompatible(apiKey: string, prompt: string): Promise<AIResponse | null> {
+    let url = "https://api.openai.com/v1/chat/completions";
+    let model = "gpt-4o-mini";
+
+    if (apiKey.startsWith("gsk_")) {
+        url = "https://api.groq.com/openai/v1/chat/completions";
+        model = "llama-3.3-70b-versatile";
+    } else if (apiKey.includes("ds")) {
+        url = "https://api.deepseek.com/v1/chat/completions";
+        model = "deepseek-chat";
+    }
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" }
+        })
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    return content ? JSON.parse(content) : null;
+}
+
+/**
+ * Handles communication with Google Gemini.
+ */
+async function fetchGeminiCompatible(apiKey: string, prompt: string): Promise<AIResponse | null> {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt + " (Strictly return JSON format)" }] }],
+            generationConfig: { response_mime_type: "application/json" }
+        })
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return content ? JSON.parse(content) : null;
+}
+
+/**
  * Handles communication with various AI providers.
  */
-async function getAIInsights(prompt: string) {
+async function getAIInsights(prompt: string): Promise<AIResponse | null> {
     const apiKey = process.env.AI_APIKEY || "";
     if (!apiKey) return null;
 
     try {
-        let aiResponse;
-        if (apiKey.startsWith("gsk_")) {
-            aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
-            });
-        } else if (apiKey.startsWith("sk-")) {
-            const isDeepSeek = apiKey.includes("ds");
-            const baseUrl = isDeepSeek ? "https://api.deepseek.com/v1" : "https://api.openai.com/v1";
-            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-                body: JSON.stringify({
-                    model: isDeepSeek ? "deepseek-chat" : "gpt-4o-mini",
-                    messages: [{ role: "user", content: prompt }],
-                    response_format: { type: "json_object" }
-                })
-            });
-        } else if (apiKey.startsWith("AIza")) {
-            aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt + " (Strictly return JSON format)" }] }],
-                    generationConfig: { response_mime_type: "application/json" }
-                })
-            });
-            if (aiResponse.ok) {
-                const data = await aiResponse.json();
-                const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (content) return JSON.parse(content);
-            }
+        if (apiKey.startsWith("AIza")) {
+            return await fetchGeminiCompatible(apiKey, prompt);
         }
-
-        if (aiResponse && aiResponse.ok) {
-            const data = await aiResponse.json();
-            const content = data.choices?.[0]?.message?.content;
-            if (content) return JSON.parse(content);
-        }
+        return await fetchOpenAICompatible(apiKey, prompt);
     } catch (e) {
         console.warn("AI service call failed:", e);
+        return null;
     }
-    return null;
 }
 
 /**
