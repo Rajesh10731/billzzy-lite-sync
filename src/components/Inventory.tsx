@@ -217,6 +217,217 @@ interface ProductFormModalProps {
     onClose: () => void;
 }
 
+interface ProductHeaderProps {
+    isEditing: boolean;
+    onClose: () => void;
+    isSubmitting: boolean;
+}
+
+const ProductHeader: FC<ProductHeaderProps> = ({ isEditing, onClose, isSubmitting }) => (
+    <div className="bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] px-4 py-4 flex justify-between items-center">
+        <div>
+            <h2 className="text-lg font-bold text-white">{isEditing ? 'Edit Product' : 'Add New Product'}</h2>
+            <p className="text-indigo-100 text-xs mt-0.5">{isEditing ? 'Update product information' : 'Fill in the details below'}</p>
+        </div>
+        <button onClick={onClose} disabled={isSubmitting} className="text-white hover:bg-white/20 rounded-full p-1.5 transition-colors"><X className="w-5 h-5" /></button>
+    </div>
+);
+
+interface ProductImageUploadProps {
+    isSubmitting: boolean;
+    imagePreview: string | null;
+    handleImageChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    fileInputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+const ProductImageUpload: FC<ProductImageUploadProps> = ({ isSubmitting, imagePreview, handleImageChange, fileInputRef }) => (
+    <div className="space-y-1.5">
+        <label className="text-xs font-medium text-gray-700">Product Image</label>
+        <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer hover:border-[#5a4fcf] transition-colors" onClick={() => !isSubmitting && fileInputRef.current?.click()}>
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
+            {imagePreview ? (
+                <div className="relative w-full h-full">
+                    <Image src={imagePreview} alt="Product Preview" fill sizes="(max-width: 768px) 100vw, 512px" style={{ objectFit: 'contain' }} className="p-2" />
+                </div>
+            ) : (
+                <div className="text-center text-gray-500">
+                    <ImageIcon className="w-8 h-8 mx-auto mb-1.5" />
+                    <p className="text-xs">Click to upload</p>
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+interface ProductBasicDetailsProps {
+    formData: ProductFormState;
+    handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    isSubmitting: boolean;
+    setIsScannerOpen: (open: boolean) => void;
+}
+
+const ProductBasicDetails: FC<ProductBasicDetailsProps> = ({ formData, handleInputChange, isSubmitting, setIsScannerOpen }) => (
+    <>
+        <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-700">Product Name</label>
+            <input type="text" name="name" placeholder="Enter product name" className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" value={formData.name} onChange={handleInputChange} disabled={isSubmitting} />
+        </div>
+        <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-700">Product ID (SKU)</label>
+            <div className="relative">
+                <input type="text" name="sku" placeholder="SKU, Barcode, or custom ID" className="w-full border-2 border-gray-200 px-3 py-2 pr-12 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none font-mono text-xs" value={formData.sku || ''} onChange={handleInputChange} disabled={isSubmitting} />
+                <button type="button" onClick={() => setIsScannerOpen(true)} disabled={isSubmitting} className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] text-white rounded-xl hover:from-[#4a3fb5] hover:to-[#6b58de] shadow-md shadow-[#5a4fcf]/20 transition-all active:scale-95" aria-label="Scan barcode"><Camera className="w-4 h-4" /></button>
+            </div>
+        </div>
+    </>
+);
+
+interface StockManagementProps {
+    isEditing: boolean;
+    isSubmitting: boolean;
+    formData: ProductFormState;
+    product: ProductFormData | null;
+    handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    stockAdjustment: number | '';
+    setStockAdjustment: (val: number | '') => void;
+}
+
+const StockManagement: FC<StockManagementProps> = ({ isEditing, isSubmitting, formData, product, handleInputChange, stockAdjustment, setStockAdjustment }) => (
+    <>
+        <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">{isEditing ? 'Current Quantity' : 'Quantity'}</label>
+                <input type="number" name="quantity" placeholder="e.g., 50" value={isEditing ? product?.quantity : formData.quantity} readOnly={isEditing} onChange={!isEditing ? handleInputChange : undefined} className={`w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`} disabled={isSubmitting && !isEditing} />
+            </div>
+            <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700 flex items-center gap-1" title="Set a custom alert when quantity falls to this level. Leave blank for default.">Low Stock Alert <Info className="w-3 h-3 text-gray-400 cursor-help" /></label>
+                <input type="number" name="lowStockThreshold" placeholder={`Default: ${LOW_STOCK_THRESHOLD}`} className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all outline-none text-sm" value={formData.lowStockThreshold} onChange={handleInputChange} disabled={isSubmitting} />
+            </div>
+        </div>
+
+        {isEditing && product && (
+            <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200 space-y-2">
+                <label className="text-xs font-medium text-indigo-800 block">Stock Adjustment</label>
+                <div className="flex items-center gap-2">
+                    <div className="flex-1 text-center">
+                        <p className="text-xs text-gray-600">Adjustment (+/-)</p>
+                        <input type="number" placeholder="e.g., 10 or -5" value={stockAdjustment} onChange={(e) => setStockAdjustment(e.target.value === '' ? '' : Number(e.target.value))} className="w-full mt-1 border-2 text-center border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" disabled={isSubmitting} />
+                    </div>
+                    <div className="text-2xl text-gray-400 font-light">=</div>
+                    <div className="flex-1 text-center">
+                        <p className="text-xs text-gray-600">New Total Stock</p>
+                        <div className="mt-1 font-bold text-lg text-[#5a4fcf]">{(product.quantity || 0) + (Number(stockAdjustment) || 0)}</div>
+                    </div>
+                </div>
+            </div>
+        )}
+    </>
+);
+
+interface PricingSectionProps {
+    isSubmitting: boolean;
+    formData: ProductFormState;
+    handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    isGstInclusive: boolean;
+    setIsGstInclusive: (val: boolean) => void;
+    showCalculation: boolean;
+    priceCalculations: { basePrice: number; gstAmount: number; totalPrice: number };
+}
+
+const PricingSection: FC<PricingSectionProps> = ({ isSubmitting, formData, handleInputChange, isGstInclusive, setIsGstInclusive, showCalculation, priceCalculations }) => (
+    <>
+        <div className={`grid grid-cols-1 ${!isGstInclusive ? 'sm:grid-cols-2' : ''} gap-3`}>
+            <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">{isGstInclusive ? 'Total Price (incl. GST)' : 'Selling Price (excl. GST)'}</label>
+                <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
+                    <input type="number" name="sellingPrice" placeholder="e.g., 199.99" className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-sm" value={formData.sellingPrice} onChange={handleInputChange} disabled={isSubmitting} />
+                </div>
+            </div>
+            {!isGstInclusive && (
+                <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-700">GST Rate</label>
+                    <div className="relative">
+                        <input type="number" name="gstRate" placeholder="e.g., 18" className="w-full border-2 border-gray-200 px-3 py-2 pr-10 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all outline-none text-sm" value={formData.gstRate} onChange={handleInputChange} disabled={isSubmitting} />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">%</span>
+                    </div>
+                </div>
+            )}
+        </div>
+        <div className="flex items-center justify-center p-0.5 rounded-lg bg-gray-200">
+            <button type="button" onClick={() => setIsGstInclusive(false)} disabled={isSubmitting} className={`w-1/2 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${!isGstInclusive ? 'bg-white text-[#5a4fcf] shadow-sm' : 'text-gray-600'}`}>Exclusive GST</button>
+            <button type="button" onClick={() => setIsGstInclusive(true)} disabled={isSubmitting} className={`w-1/2 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${isGstInclusive ? 'bg-white text-[#5a4fcf] shadow-sm' : 'text-gray-600'}`}>Inclusive GST</button>
+        </div>
+        {showCalculation && !isGstInclusive && (
+            <div className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-lg border animate-in fade-in duration-300">
+                <div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">Base Price</label><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.basePrice)}</div></div>
+                <div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">GST Amount</label><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.gstAmount)}</div></div>
+                <div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">Total Price</label><div className="text-gray-900 font-bold text-sm mt-0.5">{formatCurrency(priceCalculations.totalPrice)}</div></div>
+            </div>
+        )}
+    </>
+);
+
+interface ProfitSectionProps {
+    isSubmitting: boolean;
+    formData: ProductFormState;
+    handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    showProfitCalculation: boolean;
+    profitCalculations: { profitPerUnit: number; totalProfit: number; quantity: number };
+}
+
+const ProfitSection: FC<ProfitSectionProps> = ({ isSubmitting, formData, handleInputChange, showProfitCalculation, profitCalculations }) => (
+    <>
+        <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-700">Profit Per Unit</label>
+            <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
+                <input type="number" name="profitPerUnit" placeholder="e.g., 50.00" className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm" value={formData.profitPerUnit} onChange={handleInputChange} disabled={isSubmitting} />
+            </div>
+        </div>
+        {showProfitCalculation && (
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between">
+                    <div className="text-center flex-1">
+                        <label className="text-[10px] font-medium text-gray-600 block">Profit/Unit</label>
+                        <div className="text-green-700 font-semibold text-xs mt-0.5">{formatCurrency(profitCalculations.profitPerUnit)}</div>
+                    </div>
+                    <div className="text-xl text-gray-400 font-light px-2">×</div>
+                    <div className="text-center flex-1">
+                        <label className="text-[10px] font-medium text-gray-600 block">Quantity</label>
+                        <div className="text-gray-700 font-semibold text-xs mt-0.5">{profitCalculations.quantity}</div>
+                    </div>
+                    <div className="text-xl text-gray-400 font-light px-2">=</div>
+                    <div className="text-center flex-1">
+                        <label className="text-[10px] font-medium text-gray-600 block">Total Profit</label>
+                        <div className="text-green-600 font-bold text-sm mt-0.5">{formatCurrency(profitCalculations.totalProfit)}</div>
+                    </div>
+                </div>
+            </div>
+        )}
+    </>
+);
+
+interface ProductFormFooterProps {
+    onClose: () => void;
+    isSubmitting: boolean;
+    handleFormSubmit: () => Promise<void>;
+    isEditing: boolean;
+}
+
+const ProductFormFooter: FC<ProductFormFooterProps> = ({ onClose, isSubmitting, handleFormSubmit, isEditing }) => (
+    <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2.5 border-t">
+        <button onClick={onClose} disabled={isSubmitting} className="px-5 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors text-sm disabled:opacity-50">Cancel</button>
+        <button
+            onClick={handleFormSubmit}
+            disabled={isSubmitting}
+            className={`px-5 py-2 text-white rounded-xl font-medium shadow-lg transition-all text-sm flex items-center justify-center min-w-[120px] ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] hover:from-[#4a3fb5] hover:to-[#6b58de] shadow-[#5a4fcf]/30'}`}
+        >
+            {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : (isEditing ? 'Save Changes' : 'Add Product')}
+        </button>
+    </div>
+);
+
 const ProductFormModal: FC<ProductFormModalProps> = ({ product, onSave, onClose }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -323,13 +534,7 @@ const ProductFormModal: FC<ProductFormModalProps> = ({ product, onSave, onClose 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-3 animate-in fade-in duration-200">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", duration: 0.3 }} className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-                <div className="bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] px-4 py-4 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-lg font-bold text-white">{product?.id ? 'Edit Product' : 'Add New Product'}</h2>
-                        <p className="text-indigo-100 text-xs mt-0.5">{product?.id ? 'Update product information' : 'Fill in the details below'}</p>
-                    </div>
-                    <button onClick={onClose} disabled={isSubmitting} className="text-white hover:bg-white/20 rounded-full p-1.5 transition-colors"><X className="w-5 h-5" /></button>
-                </div>
+                <ProductHeader isEditing={isEditing} isSubmitting={isSubmitting} onClose={onClose} />
 
                 <div className="p-4 space-y-3.5 max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
                     {isScannerOpen ? (
@@ -341,113 +546,16 @@ const ProductFormModal: FC<ProductFormModalProps> = ({ product, onSave, onClose 
                         </div>
                     ) : (
                         <>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-gray-700">Product Image</label>
-                                <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer hover:border-[#5a4fcf] transition-colors" onClick={() => !isSubmitting && fileInputRef.current?.click()}>
-                                    <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
-                                    {imagePreview ? <div className="relative w-full h-full"><Image src={imagePreview} alt="Product Preview" fill sizes="(max-width: 768px) 100vw, 512px" style={{ objectFit: 'contain' }} className="p-2" /></div> : <div className="text-center text-gray-500"><ImageIcon className="w-8 h-8 mx-auto mb-1.5" /><p className="text-xs">Click to upload</p></div>}
-                                </div>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-gray-700">Product Name</label>
-                                <input type="text" name="name" placeholder="Enter product name" className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" value={formData.name} onChange={handleInputChange} disabled={isSubmitting} />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-gray-700">Product ID (SKU)</label>
-                                <div className="relative">
-                                    <input type="text" name="sku" placeholder="SKU, Barcode, or custom ID" className="w-full border-2 border-gray-200 px-3 py-2 pr-12 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none font-mono text-xs" value={formData.sku || ''} onChange={handleInputChange} disabled={isSubmitting} />
-                                    <button type="button" onClick={() => setIsScannerOpen(true)} disabled={isSubmitting} className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] text-white rounded-xl hover:from-[#4a3fb5] hover:to-[#6b58de] shadow-md shadow-[#5a4fcf]/20 transition-all active:scale-95" aria-label="Scan barcode"><Camera className="w-4 h-4" /></button>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-gray-700">{isEditing ? 'Current Quantity' : 'Quantity'}</label>
-                                    <input type="number" name="quantity" placeholder="e.g., 50" value={isEditing ? product.quantity : formData.quantity} readOnly={isEditing} onChange={!isEditing ? handleInputChange : undefined} className={`w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`} disabled={isSubmitting && !isEditing} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-gray-700 flex items-center gap-1" title="Set a custom alert when quantity falls to this level. Leave blank for default.">Low Stock Alert <Info className="w-3 h-3 text-gray-400 cursor-help" /></label>
-                                    <input type="number" name="lowStockThreshold" placeholder={`Default: ${LOW_STOCK_THRESHOLD}`} className="w-full border-2 border-gray-200 px-3 py-2 rounded-xl focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all outline-none text-sm" value={formData.lowStockThreshold} onChange={handleInputChange} disabled={isSubmitting} />
-                                </div>
-                            </div>
-
-                            {isEditing && (
-                                <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200 space-y-2">
-                                    <label className="text-xs font-medium text-indigo-800 block">Stock Adjustment</label>
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1 text-center">
-                                            <p className="text-xs text-gray-600">Adjustment (+/-)</p>
-                                            <input type="number" placeholder="e.g., 10 or -5" value={stockAdjustment} onChange={(e) => setStockAdjustment(e.target.value === '' ? '' : Number(e.target.value))} className="w-full mt-1 border-2 text-center border-gray-200 px-3 py-2 rounded-xl focus:border-[#5a4fcf] focus:ring-2 focus:ring-[#5a4fcf]/20 transition-all outline-none text-sm" disabled={isSubmitting} />
-                                        </div>
-                                        <div className="text-2xl text-gray-400 font-light">=</div>
-                                        <div className="flex-1 text-center">
-                                            <p className="text-xs text-gray-600">New Total Stock</p>
-                                            <div className="mt-1 font-bold text-lg text-[#5a4fcf]">{(product.quantity || 0) + (Number(stockAdjustment) || 0)}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className={`grid grid-cols-1 ${!isGstInclusive ? 'sm:grid-cols-2' : ''} gap-3`}>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-gray-700">{isGstInclusive ? 'Total Price (incl. GST)' : 'Selling Price (excl. GST)'}</label>
-                                    <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span><input type="number" name="sellingPrice" placeholder="e.g., 199.99" className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-sm" value={formData.sellingPrice} onChange={handleInputChange} disabled={isSubmitting} /></div>
-                                </div>
-                                {!isGstInclusive && <div className="space-y-1.5"><label className="text-xs font-medium text-gray-700">GST Rate</label><div className="relative"><input type="number" name="gstRate" placeholder="e.g., 18" className="w-full border-2 border-gray-200 px-3 py-2 pr-10 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all outline-none text-sm" value={formData.gstRate} onChange={handleInputChange} disabled={isSubmitting} /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">%</span></div></div>}
-                            </div>
-                            <div className="flex items-center justify-center p-0.5 rounded-lg bg-gray-200"><button type="button" onClick={() => setIsGstInclusive(false)} disabled={isSubmitting} className={`w-1/2 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${!isGstInclusive ? 'bg-white text-[#5a4fcf] shadow-sm' : 'text-gray-600'}`}>Exclusive GST</button><button type="button" onClick={() => setIsGstInclusive(true)} disabled={isSubmitting} className={`w-1/2 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${isGstInclusive ? 'bg-white text-[#5a4fcf] shadow-sm' : 'text-gray-600'}`}>Inclusive GST</button></div>
-                            {showCalculation && !isGstInclusive && <div className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-lg border animate-in fade-in duration-300"><div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">Base Price</label><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.basePrice)}</div></div><div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">GST Amount</label><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.gstAmount)}</div></div><div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">Total Price</label><div className="text-gray-900 font-bold text-sm mt-0.5">{formatCurrency(priceCalculations.totalPrice)}</div></div></div>}
-
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-gray-700">Profit Per Unit</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">₹</span>
-                                    <input
-                                        type="number"
-                                        name="profitPerUnit"
-                                        placeholder="e.g., 50.00"
-                                        className="w-full border-2 border-gray-200 pl-7 pr-3 py-2 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all outline-none text-sm"
-                                        value={formData.profitPerUnit}
-                                        onChange={handleInputChange}
-                                        disabled={isSubmitting}
-                                    />
-                                </div>
-                            </div>
-
-                            {showProfitCalculation && (
-                                <div className="bg-green-50 p-3 rounded-lg border border-green-200 animate-in fade-in duration-300">
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-center flex-1">
-                                            <label className="text-[10px] font-medium text-gray-600 block">Profit/Unit</label>
-                                            <div className="text-green-700 font-semibold text-xs mt-0.5">{formatCurrency(profitCalculations.profitPerUnit)}</div>
-                                        </div>
-                                        <div className="text-xl text-gray-400 font-light px-2">×</div>
-                                        <div className="text-center flex-1">
-                                            <label className="text-[10px] font-medium text-gray-600 block">Quantity</label>
-                                            <div className="text-gray-700 font-semibold text-xs mt-0.5">{profitCalculations.quantity}</div>
-                                        </div>
-                                        <div className="text-xl text-gray-400 font-light px-2">=</div>
-                                        <div className="text-center flex-1">
-                                            <label className="text-[10px] font-medium text-gray-600 block">Total Profit</label>
-                                            <div className="text-green-600 font-bold text-sm mt-0.5">{formatCurrency(profitCalculations.totalProfit)}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                            <ProductImageUpload isSubmitting={isSubmitting} imagePreview={imagePreview} handleImageChange={handleImageChange} fileInputRef={fileInputRef} />
+                            <ProductBasicDetails formData={formData} handleInputChange={handleInputChange} isSubmitting={isSubmitting} setIsScannerOpen={setIsScannerOpen} />
+                            <StockManagement isEditing={isEditing} isSubmitting={isSubmitting} formData={formData} product={product} handleInputChange={handleInputChange} stockAdjustment={stockAdjustment} setStockAdjustment={setStockAdjustment} />
+                            <PricingSection isSubmitting={isSubmitting} formData={formData} handleInputChange={handleInputChange} isGstInclusive={isGstInclusive} setIsGstInclusive={setIsGstInclusive} showCalculation={showCalculation} priceCalculations={priceCalculations} />
+                            <ProfitSection isSubmitting={isSubmitting} formData={formData} handleInputChange={handleInputChange} showProfitCalculation={showProfitCalculation} profitCalculations={profitCalculations} />
                         </>
                     )}
                 </div>
 
-                <div className="bg-gray-50 px-4 py-3 flex justify-end gap-2.5 border-t">
-                    <button onClick={onClose} disabled={isSubmitting} className="px-5 py-2 bg-white border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors text-sm disabled:opacity-50">Cancel</button>
-                    <button
-                        onClick={handleFormSubmit}
-                        disabled={isSubmitting}
-                        className={`px-5 py-2 text-white rounded-xl font-medium shadow-lg transition-all text-sm flex items-center justify-center min-w-[120px] 
-                            ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-[#5a4fcf] to-[#7b68ee] hover:from-[#4a3fb5] hover:to-[#6b58de] shadow-[#5a4fcf]/30'}`}
-                    >
-                        {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : (product?.id ? 'Save Changes' : 'Add Product')}
-                    </button>
-                </div>
+                <ProductFormFooter isSubmitting={isSubmitting} onClose={onClose} handleFormSubmit={handleFormSubmit} isEditing={isEditing} />
             </motion.div>
         </div>
     );
@@ -588,6 +696,34 @@ const Inventory: FC = () => {
         reader.readAsArrayBuffer(file);
     }, [refreshProducts]);
 
+    const uploadProductImage = async (imageFile: File): Promise<string> => {
+        const options = { maxSizeMB: 1, maxWidthOrHeight: 1024, useWebWorker: true };
+        const compressedFile = await imageCompression(imageFile, options);
+        const formData = new FormData();
+        formData.append('file', compressedFile);
+        const uploadResponse = await fetch('/api/upload', { method: 'POST', body: formData });
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) throw new Error(uploadData.message || 'Image upload failed');
+        return uploadData.url;
+    };
+
+    const handleSaveSuccess = async (response: Response, isEditing: boolean, productData: ProductFormData, originalQuantity: number) => {
+        if (isEditing) {
+            const savedProductRaw = await response.json();
+            const savedProduct = {
+                ...savedProductRaw,
+                id: savedProductRaw.id || savedProductRaw._id?.toString() || productData.id
+            };
+            setProducts(prevProducts => prevProducts.map(p => p.id === productData.id ? savedProduct : p));
+            const quantityChange = savedProduct.quantity - originalQuantity;
+            if (quantityChange !== 0) setUpdatedProductInfo({ id: savedProduct.id, change: quantityChange });
+        } else {
+            const allProducts = await response.json();
+            setProducts(allProducts);
+        }
+        setModalState({ isOpen: false, product: null });
+    };
+
     const handleSaveProduct = useCallback(async (productData: ProductFormData, imageFile: File | null) => {
         const isEditing = !!productData.id;
         const originalQuantity = isEditing ? (products.find(p => p.id === productData.id)?.quantity || 0) : 0;
@@ -595,15 +731,8 @@ const Inventory: FC = () => {
         try {
             let imageUrl = productData.image || '';
             if (imageFile) {
-                const options = { maxSizeMB: 1, maxWidthOrHeight: 1024, useWebWorker: true };
                 try {
-                    const compressedFile = await imageCompression(imageFile, options);
-                    const formData = new FormData();
-                    formData.append('file', compressedFile);
-                    const uploadResponse = await fetch('/api/upload', { method: 'POST', body: formData });
-                    const uploadData = await uploadResponse.json();
-                    if (!uploadResponse.ok) throw new Error(uploadData.message || 'Image upload failed');
-                    imageUrl = uploadData.url;
+                    imageUrl = await uploadProductImage(imageFile);
                 } catch (error) {
                     console.error("Compression/Upload Error:", error);
                     alert("Failed to process image. Please try a smaller file.");
@@ -611,37 +740,18 @@ const Inventory: FC = () => {
                 }
             }
 
-            const url = isEditing ? `/api/products/${productData.id}` : '/api/products';
-            const method = isEditing ? 'PUT' : 'POST';
-            const response = await fetch(url, {
-                method,
+            const response = await fetch(isEditing ? `/api/products/${productData.id}` : '/api/products', {
+                method: isEditing ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...productData, image: imageUrl })
             });
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Failed to ${isEditing ? 'update' : 'create'} product`);
             }
 
-            if (isEditing) {
-                // PUT returns the single raw object (often with _id instead of id)
-                const savedProductRaw = await response.json();
-                const savedProduct = {
-                    ...savedProductRaw,
-                    id: savedProductRaw.id || savedProductRaw._id?.toString() || productData.id
-                };
-
-                setProducts(prevProducts => prevProducts.map(p => p.id === productData.id ? savedProduct : p));
-
-                const quantityChange = savedProduct.quantity - originalQuantity;
-                if (quantityChange !== 0) setUpdatedProductInfo({ id: savedProduct.id, change: quantityChange });
-            } else {
-                // POST returns the ENTIRE list of products (already transformed)
-                const allProducts = await response.json();
-                setProducts(allProducts);
-            }
-
-            setModalState({ isOpen: false, product: null });
+            await handleSaveSuccess(response, isEditing, productData, originalQuantity);
         } catch (err: unknown) {
             alert(`Error: ${err instanceof Error ? err.message : 'Could not save product'}`);
         }
