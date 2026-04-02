@@ -435,18 +435,18 @@ export default function BillingPage() {
   const toggleEdit = (id: number) => setCart(prev => prev.map(item => item.id === id ? { ...item, isEditing: !item.isEditing } : { ...item, isEditing: false }));
 
   const updateCartItem = (id: number, updatedValues: Partial<CartItem>) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === id) {
-        // If updating quantity, check stock
-        if (updatedValues.quantity !== undefined && item.productId) {
-          const product = inventory.find(p => p.id === item.productId);
-          const newQty = Number(updatedValues.quantity);
-          if (product && newQty > product.quantity) return item;
-        }
-        return { ...item, ...updatedValues };
+    const applyUpdate = (item: CartItem) => {
+      if (item.id !== id) return item;
+
+      if (updatedValues.quantity !== undefined && item.productId) {
+        const product = inventory.find(p => p.id === item.productId);
+        if (product && Number(updatedValues.quantity) > product.quantity) return item;
       }
-      return item;
-    }));
+
+      return { ...item, ...updatedValues };
+    };
+
+    setCart(prev => prev.map(applyUpdate));
   };
 
   const handleTransactionDone = React.useCallback(() => {
