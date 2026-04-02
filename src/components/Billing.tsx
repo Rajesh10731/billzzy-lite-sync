@@ -79,8 +79,8 @@ type ModalProps = {
 const Modal = ({ isOpen, onClose, title, children, onConfirm, confirmText = 'OK', showCancel = false }: ModalProps) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-[90%] max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-gray-200">
+    <button type="button" aria-label="Close modal" onClick={onClose} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="relative w-[90%] max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-gray-200">
         <div className="flex items-start">
           <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-[#5a4fcf]/10">
             <AlertTriangle className="h-5 w-5 text-[#5a4fcf]" />
@@ -95,7 +95,7 @@ const Modal = ({ isOpen, onClose, title, children, onConfirm, confirmText = 'OK'
           <button onClick={() => { if (onConfirm) onConfirm(); onClose(); }} className="rounded-lg bg-[#5a4fcf] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#4c42b8]">{confirmText}</button>
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -177,7 +177,7 @@ export default function BillingPage() {
   );
 
   const { discountAmount, totalAmount } = React.useMemo(() => {
-    const discountValue = parseFloat(discountInput) || 0;
+    const discountValue = Number.parseFloat(discountInput) || 0;
     let calculatedDiscount = 0;
     if (discountType === 'percentage' && discountValue > 0) {
       calculatedDiscount = (subtotal * discountValue) / 100;
@@ -309,8 +309,8 @@ export default function BillingPage() {
 
     try {
       const dialCode = countries.find(c => c.code === customerCountryCode)?.dialCode || '+91';
-      const cleanDialCode = dialCode.replace(/\+/g, '');
-      const cleanInput = phoneNumber.replace(/\D/g, '');
+      const cleanDialCode = dialCode.replaceAll(/\+/g, '');
+      const cleanInput = phoneNumber.replaceAll(/\D/g, '');
 
       const formattedPhone = cleanInput.startsWith(cleanDialCode) ? cleanInput : `${cleanDialCode}${cleanInput}`;
 
@@ -670,7 +670,7 @@ export default function BillingPage() {
                 const { totalPrice } = calculateGstDetails(Number(item.price) || 0, item.gstRate); return (
                   <div key={item.id} className={`rounded-lg p-2.5 shadow-sm border transition-all ${item.isEditing ? 'bg-indigo-50 border-[#5a4fcf]' : 'bg-white border-gray-200'}`}>
                     {item.isEditing ? (
-                      <div className="flex flex-col gap-2"><input type="text" value={item.name} onChange={(e) => updateCartItem(item.id, { name: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none" placeholder="Item Name" /><div className="flex items-center gap-2"><div className="relative flex-1"><input type="number" value={item.quantity} onChange={(e) => updateCartItem(item.id, { quantity: e.target.value === '' ? '' : parseInt(e.target.value, 10) })} className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none text-center" placeholder="Qty" /><span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-gray-400">Qty</span></div><div className="relative flex-[1.5]"><span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span><input type="number" value={item.price} onChange={(e) => updateCartItem(item.id, { price: e.target.value === '' ? '' : parseFloat(e.target.value) })} className="w-full pl-5 pr-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none" placeholder="Price" /></div><button onClick={() => toggleEdit(item.id)} className="p-1.5 rounded-md bg-[#5a4fcf] text-white hover:bg-[#4c42b8]"><Check size={16} /></button><button onClick={() => deleteCartItem(item.id)} className="p-1.5 rounded-md bg-red-100 text-red-500"><Trash2 size={16} /></button></div></div>
+                      <div className="flex flex-col gap-2"><input type="text" value={item.name} onChange={(e) => updateCartItem(item.id, { name: e.target.value })} className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none" placeholder="Item Name" /><div className="flex items-center gap-2"><div className="relative flex-1"><input type="number" value={item.quantity} onChange={(e) => updateCartItem(item.id, { quantity: e.target.value === '' ? '' : Number.parseInt(e.target.value, 10) })} className="w-full px-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none text-center" placeholder="Qty" /><span className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-gray-400">Qty</span></div><div className="relative flex-[1.5]"><span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span><input type="number" value={item.price} onChange={(e) => updateCartItem(item.id, { price: e.target.value === '' ? '' : Number.parseFloat(e.target.value) })} className="w-full pl-5 pr-2 py-1.5 rounded-md border border-gray-300 text-sm focus:ring-1 focus:ring-[#5a4fcf] outline-none" placeholder="Price" /></div><button onClick={() => toggleEdit(item.id)} className="p-1.5 rounded-md bg-[#5a4fcf] text-white hover:bg-[#4c42b8]"><Check size={16} /></button><button onClick={() => deleteCartItem(item.id)} className="p-1.5 rounded-md bg-red-100 text-red-500"><Trash2 size={16} /></button></div></div>
                     ) : (
                       <div className="flex justify-between items-start gap-2"><div className="flex-1 min-w-0"><p className="font-bold text-gray-900 text-xs truncate">{item.name}</p><div className="flex items-center gap-1.5 mt-1"><span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Qty: {item.quantity}</span><span className="text-[10px] text-gray-400">×</span><span className="text-[10px] text-gray-500">{formatCurrency(totalPrice)}</span></div></div><div className="flex items-center gap-2"><span className="text-xs font-bold text-[#5a4fcf]">{formatCurrency(totalPrice * (Number(item.quantity) || 0))}</span><div className="flex gap-1"><button onClick={() => toggleEdit(item.id)} className="p-1 rounded bg-gray-100 text-gray-600"><Edit2 size={12} /></button><button onClick={() => deleteCartItem(item.id)} className="p-1 rounded bg-red-50 text-red-500"><Trash2 size={12} /></button></div></div></div>
                     )}
@@ -702,8 +702,8 @@ export default function BillingPage() {
       </div>
 
       {isCashModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
-          <div className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
+        <button type="button" aria-label="Close cash payment" onClick={() => setIsCashModalOpen(false)} className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+          <div onClick={(e) => e.stopPropagation()} className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
             <div className="h-1 bg-[#5a4fcf] absolute top-0 left-0 right-0" />
             <div className="flex justify-between items-start mb-8">
               <div>
@@ -728,7 +728,7 @@ export default function BillingPage() {
                   <input
                     type="number"
                     value={amountGiven}
-                    onChange={(e) => setAmountGiven(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    onChange={(e) => setAmountGiven(e.target.value === '' ? '' : Number.parseFloat(e.target.value))}
                     className="w-full rounded-2xl border-2 border-slate-100 p-4 pl-9 text-xl font-black focus:border-[#5a4fcf] focus:ring-4 focus:ring-indigo-50 outline-none transition-all"
                     autoFocus
                   />
@@ -769,12 +769,12 @@ export default function BillingPage() {
               </button>
             </div>
           </div>
-        </div>
+        </button>
       )}
 
       {isQRModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
-          <div className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
+        <button type="button" aria-label="Close QR payment" onClick={() => setIsQRModalOpen(false)} className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+          <div onClick={(e) => e.stopPropagation()} className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
             <div className="h-1 bg-[#5a4fcf] absolute top-0 left-0 right-0" />
             <div className="flex justify-between items-start mb-8">
               <div>
@@ -832,7 +832,7 @@ export default function BillingPage() {
               </div>
             )}
           </div>
-        </div>
+        </button>
       )}
 
       <Modal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false, message: '' })} title={modal.title} onConfirm={modal.onConfirm} confirmText={modal.confirmText} showCancel={modal.showCancel}>{modal.message}</Modal>

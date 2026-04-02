@@ -111,7 +111,18 @@ const MobileProductCard: FC<MobileProductCardProps> = React.memo(({ product, isS
                 className="relative bg-white p-2.5 flex items-center gap-2.5 w-full cursor-grab"
                 drag="x" dragConstraints={{ right: 0, left: -ACTION_WIDTH }} onDragEnd={handleDragEnd}
                 animate={controls} transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                role="button"
+                aria-label={isSwiped ? "Close actions" : "View product details"}
+                tabIndex={0}
                 onClick={() => { if (isSwiped) { controls.start({ x: 0 }); onSwipe(null); } }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        if (isSwiped) {
+                            controls.start({ x: 0 });
+                            onSwipe(null);
+                        }
+                    }
+                }}
             >
                 {product.image ? (
                     <Image src={product.image} alt={product.name} width={56} height={56} className="w-14 h-14 object-cover rounded-md bg-gray-100 flex-shrink-0" />
@@ -267,7 +278,13 @@ interface ProductImageUploadProps {
 const ProductImageUpload: FC<ProductImageUploadProps> = ({ isSubmitting, imagePreview, handleImageChange, fileInputRef }) => (
     <div className="space-y-1.5">
         <label htmlFor="product-image" className="text-xs font-medium text-gray-700">Product Image</label>
-        <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer hover:border-[#5a4fcf] transition-colors" onClick={() => !isSubmitting && fileInputRef.current?.click()}>
+        <button
+            type="button"
+            onClick={() => !isSubmitting && fileInputRef.current?.click()}
+            disabled={isSubmitting}
+            className={`w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center cursor-pointer hover:border-[#5a4fcf] transition-colors focus:outline-none focus:ring-2 focus:ring-[#5a4fcf]/50 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            aria-label="Upload product image"
+        >
             <input id="product-image" type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
             {imagePreview ? (
                 <div className="relative w-full h-full">
@@ -279,7 +296,7 @@ const ProductImageUpload: FC<ProductImageUploadProps> = ({ isSubmitting, imagePr
                     <p className="text-xs">Click to upload</p>
                 </div>
             )}
-        </div>
+        </button>
     </div>
 );
 

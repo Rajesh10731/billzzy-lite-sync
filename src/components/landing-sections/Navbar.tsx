@@ -82,14 +82,16 @@ export default function Navbar() {
                         }}
                     >
                         {/* LOGO (Always Visible) */}
-                        <div
-                            className="flex items-center gap-2 cursor-pointer px-4 border-r border-gray-200"
+                        <button
+                            type="button"
+                            aria-label="Scroll to top"
+                            className="flex items-center gap-2 cursor-pointer px-4 border-r border-gray-200 border-y-0 border-l-0 bg-transparent outline-none"
                             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
                         >
                             <span className="text-lg font-bold tracking-tight text-[#4F46E5]">
                                 Billzzy <span className="font-normal">Lite</span>
                             </span>
-                        </div>
+                        </button>
 
                         {/* LINKS (Visible) */}
                         <div className="flex items-center gap-1">

@@ -56,9 +56,10 @@ export default function TestimonialsSection() {
   const StarRating = ({ rating }: StarProps) => {
     return (
       <div className="flex justify-start mb-4">
-        {[...Array(5)].map((_, i) => (
+        {[...new Array(5)].map((_, i) => (
           <svg
             key={i}
+            aria-hidden="true"
             className={`w-5 h-5 ${i < rating ? "text-yellow-400" : "text-gray-300"
               }`}
             fill="currentColor"

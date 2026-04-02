@@ -61,7 +61,7 @@ export default function PricingSection() {
 
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 border border-purple-100 text-[#5a4fcf] font-semibold text-xs uppercase tracking-wide mb-4 md:mb-6 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[#5a4fcf] animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-[#5a4fcf] animate-pulse"></span>{' '}
             No subscriptions
           </div>
 
@@ -75,7 +75,7 @@ export default function PricingSection() {
 
           <p className="text-gray-600 text-base md:text-xl mb-6 md:mb-8 leading-relaxed max-w-md mx-auto lg:mx-0">
             Stop paying monthly fees for software you barely use.
-            With BillzzyLite, you only pay when you make a sale.
+            With BillzzyLite, you only pay when you make a sale.{' '}
             <span className="block mt-2 font-medium text-gray-900">It&apos;s cheaper than paper and ink.</span>
           </p>
 
