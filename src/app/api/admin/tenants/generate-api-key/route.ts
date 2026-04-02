@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Tenant from '@/models/Tenant';
 import User from '@/models/User';
-import { generateAPIKey, hashKey } from '@/lib/api-keys';
+import { generateAPIKey, hashKey, generateMerchantId } from '@/lib/api-keys';
 
 export async function POST(request: Request) {
     try {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
                 name: merchantUser.name || 'New Merchant',
                 subdomain: identifier,
                 ownerEmail: merchantUser.email,
-                merchantId: `bz_${Math.random().toString(36).substring(2, 9)}`
+                merchantId: generateMerchantId()
             });
         }
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         tenant.apiKeyHash = hashedKey;
         tenant.displayApiKey = rawKey;
         if (!tenant.merchantId) {
-            tenant.merchantId = `bz_${Math.random().toString(36).substring(2, 9)}`;
+            tenant.merchantId = generateMerchantId();
         }
         await tenant.save();
 
