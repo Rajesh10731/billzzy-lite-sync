@@ -55,7 +55,7 @@ function validateCredentials(creds: { phoneNumberId?: string; accessToken?: stri
 }
 
 function getEffectiveToken(accessToken: string, userEmail: string) {
-  const token = accessToken.trim().replace(/^["']|["']$/g, '');
+  const token = accessToken.trim().replaceAll(/^["']|["']$/g, '');
   if (/[^\x20-\x7E]/.test(token)) {
     console.warn(`[WhatsApp] Warning: Access Token for ${userEmail} contains non-printable characters!`);
   }

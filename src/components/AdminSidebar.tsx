@@ -63,7 +63,9 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
 
   return (
     <>
-      <div
+      <button
+        type="button"
+        aria-label="Close menu"
         className={`fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden transition-opacity duration-300 ease-in-out ${isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         onClick={() => setIsMobileOpen(false)}

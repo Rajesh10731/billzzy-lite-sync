@@ -365,7 +365,17 @@ export default function BillingHistory() {
               id={`bill-${bill._id || bill.id}`}
               className={`rounded-xl border transition-all ${bill.isEdited ? 'bg-red-50/50 border-red-100' : 'bg-white border-gray-100'}`}
             >
-              <div className="p-2.5" onClick={() => setExpandedBillId(isOpen ? null : (bill._id || bill.id || ""))}>
+              <div
+                role="button"
+                tabIndex={0}
+                className="p-2.5"
+                onClick={() => setExpandedBillId(isOpen ? null : (bill._id || bill.id || ""))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setExpandedBillId(isOpen ? null : (bill._id || bill.id || ""));
+                  }
+                }}
+              >
                 <div className="flex justify-between items-start">
                   <div className="flex gap-2.5 overflow-hidden">
                     <div className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center ${bill.isEdited ? 'bg-red-100 text-red-500' : 'bg-indigo-50 text-indigo-600'}`}>

@@ -20,6 +20,7 @@ export default function BroadcastToggle() {
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div 
+                        role="presentation"
                         className="bg-transparent w-full max-w-2xl relative animate-in zoom-in-95 duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >

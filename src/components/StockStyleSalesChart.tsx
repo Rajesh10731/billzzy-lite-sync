@@ -201,10 +201,15 @@ export default function StockStyleSalesChart({ hideTabs = false }: { hideTabs?: 
               <button onClick={() => setIsEditing(false)} className="p-1 text-red-600"><X size={14} /></button>
             </div>
           ) : (
-            <div className="group flex items-center gap-2 cursor-pointer" onClick={() => { setTempTarget(baseDailyTarget.toString()); setIsEditing(true); }}>
+            <button
+              type="button"
+              aria-label="Edit sales target"
+              className="group flex items-center gap-2 cursor-pointer"
+              onClick={() => { setTempTarget(baseDailyTarget.toString()); setIsEditing(true); }}
+            >
               <p className="text-xl font-bold text-indigo-600">₹{displayedTarget.toLocaleString()}</p>
               <Edit2 size={12} className="text-gray-300 opacity-0 group-hover:opacity-100" />
-            </div>
+            </button>
           )}
         </div>
       </div>

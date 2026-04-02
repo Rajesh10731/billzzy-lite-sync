@@ -9,7 +9,7 @@ function urlBase64ToUint8Array(base64String: string) {
     const rawData = window.atob(base64);
     
     // Optimized for speed on older devices
-    const outputArray = Uint8Array.from(rawData, (c) => c.charCodeAt(0));
+    const outputArray = Uint8Array.from(rawData, (c) => c.codePointAt(0)!);
     
     VAPID_KEY_CACHE.set(base64String, outputArray);
     return outputArray;
@@ -39,7 +39,7 @@ async function requestNotificationPermission() {
   console.log("🔔 Asking for permission...");
   return await new Promise<NotificationPermission>((resolve) => {
     const promise = Notification.requestPermission((result) => resolve(result));
-    if (promise) {
+    if (typeof promise !== 'undefined') {
       promise.then(resolve);
     }
   });

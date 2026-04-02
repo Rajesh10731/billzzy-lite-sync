@@ -700,7 +700,7 @@ export default function Settings() {
             <div className="px-4 pb-2">
               <SettingsField label="Merchant Name" name="name" value={formData.name} isEditing={editingSection === 'personal'} onChange={handleChange} />
               <div className="py-2 border-b border-gray-100 last:border-b-0 px-3 -mx-3">
-                <label className="block text-[12px] font-bold text-gray-900 uppercase tracking-wide mb-1 opacity-90">Default Country Code</label>
+                <span className="block text-[12px] font-bold text-gray-900 uppercase tracking-wide mb-1 opacity-90">Default Country Code</span>
                 {editingSection === 'personal' ? (
                   <div className="mt-1"><CountryCodeSelector selectedCountryCode={formData.defaultCountryCode} onSelect={(c) => setFormData(prev => ({ ...prev, defaultCountryCode: c.code }))} /></div>
                 ) : (

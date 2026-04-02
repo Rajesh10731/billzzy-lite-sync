@@ -336,8 +336,7 @@ export default function AdminDashboard() {
         <div className="overflow-x-auto pb-4">
           <div className="px-6 py-4 bg-amber-50/80 border-b border-amber-100/50 flex items-center justify-between">
             <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-              Registration Review Queue
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>Registration Review Queue
             </h3>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
               {pendingUsers.length} Pending

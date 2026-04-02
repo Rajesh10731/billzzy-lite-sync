@@ -426,7 +426,7 @@ function PurchaseForm({ editingId, shopName, setShopName, date, showCalendar, se
 function ProductItemList({ products, addProduct, updateProduct, removeProduct }: { products: Product[]; addProduct: () => void; updateProduct: (id: string, field: keyof Product, value: string | number) => void; removeProduct: (id: string) => void }) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5"><label className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Products</label><button type="button" onClick={addProduct} className="text-[10px] text-[#5a4fcf] font-black uppercase tracking-wider flex items-center gap-1 hover:underline"><Plus size={10} /> Add Item</button></div>
+      <div className="flex items-center justify-between mb-1.5"><span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Products</span><button type="button" onClick={addProduct} className="text-[10px] text-[#5a4fcf] font-black uppercase tracking-wider flex items-center gap-1 hover:underline"><Plus size={10} /> Add Item</button></div>
       <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
         {products.map((product, idx) => (
           <div key={product.id} className="flex gap-1.5 items-center bg-gray-50 p-1 rounded-md">

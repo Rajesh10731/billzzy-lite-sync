@@ -85,7 +85,7 @@ export default function NotificationPrompt() {
         const device = getDeviceInfo();
         const dismissedUntil = localStorage.getItem('notification_prompt_dismissed_until');
 
-        if (!device.isStandalone && dismissedUntil && Date.now() < parseInt(dismissedUntil)) return;
+        if (!device.isStandalone && dismissedUntil && Date.now() < Number.parseInt(dismissedUntil, 10)) return;
 
         const isSupported = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
         if (!isSupported) return;
