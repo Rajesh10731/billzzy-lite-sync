@@ -130,14 +130,14 @@ export default function AdminDashboard() {
     setEditingPhoneUserId(user._id);
 
     // Attempt to extract country and number
-    const cleaned = (user.phoneNumber || '').replace(/\D/g, '');
+    const cleaned = (user.phoneNumber || '').replaceAll(/\D/g, '');
     const foundCountry = [...countries]
       .sort((a, b) => b.dialCode.length - a.dialCode.length)
-      .find(c => cleaned.startsWith(c.dialCode.replace(/\D/g, '')));
+      .find(c => cleaned.startsWith(c.dialCode.replaceAll(/\D/g, '')));
 
     if (foundCountry) {
       setSelectedCountry(foundCountry);
-      setTempPhone(cleaned.slice(foundCountry.dialCode.replace(/\D/g, '').length));
+      setTempPhone(cleaned.slice(foundCountry.dialCode.replaceAll(/\D/g, '').length));
     } else {
       setSelectedCountry(countries[0]); // Default to India
       setTempPhone(cleaned);
@@ -153,8 +153,8 @@ export default function AdminDashboard() {
   const handleSavePhone = async (userId: string) => {
     try {
       const fullPhone = selectedCountry
-        ? `${selectedCountry.dialCode}${tempPhone.replace(/\D/g, '')}`
-        : tempPhone.replace(/\D/g, '');
+        ? `${selectedCountry.dialCode}${tempPhone.replaceAll(/\D/g, '')}`
+        : tempPhone.replaceAll(/\D/g, '');
 
       const res = await fetch('/api/admin/tenants', {
         method: 'PATCH',

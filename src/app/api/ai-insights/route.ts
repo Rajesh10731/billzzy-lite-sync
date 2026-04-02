@@ -87,7 +87,7 @@ async function validateUserAndPlan(type: string): Promise<{ user?: UserContext; 
  * Fetches relevant business data for the tenant.
  */
 async function getBusinessData(tenantId: string): Promise<BusinessData> {
-    const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const tenantQuery = {
         $or: [
             { tenantId: tenantId },

@@ -383,9 +383,9 @@ const PricingSection: FC<PricingSectionProps> = ({ isSubmitting, formData, handl
         </div>
         {showCalculation && !isGstInclusive && (
             <div className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-lg border animate-in fade-in duration-300">
-                <div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">Base Price</label><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.basePrice)}</div></div>
-                <div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">GST Amount</label><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.gstAmount)}</div></div>
-                <div className="text-center"><label className="text-[10px] font-medium text-gray-500 block">Total Price</label><div className="text-gray-900 font-bold text-sm mt-0.5">{formatCurrency(priceCalculations.totalPrice)}</div></div>
+                <div className="text-center"><span className="text-[10px] font-medium text-gray-500 block">Base Price</span><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.basePrice)}</div></div>
+                <div className="text-center"><span className="text-[10px] font-medium text-gray-500 block">GST Amount</span><div className="text-gray-800 font-semibold text-xs mt-0.5">{formatCurrency(priceCalculations.gstAmount)}</div></div>
+                <div className="text-center"><span className="text-[10px] font-medium text-gray-500 block">Total Price</span><div className="text-gray-900 font-bold text-sm mt-0.5">{formatCurrency(priceCalculations.totalPrice)}</div></div>
             </div>
         )}
     </>
@@ -412,17 +412,17 @@ const ProfitSection: FC<ProfitSectionProps> = ({ isSubmitting, formData, handleI
             <div className="bg-green-50 p-3 rounded-lg border border-green-200 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between">
                     <div className="text-center flex-1">
-                        <label className="text-[10px] font-medium text-gray-600 block">Profit/Unit</label>
+                        <span className="text-[10px] font-medium text-gray-600 block">Profit/Unit</span>
                         <div className="text-green-700 font-semibold text-xs mt-0.5">{formatCurrency(profitCalculations.profitPerUnit)}</div>
                     </div>
                     <div className="text-xl text-gray-400 font-light px-2">×</div>
                     <div className="text-center flex-1">
-                        <label className="text-[10px] font-medium text-gray-600 block">Quantity</label>
+                        <span className="text-[10px] font-medium text-gray-600 block">Quantity</span>
                         <div className="text-gray-700 font-semibold text-xs mt-0.5">{profitCalculations.quantity}</div>
                     </div>
                     <div className="text-xl text-gray-400 font-light px-2">=</div>
                     <div className="text-center flex-1">
-                        <label className="text-[10px] font-medium text-gray-600 block">Total Profit</label>
+                        <span className="text-[10px] font-medium text-gray-600 block">Total Profit</span>
                         <div className="text-green-600 font-bold text-sm mt-0.5">{formatCurrency(profitCalculations.totalProfit)}</div>
                     </div>
                 </div>
