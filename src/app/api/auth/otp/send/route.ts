@@ -1,5 +1,6 @@
 
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
@@ -8,7 +9,7 @@ import { defaultWhatsappConfig as whatsappConfig, whatsappTemplates } from "@/li
 
 // Helper to generate 6 digit OTP
 const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return crypto.randomInt(100000, 1000000).toString();
 };
 
 export async function POST(request: Request) {
