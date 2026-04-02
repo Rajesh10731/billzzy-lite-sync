@@ -101,7 +101,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 1. Allow API Auth & Receipts (Public access)
-  if (pathname.startsWith('/api/auth') || pathname.startsWith('/receipt')) {
+  if (pathname.startsWith('/api/auth') || pathname.startsWith('/receipt')|| pathname.startsWith('/api/external') ) {
     return NextResponse.next();
   }
 
@@ -137,7 +137,7 @@ export async function middleware(req: NextRequest) {
         if (!features.productAI) {
           return blockAccess(req, "Product AI requires a PRO feature upgrade.");
         }
-      }
+      } 
 
       // B. SERVICE AI ACCESS
       if (pathname.startsWith('/api/services/ai') || pathname.includes('/services/ai')) {

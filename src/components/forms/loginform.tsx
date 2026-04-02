@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import Image from 'next/image';
 import { signIn } from 'next-auth/react';
 
@@ -14,6 +14,14 @@ const TECH_LOGO_URL = '/assets/tech-logo.png'; // Path to your tech logo
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   // const router = useRouter();
+
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  if (token) {
+    sessionStorage.setItem('sync_token', token);
+  }
+}, []);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
