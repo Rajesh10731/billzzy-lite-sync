@@ -97,7 +97,7 @@ export async function GET(req: Request) {
         const range = searchParams.get("range");
         const startDateParam = searchParams.get("startDate");
 
-        const escapedId = userEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+        const escapedId = userEmail.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
         const query: Record<string, unknown> = {
             $or: [{ tenantId: userEmail }, { tenantId: { $regex: new RegExp(`^${escapedId}$`, 'i') } }]
         };

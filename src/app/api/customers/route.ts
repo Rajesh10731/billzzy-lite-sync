@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
     await dbConnect();
 
-    const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+    const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
     console.log(`[API/Customers] Searching customers for tenantId: "${tenantId}" (Exact) OR Regex: ^${escapedId}$`);
 
     const customers = await Customer.find({

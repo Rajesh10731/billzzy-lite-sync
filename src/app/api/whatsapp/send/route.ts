@@ -32,7 +32,7 @@
 
 //     // Format phone number: just keep digits. 
 //     // The frontend now provides the full number including dial code.
-//     const to = messageData.to.replace(/\D/g, '');
+//     const to = messageData.to.replaceAll(/\D/g, '');
 
 //     // Construct the payload according to WhatsApp Business API format
 //     const payload = {
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     const config = await getWhatsAppConfig(session);
 
     // 4. Format phone number
-    const to = messageData.to.replace(/\D/g, '');
+    const to = messageData.to.replaceAll(/\D/g, '');
 
     // 5. Construct the payload
     const payload = {

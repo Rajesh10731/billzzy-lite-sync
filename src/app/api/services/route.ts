@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     await dbConnect();
-    const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+    const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
     
     const services = await Service.find({
       $or: [

@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         }
 
         // WhatsApp Cloud API expects: country code + number, NO '+' 
-        const formattedPhone = phoneNumber.replace(/\D/g, '');
+        const formattedPhone = phoneNumber.replaceAll(/\D/g, '');
 
         if (formattedPhone.length < 7) { // Basic sanity check for international numbers
             return NextResponse.json({ success: false, message: "Please enter a valid phone number." }, { status: 400 });

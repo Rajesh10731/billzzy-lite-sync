@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
 
     // 2. Prepare WhatsApp logic
-    let cleanPhone = newPhone.replace(/\D/g, '');
+    let cleanPhone = newPhone.replaceAll(/\D/g, '');
 
     // Safety check for India (10 digits)
     if (cleanPhone.length === 10 && !cleanPhone.startsWith('91')) {

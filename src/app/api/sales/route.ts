@@ -72,7 +72,7 @@ export async function GET(request: Request) {
 
     await dbConnect();
 
-    const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+    const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
     const query: { $or: { tenantId: string | { $regex: RegExp } }[]; createdAt?: { $gte: Date; $lte: Date } } = {
       $or: [
         { tenantId: tenantId },

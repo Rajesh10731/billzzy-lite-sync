@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     const endDate = to ? new Date(to) : new Date();
     endDate.setHours(23, 59, 59, 999);
 
-    const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+    const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
 
     // Build the query
     const query: { $or: { tenantId: string | { $regex: RegExp } }[]; createdAt?: { $gte: Date; $lte: Date } } = {

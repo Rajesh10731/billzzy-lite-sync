@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     await dbConnect();
     // Use regex for case-insensitive match (robustness)
     // Fix: Use double backslash for literal backslash in regex string for RegExp constructor
-    const escapedId = tenantId.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+    const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
     console.log(`[API/Products] Searching products for tenantId: "${tenantId}" (Exact) OR Regex: ^${escapedId}$`);
 
     const productsFromDb = await Product.find({
