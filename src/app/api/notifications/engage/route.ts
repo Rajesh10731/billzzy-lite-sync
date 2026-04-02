@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
@@ -36,7 +37,7 @@ export async function POST() {
         }
 
         // 2. Decide: Greeting or Tip? (50/50 chance)
-        const isTip = Math.random() > 0.5;
+        const isTip = crypto.randomInt(0, 2) === 0;
         const category = isTip ? 'TIPS' : 'MORNING_GREETINGS';
         const title = isTip ? "Daily Tip! 💡" : "Good Morning! ☀️";
 

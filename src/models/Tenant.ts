@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { generateMerchantId } from '@/lib/api-keys';
 
 export interface ITenant extends Document {
   name: string;
@@ -17,7 +18,7 @@ const TenantSchema: Schema = new Schema({
     type: String,
     required: true,
     unique: true,
-    default: () => `bz_${Math.random().toString(36).substring(2, 9)}`
+    default: () => generateMerchantId()
   },
   apiKeyHash: { type: String, default: null, unique: true, index: true, sparse: true },
   displayApiKey: { type: String, default: null },

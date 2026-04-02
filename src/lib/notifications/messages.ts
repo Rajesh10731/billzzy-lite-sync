@@ -2,6 +2,7 @@
  * Message Library for making the app feel "Alive"
  * Contains categories of messages that the system picks from randomly.
  */
+import crypto from 'crypto';
 
 export const NOTIFICATION_MESSAGES = {
     MORNING_GREETINGS: [
@@ -185,7 +186,7 @@ export const NOTIFICATION_MESSAGES = {
  */
 export function getRandomMessage(category: keyof typeof NOTIFICATION_MESSAGES, replacements: Record<string, string | number> = {}) {
     const categoryMessages = NOTIFICATION_MESSAGES[category];
-    const randomIndex = Math.floor(Math.random() * categoryMessages.length);
+    const randomIndex = crypto.randomInt(0, categoryMessages.length);
     let message = categoryMessages[randomIndex];
 
     // Replace placeholders like {amount} with actual values

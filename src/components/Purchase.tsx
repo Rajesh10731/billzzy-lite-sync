@@ -70,7 +70,7 @@ export default function Purchase() {
   }, []);
 
   const addProduct = () => {
-    setProducts([...products, { id: Date.now().toString(), name: '', quantity: 0, price: 0 }]);
+    setProducts([...products, { id: self.crypto.randomUUID(), name: '', quantity: 0, price: 0 }]);
   };
 
   const updateProduct = (id: string, field: keyof Product, value: string | number) => {
@@ -135,7 +135,7 @@ export default function Purchase() {
     setEditingId(null);
     setShopName('');
     setDate('');
-    setProducts([{ id: Date.now().toString(), name: '', quantity: 0, price: 0 }]);
+    setProducts([{ id: self.crypto.randomUUID(), name: '', quantity: 0, price: 0 }]);
     setPaidAmount(0);
     setPaymentStatus('pending');
     setShowForm(false);
@@ -147,7 +147,7 @@ export default function Purchase() {
     setEditingId(editId);
     setShopName(purchase.shopName);
     setDate(purchase.date);
-    setProducts(purchase.products.length > 0 ? purchase.products.map((p) => ({ ...p, id: p.id || Date.now().toString() + Math.random().toString() })) : [{ id: Date.now().toString(), name: '', quantity: 0, price: 0 }]);
+    setProducts(purchase.products.length > 0 ? purchase.products.map((p) => ({ ...p, id: p.id || self.crypto.randomUUID() })) : [{ id: self.crypto.randomUUID(), name: '', quantity: 0, price: 0 }]);
     setPaidAmount(purchase.paidAmount || 0);
     setPaymentStatus(purchase.paymentStatus);
     setShowForm(true);
