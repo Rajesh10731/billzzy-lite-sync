@@ -310,7 +310,7 @@ export default function BillingPage() {
 
     try {
       const dialCode = countries.find(c => c.code === customerCountryCode)?.dialCode || '+91';
-      const cleanDialCode = dialCode.replaceAll(/\+/g, '');
+      const cleanDialCode = dialCode.replaceAll('+', '');
       const cleanInput = phoneNumber.replaceAll(/\D/g, '');
 
       const formattedPhone = cleanInput.startsWith(cleanDialCode) ? cleanInput : `${cleanDialCode}${cleanInput}`;
