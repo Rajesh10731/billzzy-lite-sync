@@ -631,7 +631,7 @@ export default function BillingPage() {
               <div className="flex gap-2">
                 <div ref={suggestionsRef} className="relative flex-1">
                   <div className="relative">
-                    <input type="text" placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? `Search in ${searchType === 'all' ? 'Inventory' : searchType + 's'}...` : "Required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={checkingSettings || !settingsComplete} />
+                    <input type="text" aria-label="Search items" placeholder={checkingSettings ? "Checking settings..." : settingsComplete ? `Search in ${searchType === 'all' ? 'Inventory' : searchType + 's'}...` : "Required to add items"} className="w-full rounded-lg border-2 border-gray-300 p-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#5a4fcf] focus:border-[#5a4fcf] outline-none transition-all" value={productName} onChange={(e) => setProductName(e.target.value)} onClick={() => setScanning(false)} onKeyPress={(e) => { if (e.key === 'Enter') { handleManualAdd(); } }} disabled={checkingSettings || !settingsComplete} />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 font-bold" ref={filterMenuRef}>
                       <button onClick={() => setShowFilterMenu(!showFilterMenu)} className={`w-8 h-8 rounded-md transition-all flex items-center justify-center text-xs bg-[#5a4fcf] text-white shadow-sm ring-2 ring-transparent hover:ring-indigo-200`} title="Filter Category">{searchType === 'product' ? 'P' : searchType === 'service' ? 'S' : <Filter size={16} />}</button>
                       <AnimatePresence>
@@ -653,9 +653,20 @@ export default function BillingPage() {
                         const price = isProduct ? (s as InventoryProduct).sellingPrice : (s as InventoryService).price;
                         const type = s.itemType;
                         return (
-                          <div key={id} onClick={() => addToCart(type, id, s.name, price, isProduct ? (s as InventoryProduct).gstRate : 0, isProduct ? (s as InventoryProduct).profitPerUnit : 0)} className="cursor-pointer border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0">
-                            <div className="flex justify-between items-center"><div className="flex flex-col"><span className="font-semibold text-gray-800 text-xs">{s.name}</span><span className="text-[9px] uppercase font-bold text-gray-400">{type}</span></div><span className="text-[#5a4fcf] font-bold text-xs">{formatCurrency(price)}</span></div>
-                          </div>
+                          <button
+                            type="button"
+                            key={id}
+                            onClick={() => addToCart(type, id, s.name, price, isProduct ? (s as InventoryProduct).gstRate : 0, isProduct ? (s as InventoryProduct).profitPerUnit : 0)}
+                            className="w-full text-left border-b border-gray-100 p-3 hover:bg-indigo-50 transition-colors last:border-b-0"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-gray-800 text-xs">{s.name}</span>
+                                <span className="text-[9px] uppercase font-bold text-gray-400">{type}</span>
+                              </div>
+                              <span className="text-[#5a4fcf] font-bold text-xs">{formatCurrency(price)}</span>
+                            </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -685,7 +696,7 @@ export default function BillingPage() {
 
         <div className="flex-shrink-0 bg-white shadow-[0_-8px_30_rgba(0,0,0,0.05)] border-t border-gray-100/50 p-2 space-y-2">
           <div className="max-w-2xl mx-auto space-y-2">
-            <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : ''}`}><input type="number" placeholder="Enter Discount" value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-sm font-medium outline-none" /><button onClick={() => setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')} className="bg-[#5a4fcf] px-4 text-[10px] font-black uppercase tracking-widest text-white">{discountType === 'percentage' ? '%' : '₹'}</button></div>
+            <div className={`flex overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-all ${cart.length === 0 ? 'opacity-50' : ''}`}><input type="number" aria-label="Discount amount" placeholder="Enter Discount" value={discountInput} onChange={(e) => setDiscountInput(e.target.value)} className="flex-1 bg-transparent px-3 py-2 text-sm font-medium outline-none" /><button onClick={() => setDiscountType(discountType === 'percentage' ? 'fixed' : 'percentage')} className="bg-[#5a4fcf] px-4 text-[10px] font-black uppercase tracking-widest text-white">{discountType === 'percentage' ? '%' : '₹'}</button></div>
             <div className="space-y-1 px-1"><div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>{discountAmount > 0 && (<div className="flex justify-between items-center text-[10px] font-bold text-emerald-600"><span>Discount</span><span>-{formatCurrency(discountAmount)}</span></div>)}<div className="h-[1px] w-full bg-gray-50 my-1" /><div className="flex justify-between items-end"><span className="text-xs font-black text-gray-900">Total Due</span><span className="text-base font-black text-[#5a4fcf]">{formatCurrency(totalAmount)}</span></div></div>
             {!showWhatsAppSharePanel && !showPaymentOptions && (<button onClick={() => { if (cart.length === 0) return; setShowWhatsAppSharePanel(true); }} className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#5a4fcf] py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-100 hover:bg-[#4c42b8] active:scale-[0.98] disabled:bg-gray-300" disabled={cart.length === 0 || !settingsComplete}><span>Proceed to Payment</span><ChevronRight size={14} /></button>)}
           </div>
@@ -693,7 +704,7 @@ export default function BillingPage() {
 
         {showWhatsAppSharePanel && cart.length > 0 && settingsComplete && (
           <div className="space-y-3 rounded-2xl bg-gradient-to-br from-green-50/50 to-emerald-50/50 p-3 border border-green-100 animate-in fade-in zoom-in-95 duration-300">
-            <div className="flex flex-col gap-2"><div className="flex gap-2 items-center"><div className="w-[85px] shrink-0"><CountryCodeSelector selectedCountryCode={customerCountryCode} onSelect={(c) => setCustomerCountryCode(c.code)} /></div><input type="tel" value={whatsAppNumber} onChange={(e) => setWhatsAppNumber(e.target.value)} placeholder="Phone Number" className="flex-1 rounded-xl border border-green-200 p-2.5 text-xs outline-none bg-white" /></div><input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer Name (Optional)" className="w-full rounded-xl border border-green-200 p-2.5 text-xs outline-none bg-white" /></div>
+            <div className="flex flex-col gap-2"><div className="flex gap-2 items-center"><div className="w-[85px] shrink-0"><CountryCodeSelector selectedCountryCode={customerCountryCode} onSelect={(c) => setCustomerCountryCode(c.code)} /></div><input type="tel" aria-label="Customer phone number" value={whatsAppNumber} onChange={(e) => setWhatsAppNumber(e.target.value)} placeholder="Phone Number" className="flex-1 rounded-xl border border-green-200 p-2.5 text-xs outline-none bg-white" /></div><input type="text" aria-label="Customer name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Customer Name (Optional)" className="w-full rounded-xl border border-green-200 p-2.5 text-xs outline-none bg-white" /></div>
             <button onClick={handleProceedToPayment} className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-bold text-white hover:bg-green-700"><MessageSquare size={16} /><span className="text-xs">{whatsAppNumber.trim() ? 'Continue to Payment' : 'Skip & Continue'}</span></button>
           </div>
         )}
@@ -725,10 +736,11 @@ export default function BillingPage() {
 
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CASH RECEIVED</label>
+                <label htmlFor="cash-received" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CASH RECEIVED</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">₹</span>
                   <input
+                    id="cash-received"
                     type="number"
                     value={amountGiven}
                     onChange={(e) => setAmountGiven(e.target.value === '' ? '' : Number.parseFloat(e.target.value))}
@@ -738,7 +750,7 @@ export default function BillingPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CHANGE TO RETURN</label>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">CHANGE TO RETURN</span>
                 <div className={`w-full h-[62px] rounded-2xl flex items-center justify-center border-2 ${balance < 0 ? 'bg-red-50 border-red-100' : 'bg-[#eefcf4] border-[#eefcf4]'}`}>
                   <span className={`font-black text-xl ${balance < 0 ? 'text-red-600' : 'text-[#0da06a]'}`}>
                     {formatCurrency(balance)}
