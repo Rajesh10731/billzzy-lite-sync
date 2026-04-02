@@ -79,8 +79,9 @@ type ModalProps = {
 const Modal = ({ isOpen, onClose, title, children, onConfirm, confirmText = 'OK', showCancel = false }: ModalProps) => {
   if (!isOpen) return null;
   return (
-    <button type="button" aria-label="Close modal" onClick={onClose} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div onClick={(e) => e.stopPropagation()} className="relative w-[90%] max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-gray-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <button type="button" aria-label="Close modal" onClick={onClose} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-gray-200 z-10">
         <div className="flex items-start">
           <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-[#5a4fcf]/10">
             <AlertTriangle className="h-5 w-5 text-[#5a4fcf]" />
@@ -95,7 +96,7 @@ const Modal = ({ isOpen, onClose, title, children, onConfirm, confirmText = 'OK'
           <button onClick={() => { if (onConfirm) onConfirm(); onClose(); }} className="rounded-lg bg-[#5a4fcf] px-4 py-1.5 text-sm font-semibold text-white hover:bg-[#4c42b8]">{confirmText}</button>
         </div>
       </div>
-    </button>
+    </div>
   );
 };
 
@@ -570,8 +571,9 @@ export default function BillingPage() {
       {showSuccessAnimation && <SuccessTick onComplete={onSuccessAnimationComplete} amount={totalAmount} />}
       <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
         {!checkingSettings && !settingsComplete && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="w-[90%] max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-gray-200">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-gray-200 z-10">
               <div className="flex items-start">
                 <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-[#5a4fcf]/10"><AlertTriangle className="h-5 w-5 text-[#5a4fcf]" /></div>
                 <div className="ml-3 text-left"><h3 className="text-base font-semibold text-gray-900">Settings Incomplete</h3><div className="mt-1.5 text-gray-600 text-sm"><p>Please fill in your phone number in the settings to proceed with billing.</p></div></div>
@@ -702,8 +704,9 @@ export default function BillingPage() {
       </div>
 
       {isCashModalOpen && (
-        <button type="button" aria-label="Close cash payment" onClick={() => setIsCashModalOpen(false)} className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
-          <div onClick={(e) => e.stopPropagation()} className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <button type="button" aria-label="Close cash payment" onClick={() => setIsCashModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-all" />
+          <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300 z-10">
             <div className="h-1 bg-[#5a4fcf] absolute top-0 left-0 right-0" />
             <div className="flex justify-between items-start mb-8">
               <div>
@@ -769,12 +772,13 @@ export default function BillingPage() {
               </button>
             </div>
           </div>
-        </button>
+        </div>
       )}
 
       {isQRModalOpen && (
-        <button type="button" aria-label="Close QR payment" onClick={() => setIsQRModalOpen(false)} className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
-          <div onClick={(e) => e.stopPropagation()} className="relative w-[95%] max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <button type="button" aria-label="Close QR payment" onClick={() => setIsQRModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-all" />
+          <div className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-300 z-10">
             <div className="h-1 bg-[#5a4fcf] absolute top-0 left-0 right-0" />
             <div className="flex justify-between items-start mb-8">
               <div>
@@ -832,7 +836,7 @@ export default function BillingPage() {
               </div>
             )}
           </div>
-        </button>
+        </div>
       )}
 
       <Modal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false, message: '' })} title={modal.title} onConfirm={modal.onConfirm} confirmText={modal.confirmText} showCancel={modal.showCancel}>{modal.message}</Modal>
