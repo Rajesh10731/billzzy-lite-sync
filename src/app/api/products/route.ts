@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next"; // 1. IMPORT getServerSession
 import { authOptions } from "@/lib/auth";          // 2. IMPORT your existing authOptions
 import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
+import Service from '@/models/Service'; 
 import { NextRequest, NextResponse } from 'next/server';
 
 // --- Your existing interfaces (no changes needed here) ---
@@ -90,9 +91,9 @@ export async function GET(request: NextRequest) {
 
 // POST a new product (handles both single and batch) for a specific tenant
 export async function POST(request: NextRequest) {
-  // 3. GET THE SESSION using getServerSession with your authOptions
   const session = await getServerSession(authOptions);
   const tenantId = session?.user?.email;
+  const isPro = session?.user?.plan === 'PRO';
 
   // Protect the route: ensure the user is authenticated
   if (!tenantId) {
@@ -103,6 +104,30 @@ export async function POST(request: NextRequest) {
     await dbConnect();
     const body: IProductInput | IProductInput[] = await request.json();
     console.log("Received Product Data:", JSON.stringify(body, null, 2));
+
+    if (!isPro) {
+      // Count existing products
+      const productCount = await Product.countDocuments({ tenantId });
+      // Count existing services
+      const serviceCount = await Service.countDocuments({ tenantId });
+      const totalItems = productCount + serviceCount;
+
+      // If they already have 1 or more items, block creation
+      if (totalItems >= 1) {
+        return NextResponse.json(
+          { message: 'Free tier limit reached. You can only have 1 item (Product or Service). Please upgrade to Pro.' },
+          { status: 403 }
+        );
+      }
+
+      // If they are trying to batch upload multiple items on free tier, block it
+      if (Array.isArray(body) && body.length > 1) {
+        return NextResponse.json(
+            { message: 'Free tier allows only 1 item total. Batch upload is a Pro feature.' },
+            { status: 403 }
+          );
+      }
+    }
 
     if (Array.isArray(body)) {
       const productsWithTenant = body.map(product => ({
