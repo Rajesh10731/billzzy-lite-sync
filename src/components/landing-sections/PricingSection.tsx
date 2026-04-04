@@ -262,7 +262,7 @@ export default function PricingSection() {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 border border-purple-100 text-[#5a4fcf] font-semibold text-xs uppercase tracking-wide mb-6 shadow-sm">
             <FaCrown className="text-[10px]" /> Simple Subscription
           </div>
-          <h2 className="text-4xl md:text-6xl font-extrabold text-gray-900 mb-6 leading-tight tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-6xl font-extrabold text-gray-900 mb-6 leading-tight tracking-tight">
             Plans for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#5a4fcf] to-[#8c82fc]">Every Business</span>
           </h2>
           <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto">
@@ -280,7 +280,7 @@ export default function PricingSection() {
                 <div className="absolute -inset-1 bg-gradient-to-r from-[#5a4fcf] via-[#7d73e6] to-blue-400 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
               )}
 
-              <div className={`relative flex flex-col h-full bg-white rounded-3xl p-6 md:p-10 border ${
+              <div className={`relative flex flex-col h-full bg-white rounded-3xl p-5 sm:p-6 md:p-10 border ${
                 plan.isPro ? 'border-[#5a4fcf]/20 shadow-2xl' : 'border-gray-100 shadow-xl'
               }`}>
                 
@@ -362,7 +362,7 @@ export default function PricingSection() {
         </div>
 
         {/* Pro Feature Highlights */}
-        <div className="mt-20 flex flex-wrap justify-center gap-10 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
+        <div className="mt-16 md:mt-20 flex flex-wrap justify-center gap-6 sm:gap-10 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
              <div className="flex items-center gap-3 text-sm font-bold text-gray-700">
                 <div className="p-2 bg-green-50 rounded-lg text-green-600"><FaWhatsapp className="text-xl" /></div>
                 Own WhatsApp API
