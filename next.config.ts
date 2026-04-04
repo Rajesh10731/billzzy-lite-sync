@@ -42,7 +42,6 @@ const nextConfig: NextConfig = {
           "**/public/sw.js",
           "**/public/workbox-*.js",
           "**/public/sw.js.map",
-          "C:/**", // Explicitly ignore C: if Next.js tries to watch it
           "**/.next/**",
         ],
       };
@@ -53,7 +52,7 @@ const nextConfig: NextConfig = {
 
 const pwaConfig = withPWA({
   dest: "public",
-  disable: false,
+  disable: process.env.NODE_ENV === 'development',
   register: true,
   skipWaiting: true,
   // @ts-expect-error - importScripts is not in NextConfig type but required for next-pwa
