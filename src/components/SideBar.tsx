@@ -110,10 +110,6 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
             <Package className="h-5 w-5" /><span>Inventory</span>
           </NavLink>
 
-          <NavLink href="/services" setIsMobileOpen={setIsMobileOpen} isActive={pathname === '/services'}>
-            <Briefcase className="h-5 w-5" /><span>Services</span>
-          </NavLink>
-
           <NavLink href="/billing" setIsMobileOpen={setIsMobileOpen} isActive={pathname === '/billing'}>
             <CreditCard className="h-5 w-5" /><span>Billing</span>
           </NavLink>
