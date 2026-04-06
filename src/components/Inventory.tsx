@@ -3,7 +3,7 @@
 import React, { useState, useEffect, FC, ChangeEvent, useRef, useMemo, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import * as XLSX from "xlsx";
-import { Upload, Edit2, Plus, X, Trash2, Search, Image as ImageIcon, Camera, Loader2, Info, AlertTriangle, Package, AlertCircle, Briefcase } from "lucide-react";
+import { Upload, Edit2, Plus, X, Trash2, Search, Image as ImageIcon, Camera, Loader2, Info, AlertTriangle, Package, AlertCircle, Briefcase, Lock } from "lucide-react";
 import { motion, useAnimationControls, PanInfo, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -427,7 +427,7 @@ const ServiceModal: FC<ServiceModalProps> = ({
     </AnimatePresence>
 );
 
-const ServicesView: FC = () => {
+const ServicesView: FC<{ isLocked?: boolean }> = ({ isLocked }) => {
     const { status } = useSession();
     const [services, setServices] = useState<IService[]>([]);
     const [loading, setLoading] = useState(true);
@@ -584,9 +584,11 @@ const ServicesView: FC = () => {
             <ServicesSearchBar value={searchQuery} onChange={setSearchQuery} />
             <ServiceTable services={filteredServices} onEdit={handleOpenModal} onDelete={handleDelete} />
             <MobileServiceList services={filteredServices} swipedId={swipedId} setSwipedId={setSwipedId} onEdit={handleOpenModal} onDelete={handleDelete} />
-            <div className="sm:hidden fixed bottom-24 right-4 z-40">
-                <button onClick={() => handleOpenModal()} className="w-14 h-14 flex items-center justify-center bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white rounded-full shadow-xl border-2 border-white transition-transform active:scale-95"><Plus className="w-6 h-6" /></button>
-            </div>
+            {!isLocked && (
+                <div className="sm:hidden fixed bottom-24 right-4 z-40">
+                    <button onClick={() => handleOpenModal()} className="w-14 h-14 flex items-center justify-center bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white rounded-full shadow-xl border-2 border-white transition-transform active:scale-95"><Plus className="w-6 h-6" /></button>
+                </div>
+            )}
             <ServiceModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editingService={editingService} formData={formData} setFormData={setFormData} submitting={submitting} onSubmit={handleSubmit} existingCategories={existingCategories} showCategoryDropdown={showCategoryDropdown} setShowCategoryDropdown={setShowCategoryDropdown} categoryDropdownRef={categoryDropdownRef as React.RefObject<HTMLDivElement>} />
         </div>
     );
@@ -1184,9 +1186,21 @@ const ProductFormModal: FC<ProductFormModalProps> = ({ product, onSave, onClose 
     );
 };
 
+const LockedOverlay = ({ title }: { title: string }) => (
+    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-[60] flex flex-col items-center justify-center rounded-2xl border border-dashed border-amber-300 m-[-1px]">
+        <div className="bg-white p-3 rounded-full shadow-lg mb-2">
+            <Lock className="w-5 h-5 text-amber-500" />
+        </div>
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Pro Feature</p>
+        <h3 className="text-sm font-bold text-gray-800 mb-1">{title}</h3>
+        <p className="text-[10px] text-gray-500 font-bold">If you want to use both, switch to Pro</p>
+    </div>
+);
+
 const Inventory: FC = () => {
-    const { status: sessionStatus } = useSession();
+    const { data: session, status: sessionStatus } = useSession();
     const [products, setProducts] = useState<Product[]>([]);
+    const [servicesCount, setServicesCount] = useState<number>(0);
     const [fetchStatus, setFetchStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading');
     const [error, setError] = useState<string | null>(null);
     const [modalState, setModalState] = useState<{ isOpen: boolean; product: ProductFormData | null }>({ isOpen: false, product: null });
@@ -1211,7 +1225,6 @@ const Inventory: FC = () => {
         }
     }, [updatedProductInfo]);
 
-    // Summary Statistics Calculation - UPDATED for unique product count
     const stats = useMemo(() => {
         return products.reduce((acc, p) => {
             const threshold = p.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
@@ -1257,6 +1270,12 @@ const Inventory: FC = () => {
                     const data = await response.json();
                     setProducts(Array.isArray(data) ? data : []);
                     setFetchStatus('succeeded');
+
+                    const sRes = await fetch('/api/services');
+                    if (sRes.ok) {
+                        const sData = await sRes.json();
+                        setServicesCount(Array.isArray(sData) ? sData.length : 0);
+                    }
                 } catch (err: unknown) {
                     setError(err instanceof Error ? err.message : 'An unknown error occurred');
                     setFetchStatus('failed');
@@ -1265,9 +1284,10 @@ const Inventory: FC = () => {
             fetchProducts();
         } else if (sessionStatus === 'unauthenticated') {
             setProducts([]);
+            setServicesCount(0);
             setFetchStatus('succeeded');
         }
-    }, [sessionStatus, refreshTrigger]);
+    }, [sessionStatus, refreshTrigger, activeView]);
 
     const handleExcelUpload = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -1367,7 +1387,6 @@ const Inventory: FC = () => {
         try {
             const response = await fetch(`/api/products/${id}`, { method: 'DELETE' });
             if (response.ok || response.status === 404) {
-                // ✅ IMMEDIATE UI UPDATE
                 setProducts(prevProducts => prevProducts.filter(p => p.id !== id));
             } else {
                 throw new Error('Failed to delete product on the server.');
@@ -1422,8 +1441,8 @@ const Inventory: FC = () => {
                         <button
                             onClick={() => setActiveView('inventory')}
                             className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${activeView === 'inventory'
-                                    ? 'bg-indigo-50 ring-1 ring-indigo-200'
-                                    : 'hover:bg-gray-50'
+                                ? 'bg-indigo-50 ring-1 ring-indigo-200'
+                                : 'hover:bg-gray-50'
                                 }`}
                         >
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activeView === 'inventory' ? 'bg-[#5a4fcf] text-white shadow-md' : 'bg-gray-100 text-gray-400'
@@ -1439,8 +1458,8 @@ const Inventory: FC = () => {
                         <button
                             onClick={() => setActiveView('services')}
                             className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${activeView === 'services'
-                                    ? 'bg-indigo-50 ring-1 ring-indigo-200'
-                                    : 'hover:bg-gray-50'
+                                ? 'bg-indigo-50 ring-1 ring-indigo-200'
+                                : 'hover:bg-gray-50'
                                 }`}
                         >
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activeView === 'services' ? 'bg-[#5a4fcf] text-white shadow-md' : 'bg-gray-100 text-gray-400'
@@ -1453,121 +1472,133 @@ const Inventory: FC = () => {
                             </div>
                         </button>
                     </div>
+                </div>
 
-                    <hr className="border-gray-100" />
+                {/* Content Area with Lock Overlay */}
+                <div className="relative">
+                    {session?.user?.plan !== 'PRO' && (
+                        <>
+                            {activeView === 'inventory' && servicesCount > 0 && (
+                                <LockedOverlay title="Inventory Locked" />
+                            )}
+                            {activeView === 'services' && products.length > 0 && (
+                                <LockedOverlay title="Services Locked" />
+                            )}
+                        </>
+                    )}
 
-                    <div className="p-3.5 pt-0">
-                        {activeView === 'inventory' ? (
-                            <div className="space-y-3.5 pt-3.5">
-                                <div className="flex flex-col md:flex-row justify-end md:items-center gap-3">
-                                    <div className="hidden sm:flex items-center gap-2">
-                                        <label className="flex items-center cursor-pointer bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
-                                            <Upload className="w-3.5 h-3.5 mr-1.5" />
-                                            Upload Excel
-                                            <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} className="hidden" />
-                                        </label>
+                    {activeView === 'inventory' ? (
+                        <div className="space-y-4">
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-3.5">
+                                <div className="space-y-3.5">
+                                    <div className="flex flex-col md:flex-row justify-end md:items-center gap-3">
+                                        <div className="hidden sm:flex items-center gap-2">
+                                            <label className="flex items-center cursor-pointer bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
+                                                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                                                Upload Excel
+                                                <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} className="hidden" />
+                                            </label>
+                                            <button
+                                                onClick={() => setModalState({ isOpen: true, product: null })}
+                                                className="flex items-center gap-1 bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" />
+                                                Add Product
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-3">
                                         <button
-                                            onClick={() => setModalState({ isOpen: true, product: null })}
-                                            className="flex items-center gap-1 bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                                            onClick={() => setActiveFilter('all')}
+                                            className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'all'
+                                                ? 'bg-indigo-50 border-indigo-500'
+                                                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                                }`}
                                         >
-                                            <Plus className="w-3.5 h-3.5" />
-                                            Add Product
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                                                <Package className="w-4 h-4" />
+                                            </div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'all' ? 'text-indigo-500' : 'text-gray-400'}`}>All Stock</span>
+                                            <p className={`text-lg font-extrabold ${activeFilter === 'all' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.totalProducts}</p>
+                                            {activeFilter === 'all' && (
+                                                <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                                            )}
+                                        </button>
+
+                                        <button
+                                            onClick={() => setActiveFilter('low')}
+                                            className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'low'
+                                                ? 'bg-orange-50 border-orange-500'
+                                                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'low' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                                                <AlertTriangle className="w-4 h-4" />
+                                            </div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'low' ? 'text-orange-500' : 'text-gray-400'}`}>Low Stock</span>
+                                            <p className={`text-lg font-extrabold ${activeFilter === 'low' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.lowStock}</p>
+                                            {activeFilter === 'low' && (
+                                                <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-orange-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                                            )}
+                                        </button>
+
+                                        <button
+                                            onClick={() => setActiveFilter('out')}
+                                            className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'out'
+                                                ? 'bg-red-50 border-red-500'
+                                                : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'out' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                                                <AlertCircle className="w-4 h-4" />
+                                            </div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'out' ? 'text-red-500' : 'text-gray-400'}`}>Out Stock</span>
+                                            <p className={`text-lg font-extrabold ${activeFilter === 'out' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.outOfStock}</p>
+                                            {activeFilter === 'out' && (
+                                                <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-red-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+                                            )}
                                         </button>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="grid grid-cols-3 gap-3">
-                                    <button
-                                        onClick={() => setActiveFilter('all')}
-                                        className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'all'
-                                            ? 'bg-indigo-50 border-indigo-500'
-                                            : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'all' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
-                                            <Package className="w-4 h-4" />
-                                        </div>
-                                        <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'all' ? 'text-indigo-500' : 'text-gray-400'}`}>All Stock</span>
-                                        <p className={`text-lg font-extrabold ${activeFilter === 'all' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.totalProducts}</p>
-                                        {activeFilter === 'all' && (
-                                            <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-indigo-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
-                                        )}
-                                    </button>
+                            <div className="relative w-full group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 group-focus-within:text-indigo-600 transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder="Search products by name or SKU..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-11 pr-4 py-3 text-sm border-2 border-transparent bg-white rounded-2xl shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-gray-400 font-medium"
+                                />
+                            </div>
 
-                                    <button
-                                        onClick={() => setActiveFilter('low')}
-                                        className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'low'
-                                            ? 'bg-orange-50 border-orange-500'
-                                            : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'low' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
-                                            <AlertTriangle className="w-4 h-4" />
-                                        </div>
-                                        <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'low' ? 'text-orange-500' : 'text-gray-400'}`}>Low Stock</span>
-                                        <p className={`text-lg font-extrabold ${activeFilter === 'low' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.lowStock}</p>
-                                        {activeFilter === 'low' && (
-                                            <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-orange-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
-                                        )}
-                                    </button>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                                {renderContent()}
+                            </div>
 
+                            {session?.user?.plan !== 'PRO' && activeView === 'inventory' && servicesCount > 0 ? null : (
+                                <div className="sm:hidden fixed bottom-24 right-4 flex flex-col items-center gap-3 z-40">
+                                    <label className="w-12 h-12 flex items-center justify-center cursor-pointer bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg border-2 border-white transition-transform active:scale-95">
+                                        <Upload className="w-5 h-5" />
+                                        <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} className="hidden" />
+                                    </label>
                                     <button
-                                        onClick={() => setActiveFilter('out')}
-                                        className={`relative group flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all duration-300 active:scale-95 text-center h-24 ${activeFilter === 'out'
-                                            ? 'bg-red-50 border-red-500'
-                                            : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                                            }`}
+                                        onClick={() => setModalState({ isOpen: true, product: null })}
+                                        className="w-14 h-14 flex items-center justify-center bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white rounded-full shadow-xl border-2 border-white transition-transform active:scale-95"
                                     >
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors ${activeFilter === 'out' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
-                                            <AlertCircle className="w-4 h-4" />
-                                        </div>
-                                        <span className={`text-[10px] font-bold uppercase tracking-wide ${activeFilter === 'out' ? 'text-red-500' : 'text-gray-400'}`}>Out Stock</span>
-                                        <p className={`text-lg font-extrabold ${activeFilter === 'out' ? 'text-gray-900' : 'text-gray-700'}`}>{stats.outOfStock}</p>
-                                        {activeFilter === 'out' && (
-                                            <motion.div layoutId="inventory-active-indicator" className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-red-500" transition={{ type: "spring", stiffness: 300, damping: 30 }} />
-                                        )}
+                                        <Plus className="w-6 h-6" />
                                     </button>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="pt-3.5">
-                                <ServicesView />
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-3.5">
+                            <ServicesView isLocked={session?.user?.plan !== 'PRO' && products.length > 0} />
+                        </div>
+                    )}
                 </div>
-
-                {activeView === 'inventory' && (
-                    <>
-                        <div className="relative w-full group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 group-focus-within:text-indigo-600 transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Search products by name or SKU..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-11 pr-4 py-3 text-sm border-2 border-transparent bg-white rounded-2xl shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-gray-400 font-medium"
-                            />
-                        </div>
-
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                            {renderContent()}
-                        </div>
-
-                        <div className="sm:hidden fixed bottom-24 right-4 flex flex-col items-center gap-3 z-40">
-                            <label className="w-12 h-12 flex items-center justify-center cursor-pointer bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg border-2 border-white transition-transform active:scale-95">
-                                <Upload className="w-5 h-5" />
-                                <input type="file" accept=".xlsx, .xls" onChange={handleExcelUpload} className="hidden" />
-                            </label>
-                            <button
-                                onClick={() => setModalState({ isOpen: true, product: null })}
-                                className="w-14 h-14 flex items-center justify-center bg-[#5a4fcf] hover:bg-[#4a3fb5] text-white rounded-full shadow-xl border-2 border-white transition-transform active:scale-95"
-                            >
-                                <Plus className="w-6 h-6" />
-                            </button>
-                        </div>
-                    </>
-                )}
             </div>
             {modalState.isOpen && <ProductFormModal product={modalState.product} onSave={handleSaveProduct} onClose={() => setModalState({ isOpen: false, product: null })} />}
         </div>

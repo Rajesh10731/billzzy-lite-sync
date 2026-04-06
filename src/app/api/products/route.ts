@@ -126,13 +126,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // If they are trying to batch upload multiple items on free tier, block it
-      if (Array.isArray(body) && body.length > 1) {
-        return NextResponse.json(
-          { message: 'Free tier allows only 1 item total. Batch upload is a Pro feature.' },
-          { status: 403 }
-        );
-      }
     }
 
     if (Array.isArray(body)) {
