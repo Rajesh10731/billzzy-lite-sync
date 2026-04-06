@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next"; // 1. IMPORT getServerSession
 import { authOptions } from "@/lib/auth";          // 2. IMPORT your existing authOptions
 import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
-import Service from '@/models/Service'; 
+import Service from '@/models/Service';
 import { NextRequest, NextResponse } from 'next/server';
 
 // --- Your existing interfaces (no changes needed here) ---
@@ -106,16 +106,22 @@ export async function POST(request: NextRequest) {
     console.log("Received Product Data:", JSON.stringify(body, null, 2));
 
     if (!isPro) {
-      // Count existing products
-      const productCount = await Product.countDocuments({ tenantId });
-      // Count existing services
-      const serviceCount = await Service.countDocuments({ tenantId });
-      const totalItems = productCount + serviceCount;
+      const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+      const tenantQuery = {
+        $or: [
+          { tenantId: tenantId },
+          { tenantId: { $regex: new RegExp(`^${escapedId}$`, 'i') } }
+        ]
+      };
 
-      // If they already have 1 or more items, block creation
-      if (totalItems >= 1) {
+      // Count existing products (case-insensitive)
+      const productCount = await Product.countDocuments(tenantQuery);
+      // Count existing services (case-insensitive)
+      const serviceCount = await Service.countDocuments(tenantQuery);
+      // Mutual Exclusion: If they have services, they cannot add products on the Free Tier
+      if (serviceCount > 0) {
         return NextResponse.json(
-          { message: 'Free tier limit reached. You can only have 1 item (Product or Service). Please upgrade to Pro.' },
+          { message: `Free tier limit: You are already using the Services module. To use Inventory, please remove all services or upgrade to Pro.` },
           { status: 403 }
         );
       }
@@ -123,9 +129,9 @@ export async function POST(request: NextRequest) {
       // If they are trying to batch upload multiple items on free tier, block it
       if (Array.isArray(body) && body.length > 1) {
         return NextResponse.json(
-            { message: 'Free tier allows only 1 item total. Batch upload is a Pro feature.' },
-            { status: 403 }
-          );
+          { message: 'Free tier allows only 1 item total. Batch upload is a Pro feature.' },
+          { status: 403 }
+        );
       }
     }
 

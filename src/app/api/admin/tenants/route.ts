@@ -10,6 +10,10 @@ import Product from '@/models/Product';
 import Purchase from '@/models/purchase';
 import Tenant from '@/models/Tenant';
 import Customer from '@/models/Customer';
+import Service from '@/models/Service';
+import WhatsappSetting from '@/models/WhatsappSetting';
+import Notification from '@/models/Notification';
+import PushSubscription from '@/models/PushSubscription';
 
 // export async function GET(request: Request) {
 //   const session = await getServerSession(authOptions);
@@ -195,6 +199,21 @@ export async function DELETE(request: Request) {
 
     // 5. Delete all customers associated with this tenant
     await Customer.deleteMany({ tenantId: user.email });
+
+    // 6. Delete all services associated with this tenant
+    await Service.deleteMany({ tenantId: user.email });
+
+    // 7. Delete the tenant record itself
+    await Tenant.deleteOne({ ownerEmail: user.email });
+
+    // 8. Delete WhatsApp settings
+    await WhatsappSetting.deleteOne({ shopId: user.email });
+
+    // 9. Delete notifications for this user
+    await Notification.deleteMany({ userId: user._id });
+
+    // 10. Delete push subscriptions
+    await PushSubscription.deleteMany({ userId: user._id });
 
     // Note: If there are any other collections that store tenant-specific data,
     // they should also be deleted here to ensure complete data removal

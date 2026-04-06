@@ -1421,15 +1421,13 @@ const Inventory: FC = () => {
                     <div className="grid grid-cols-2 p-1.5 gap-1.5">
                         <button
                             onClick={() => setActiveView('inventory')}
-                            className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                                activeView === 'inventory' 
-                                ? 'bg-indigo-50 ring-1 ring-indigo-200' 
-                                : 'hover:bg-gray-50'
-                            }`}
+                            className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${activeView === 'inventory'
+                                    ? 'bg-indigo-50 ring-1 ring-indigo-200'
+                                    : 'hover:bg-gray-50'
+                                }`}
                         >
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                activeView === 'inventory' ? 'bg-[#5a4fcf] text-white shadow-md' : 'bg-gray-100 text-gray-400'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activeView === 'inventory' ? 'bg-[#5a4fcf] text-white shadow-md' : 'bg-gray-100 text-gray-400'
+                                }`}>
                                 <Package className="w-5 h-5" />
                             </div>
                             <div className="text-left">
@@ -1440,15 +1438,13 @@ const Inventory: FC = () => {
 
                         <button
                             onClick={() => setActiveView('services')}
-                            className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                                activeView === 'services' 
-                                ? 'bg-indigo-50 ring-1 ring-indigo-200' 
-                                : 'hover:bg-gray-50'
-                            }`}
+                            className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${activeView === 'services'
+                                    ? 'bg-indigo-50 ring-1 ring-indigo-200'
+                                    : 'hover:bg-gray-50'
+                                }`}
                         >
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                activeView === 'services' ? 'bg-[#5a4fcf] text-white shadow-md' : 'bg-gray-100 text-gray-400'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activeView === 'services' ? 'bg-[#5a4fcf] text-white shadow-md' : 'bg-gray-100 text-gray-400'
+                                }`}>
                                 <Briefcase className="w-5 h-5" />
                             </div>
                             <div className="text-left">
@@ -1457,7 +1453,7 @@ const Inventory: FC = () => {
                             </div>
                         </button>
                     </div>
-                    
+
                     <hr className="border-gray-100" />
 
                     <div className="p-3.5 pt-0">

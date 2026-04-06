@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import dbConnect from '@/lib/mongodb';
 import Service from '@/models/Service';
+import Product from '@/models/Product';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     await dbConnect();
     const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
-    
+
     const services = await Service.find({
       $or: [
         { tenantId: tenantId },
@@ -49,7 +50,33 @@ export async function POST(request: NextRequest) {
   try {
     await dbConnect();
     const body = await request.json();
-    
+
+    // --- FREE TIER LIMIT ENFORCEMENT ---
+    const user = await import('@/models/User').then(m => m.default.findOne({ email: tenantId }));
+    const isPro = user?.plan === 'PRO';
+
+    if (!isPro) {
+      const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+      const tenantQuery = {
+        $or: [
+          { tenantId: tenantId },
+          { tenantId: { $regex: new RegExp(`^${escapedId}$`, 'i') } }
+        ]
+      };
+
+      // Count existing products (case-insensitive)
+      const productCount = await Product.countDocuments(tenantQuery);
+      // Count existing services (case-insensitive)
+      const serviceCount = await Service.countDocuments(tenantQuery);
+      // Mutual Exclusion: If they have products, they cannot add services on the Free Tier
+      if (productCount > 0) {
+        return NextResponse.json(
+          { message: `Free tier limit: You are already using the Inventory module. To use Services, please remove all products or upgrade to Pro.` },
+          { status: 403 }
+        );
+      }
+    }
+
     const newService = await Service.create({
       ...body,
       tenantId: tenantId
