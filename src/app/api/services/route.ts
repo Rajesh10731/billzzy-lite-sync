@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import dbConnect from '@/lib/mongodb';
 import Service from '@/models/Service';
-import Product from '@/models/Product';
+// import Product from '@/models/Product';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -56,21 +56,10 @@ export async function POST(request: NextRequest) {
     const isPro = user?.plan === 'PRO';
 
     if (!isPro) {
-      const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
-      const tenantQuery = {
-        $or: [
-          { tenantId: tenantId },
-          { tenantId: { $regex: new RegExp(`^${escapedId}$`, 'i') } }
-        ]
-      };
-
-      // Count existing products (case-insensitive)
-      const productCount = await Product.countDocuments(tenantQuery);
-      // Removed unused serviceCount
-      // Mutual Exclusion: If they have products, they cannot add services on the Free Tier
-      if (productCount > 0) {
+      // Unified Module Selection: If they have selected Inventory, they cannot add services on the Free Tier
+      if (user?.selectedModule === 'INVENTORY') {
         return NextResponse.json(
-          { message: `Free tier limit: You are already using the Inventory module. To use Services, please remove all products or upgrade to Pro.` },
+          { message: `Free tier limit: Your active module is set to Inventory. To use Services, please switch your module in Settings or upgrade to Pro.` },
           { status: 403 }
         );
       }

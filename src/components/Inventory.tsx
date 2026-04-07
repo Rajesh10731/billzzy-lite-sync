@@ -3,7 +3,7 @@
 import React, { useState, useEffect, FC, ChangeEvent, useRef, useMemo, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import * as XLSX from "xlsx";
-import { Upload, Edit2, Plus, X, Trash2, Search, Image as ImageIcon, Camera, Loader2, Info, AlertTriangle, Package, AlertCircle, Briefcase, Lock } from "lucide-react";
+import { Upload, Edit2, Plus, X, Trash2, Search, Image as ImageIcon, Camera, Loader2, Info, AlertTriangle, Package, Briefcase, Lock, AlertCircle } from "lucide-react";
 import { motion, useAnimationControls, PanInfo, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -1191,16 +1191,15 @@ const LockedOverlay = ({ title }: { title: string }) => (
         <div className="bg-white p-3 rounded-full shadow-lg mb-2">
             <Lock className="w-5 h-5 text-amber-500" />
         </div>
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Pro Feature</p>
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Free Tier Selection</p>
         <h3 className="text-sm font-bold text-gray-800 mb-1">{title}</h3>
-        <p className="text-[10px] text-gray-500 font-bold">If you want to use both, switch to Pro</p>
+        <p className="text-[10px] text-gray-500 font-bold">Switch your active module in Settings</p>
     </div>
 );
 
 const Inventory: FC = () => {
-    const { data: session, status: sessionStatus } = useSession();
+    const { data: session, status: sessionStatus, update } = useSession();
     const [products, setProducts] = useState<Product[]>([]);
-    const [servicesCount, setServicesCount] = useState<number>(0);
     const [fetchStatus, setFetchStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading');
     const [error, setError] = useState<string | null>(null);
     const [modalState, setModalState] = useState<{ isOpen: boolean; product: ProductFormData | null }>({ isOpen: false, product: null });
@@ -1217,6 +1216,12 @@ const Inventory: FC = () => {
     }, []);
 
     useEffect(() => { setIsMounted(true); }, []);
+ 
+    useEffect(() => {
+        if (sessionStatus === 'authenticated') {
+            update();
+        }
+    }, [sessionStatus, update]);
 
     useEffect(() => {
         if (updatedProductInfo) {
@@ -1224,18 +1229,6 @@ const Inventory: FC = () => {
             return () => clearTimeout(timer);
         }
     }, [updatedProductInfo]);
-
-    const stats = useMemo(() => {
-        return products.reduce((acc, p) => {
-            const threshold = p.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
-            if (p.quantity === 0) {
-                acc.outOfStock++;
-            } else if (p.quantity <= threshold) {
-                acc.lowStock++;
-            }
-            return acc;
-        }, { totalProducts: products.length, lowStock: 0, outOfStock: 0 });
-    }, [products]);
 
     const filteredProducts = useMemo(() => {
         let result = products;
@@ -1270,12 +1263,6 @@ const Inventory: FC = () => {
                     const data = await response.json();
                     setProducts(Array.isArray(data) ? data : []);
                     setFetchStatus('succeeded');
-
-                    const sRes = await fetch('/api/services');
-                    if (sRes.ok) {
-                        const sData = await sRes.json();
-                        setServicesCount(Array.isArray(sData) ? sData.length : 0);
-                    }
                 } catch (err: unknown) {
                     setError(err instanceof Error ? err.message : 'An unknown error occurred');
                     setFetchStatus('failed');
@@ -1284,7 +1271,6 @@ const Inventory: FC = () => {
             fetchProducts();
         } else if (sessionStatus === 'unauthenticated') {
             setProducts([]);
-            setServicesCount(0);
             setFetchStatus('succeeded');
         }
     }, [sessionStatus, refreshTrigger, activeView]);
@@ -1478,11 +1464,11 @@ const Inventory: FC = () => {
                 <div className="relative">
                     {session?.user?.plan !== 'PRO' && (
                         <>
-                            {activeView === 'inventory' && servicesCount > 0 && (
-                                <LockedOverlay title="Inventory Locked" />
+                            {activeView === 'inventory' && session?.user?.selectedModule === 'SERVICE' && (
+                                <LockedOverlay title="Inventory Inactive" />
                             )}
-                            {activeView === 'services' && products.length > 0 && (
-                                <LockedOverlay title="Services Locked" />
+                            {activeView === 'services' && session?.user?.selectedModule === 'INVENTORY' && (
+                                <LockedOverlay title="Services Inactive" />
                             )}
                         </>
                     )}
@@ -1578,7 +1564,7 @@ const Inventory: FC = () => {
                                 {renderContent()}
                             </div>
 
-                            {session?.user?.plan !== 'PRO' && activeView === 'inventory' && servicesCount > 0 ? null : (
+                            {session?.user?.plan !== 'PRO' && (activeView === 'inventory' && session?.user?.selectedModule === 'SERVICE') ? null : (
                                 <div className="sm:hidden fixed bottom-24 right-4 flex flex-col items-center gap-3 z-40">
                                     <label className="w-12 h-12 flex items-center justify-center cursor-pointer bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg border-2 border-white transition-transform active:scale-95">
                                         <Upload className="w-5 h-5" />
@@ -1595,7 +1581,7 @@ const Inventory: FC = () => {
                         </div>
                     ) : (
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-3.5">
-                            <ServicesView isLocked={session?.user?.plan !== 'PRO' && products.length > 0} />
+                            <ServicesView isLocked={session?.user?.plan !== 'PRO' && session?.user?.selectedModule === 'INVENTORY'} />
                         </div>
                     )}
                 </div>

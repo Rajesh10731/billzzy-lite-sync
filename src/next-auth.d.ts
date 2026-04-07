@@ -15,6 +15,7 @@ declare module "next-auth" {
             tenantId?: string
             phoneNumber?: string
             plan: 'FREE' | 'PRO';
+            selectedModule: 'INVENTORY' | 'SERVICE';
             features: {
                 productAI: boolean;
                 serviceAI: boolean;
@@ -28,6 +29,7 @@ declare module "next-auth" {
         tenantId?: string
         phoneNumber?: string
         plan: 'FREE' | 'PRO';
+        selectedModule: 'INVENTORY' | 'SERVICE';
         features: {
             productAI: boolean;
             serviceAI: boolean;
@@ -45,6 +47,7 @@ declare module "next-auth/jwt" {
         phoneNumber?: string
         email?: string
         plan: 'FREE' | 'PRO';
+        selectedModule: 'INVENTORY' | 'SERVICE';
         features: {
             productAI: boolean;
             serviceAI: boolean;

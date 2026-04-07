@@ -18,6 +18,7 @@ export interface IUser extends Document {
   address?: string; // Personal address
   defaultCountryCode?: string; // Default country for phone numbers
   plan: 'FREE' | 'PRO';
+  selectedModule: 'INVENTORY' | 'SERVICE';
   features: {
     productAI: boolean;
     serviceAI: boolean;
@@ -109,6 +110,11 @@ const UserSchema: Schema = new Schema({
     type: String,
     enum: ['FREE', 'PRO'],
     default: 'FREE',
+  },
+  selectedModule: {
+    type: String,
+    enum: ['INVENTORY', 'SERVICE'],
+    default: 'INVENTORY',
   },
   features: {
     productAI: {

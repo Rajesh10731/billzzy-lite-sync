@@ -15,7 +15,7 @@ export async function GET() {
         await dbConnect();
 
         const user = await User.findOne({ email: (session.user as { email: string }).email })
-            .select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode plan features');
+            .select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode plan selectedModule features');
 
         if (!user) {
             return NextResponse.json({ message: 'User not found' }, { status: 404 });
@@ -61,7 +61,7 @@ export async function PUT(request: Request) {
                 defaultCountryCode
             },
             { new: true }
-        ).select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode');
+        ).select('name email phoneNumber address shopName shopAddress merchantUpiId defaultCountryCode selectedModule');
 
         console.log("PUT /api/users/settings - Updated User:", JSON.stringify(updatedUser, null, 2));
 

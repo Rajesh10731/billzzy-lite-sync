@@ -48,33 +48,57 @@ async function requestNotificationPermission() {
 async function waitForServiceWorkerActive(reg: ServiceWorkerRegistration): Promise<ServiceWorkerRegistration> {
   console.log("⏳ Waiting for Service Worker to be fully ACTIVE...");
   
-  // Update to ensure no stale worker
-  try { await reg.update(); } catch (e) { console.warn("SW Update failed (ignored)", e); }
-
+  // Early return if already active
   if (reg.active) return reg;
 
   return new Promise((resolve, reject) => {
     let hasResolved = false;
+    
+    // Increased timeout for slow networks/devices
     const timeout = setTimeout(() => {
       if (hasResolved) return;
       clearInterval(interval);
+      console.error("❌ SW Activation Timeout after 30s. Manual intervention might be needed.");
       reject(new Error("Service Worker took too long to activate. Please refresh the page."));
-    }, 15000);
+    }, 30000);
 
     const finish = (r: ServiceWorkerRegistration) => {
       if (hasResolved) return;
       hasResolved = true;
       clearInterval(interval);
       clearTimeout(timeout);
+      console.log("✅ Service Worker is now ACTIVE.");
       resolve(r);
     };
 
     const interval = setInterval(() => {
-      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      // Force skip-waiting if we're stuck in waiting/installing
+      if (reg.waiting) {
+        console.log("🚀 Found WAITING worker, sending SKIP_WAITING...");
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+      
       if (reg.active) finish(reg);
-    }, 250);
+    }, 500);
 
-    navigator.serviceWorker.ready.then(r => r.active && finish(r)).catch(() => {});
+    // Listen for state changes
+    const checkState = (sw: ServiceWorker | null) => {
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        console.log(`📡 SW state changed: ${sw.state}`);
+        if (sw.state === 'activated' || reg.active) finish(reg);
+        if (sw.state === 'installed' && reg.waiting) {
+           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    };
+
+    checkState(reg.installing);
+    checkState(reg.waiting);
+
+    navigator.serviceWorker.ready.then(r => {
+        if (r.active) finish(r);
+    }).catch(() => {});
   });
 }
 

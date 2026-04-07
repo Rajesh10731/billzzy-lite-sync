@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { userId, plan, features } = await req.json();
+    const { userId, plan, features, selectedModule } = await req.json();
 
     await dbConnect();
 
@@ -22,7 +22,8 @@ export async function POST(req: Request) {
       { 
         $set: { 
           plan: plan, // 'FREE' or 'PRO'
-          features: features // e.g., { productAI: true, serviceAI: true, customWhatsapp: true }
+          features: features, // e.g., { productAI: true, serviceAI: true, customWhatsapp: true }
+          selectedModule: selectedModule // 'INVENTORY' or 'SERVICE'
         } 
       },
       { new: true }

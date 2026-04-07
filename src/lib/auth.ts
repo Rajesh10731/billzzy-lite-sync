@@ -21,6 +21,7 @@ function mapUserToToken(token: JWT, user: NextAuthUser) {
   token.tenantId = user.tenantId;
   token.phoneNumber = user.phoneNumber;
   token.plan = user.plan || 'FREE';
+  token.selectedModule = (user as unknown as { selectedModule?: string }).selectedModule || 'INVENTORY';
   token.features = user.features || { productAI: false, serviceAI: false, customWhatsapp: false };
 }
 
@@ -32,6 +33,7 @@ async function syncTokenWithDb(token: JWT, overwriteId = false) {
 
   if (overwriteId) token.id = dbUser._id.toString();
   token.plan = dbUser.plan || 'FREE';
+  token.selectedModule = dbUser.selectedModule || 'INVENTORY';
   token.features = {
     productAI: dbUser.features?.productAI || false,
     serviceAI: dbUser.features?.serviceAI || false,
@@ -80,6 +82,7 @@ export const authOptions: NextAuthOptions = {
             role: user.role || 'user',
             tenantId: user.tenantId?.toString() || user.subdomain || user.email,
             phoneNumber: user.phoneNumber, plan: user.plan || 'FREE',
+            selectedModule: user.selectedModule || 'INVENTORY',
             features: user.features || { productAI: false, serviceAI: false, customWhatsapp: false }
           };
         } catch {
@@ -92,19 +95,18 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
 
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user) {
         const u = user as NextAuthUser;
         mapUserToToken(token, u);
-
-        const shouldSync = token.email && (trigger === 'signIn' || trigger === 'signUp' || !u.plan);
-        if (shouldSync) await syncTokenWithDb(token, true);
       }
-
-      if (trigger === "update") {
+ 
+      // ALWAYS sync with DB to ensure admin changes (plan, selectedModule) are reflected immediately
+      // on next session check/navigation without requiring re-login.
+      if (token.email) {
         await syncTokenWithDb(token, false);
       }
-
+ 
       return token;
     },
     async session({ session, token }) {
@@ -117,6 +119,7 @@ export const authOptions: NextAuthOptions = {
         session.user.tenantId = token.tenantId as string;
         session.user.phoneNumber = token.phoneNumber as string;
         session.user.plan = token.plan as 'FREE' | 'PRO';
+        session.user.selectedModule = token.selectedModule as 'INVENTORY' | 'SERVICE';
         session.user.features = token.features as IUser['features'];
       }
       return session;

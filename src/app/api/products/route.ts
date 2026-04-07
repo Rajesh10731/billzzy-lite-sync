@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next"; // 1. IMPORT getServerSession
 import { authOptions } from "@/lib/auth";          // 2. IMPORT your existing authOptions
 import dbConnect from '@/lib/mongodb';
 import Product from '@/models/Product';
-import Service from '@/models/Service';
+// import Service from '@/models/Service';
 import { NextRequest, NextResponse } from 'next/server';
 
 // --- Your existing interfaces (no changes needed here) ---
@@ -106,25 +106,13 @@ export async function POST(request: NextRequest) {
     console.log("Received Product Data:", JSON.stringify(body, null, 2));
 
     if (!isPro) {
-      const escapedId = tenantId.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
-      const tenantQuery = {
-        $or: [
-          { tenantId: tenantId },
-          { tenantId: { $regex: new RegExp(`^${escapedId}$`, 'i') } }
-        ]
-      };
-
-      // Removed unused productCount
-      // Count existing services (case-insensitive)
-      const serviceCount = await Service.countDocuments(tenantQuery);
-      // Mutual Exclusion: If they have services, they cannot add products on the Free Tier
-      if (serviceCount > 0) {
+      // Unified Module Selection: If they have selected Services, they cannot add products on the Free Tier
+      if (session?.user?.selectedModule === 'SERVICE') {
         return NextResponse.json(
-          { message: `Free tier limit: You are already using the Services module. To use Inventory, please remove all services or upgrade to Pro.` },
+          { message: `Free tier limit: Your active module is set to Services. To use Inventory, please switch your module in Settings or upgrade to Pro.` },
           { status: 403 }
         );
       }
-
     }
 
     if (Array.isArray(body)) {

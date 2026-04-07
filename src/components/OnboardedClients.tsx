@@ -23,6 +23,7 @@ interface User {
   apiKey?: string;
   billzzyHook?: string; // New Field
   plan: 'FREE' | 'PRO';
+  selectedModule: 'INVENTORY' | 'SERVICE';
   features: {
     productAI: boolean;
     serviceAI: boolean;
@@ -262,6 +263,33 @@ export default function OnboardedClients() {
     }
   };
 
+  const handleUpdateModule = async (user: User, newModule: 'INVENTORY' | 'SERVICE') => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/admin/users/update-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: user._id, 
+          plan: user.plan, 
+          features: user.features,
+          selectedModule: newModule 
+        }),
+      });
+ 
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update module');
+ 
+      setUsers(users.map(u => u._id === user._id ? { ...u, selectedModule: newModule } : u));
+      alert(`User ${user.name}'s active module successfully set to ${newModule}.`);
+ 
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onboardedUsers = users.filter((user: User) =>
     (user.onboarded) &&
     (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -425,6 +453,7 @@ export default function OnboardedClients() {
                 <th className="px-6 py-4 text-left">PIN</th>
                 <th className="px-6 py-4 text-left">Usage (Bills)</th>
                 <th className="px-6 py-4 text-left">Earnings</th>
+                <th className="px-6 py-4 text-left text-indigo-600">Active Module</th>
                 <th className="px-6 py-4 text-left text-indigo-600">Plan</th>
                 <th className="px-6 py-4 text-left text-green-600">Status</th>
                 <th className="px-6 py-4 text-left">Actions</th>
@@ -569,6 +598,24 @@ export default function OnboardedClients() {
                     <div className="text-sm text-gray-900 font-bold bg-green-50/50 px-2 py-1 rounded-lg inline-block border border-green-100/50">
                       ₹{((user.billCount || 0) * 0.15).toFixed(2)}
                     </div>
+                  </td>
+
+                  {/* ACTIVE MODULE */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {user.plan === 'PRO' ? (
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                        Full Access
+                      </span>
+                    ) : (
+                      <select
+                        value={user.selectedModule || 'INVENTORY'}
+                        onChange={(e) => handleUpdateModule(user, e.target.value as 'INVENTORY' | 'SERVICE')}
+                        className="text-[10px] font-bold bg-white border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 uppercase tracking-tight"
+                      >
+                        <option value="INVENTORY">Inventory</option>
+                        <option value="SERVICE">Services</option>
+                      </select>
+                    )}
                   </td>
 
                   {/* PLAN */}
