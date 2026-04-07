@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Clock, Sparkles, TrendingUp, ShoppingBag, Lightbulb, Loader2, RefreshCw, Bot, AlertTriangle, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface InsightsData {
+export interface InsightsData {
     salesInsight: string;
     peakTime: string;
     dailyPeaks?: Record<string, string>;
@@ -22,11 +22,18 @@ interface InsightsData {
     offPeakTip?: string;
 }
 
-export default function AIInsights({ mode = "product" }: { mode?: "product" | "service" }) {
-    const [insights, setInsights] = useState<InsightsData | null>(null);
-    const [loading, setLoading] = useState(true);
+export default function AIInsights({ mode = "product", data }: { mode?: "product" | "service", data?: InsightsData | null }) {
+    const [insights, setInsights] = useState<InsightsData | null>(data || null);
+    const [loading, setLoading] = useState(!data);
     const [error, setError] = useState<string | null>(null);
     const [showDaily, setShowDaily] = useState(false);
+
+    useEffect(() => {
+        if (data) {
+            setInsights(data);
+            setLoading(false);
+        }
+    }, [data]);
 
     const fetchInsights = useCallback(async () => {
         setLoading(true);
@@ -47,8 +54,10 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
     }, [mode]);
 
     useEffect(() => {
-        fetchInsights();
-    }, [fetchInsights]);
+        if (!data) {
+            fetchInsights();
+        }
+    }, [fetchInsights, data]);
 
     return (
         <motion.div 
@@ -235,7 +244,7 @@ function InsightRow({ icon, text }: { icon: React.ReactNode; text: string }) {
                 {icon}
             </div>
             <div className="text-[14px] text-slate-600 font-medium leading-snug">
-                <Typewriter text={text} delay={50} />
+                {text}
             </div>
         </div>
     );
@@ -281,7 +290,7 @@ function GuidanceRow({ text }: { text: string }) {
             </div>
             <div className="text-[14px] text-slate-600 font-medium leading-snug">
                 <span className="font-black text-slate-900 uppercase text-[11px] tracking-wider mr-1.5 opacity-70">Guidance:</span>
-                <Typewriter text={text} delay={50} />
+                {text}
             </div>
         </div>
     );
@@ -301,7 +310,7 @@ function OffPeakStrategy({ tip }: { tip: string }) {
             </div>
             <div className="text-[14px] text-slate-700 font-medium leading-snug relative z-10">
                 <span className="font-black text-indigo-900 uppercase text-[11px] tracking-wider mr-1.5 opacity-70">Off-Peak Strategy:</span>
-                <Typewriter text={tip} delay={50} />
+                {tip}
             </div>
         </motion.div>
     );
@@ -340,37 +349,3 @@ function InsightFooter({ insights }: { insights: InsightsData | null }) {
     );
 }
 
-// Typing Effect Component for that "Bot" feel
-function Typewriter({ text, delay = 50 }: { text: string; delay?: number }) {
-    const [displayedText, setDisplayedText] = useState("");
-    
-    useEffect(() => {
-        let isActive = true;
-        setDisplayedText(""); 
-        
-        async function startTyping() {
-            if (!text) return;
-            for (let i = 1; i <= text.length; i++) {
-                if (!isActive) break;
-                setDisplayedText(text.slice(0, i));
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-        
-        startTyping();
-        return () => { isActive = false; };
-    }, [text, delay]);
-
-    return (
-        <span>
-            {displayedText}
-            {displayedText.length < text.length && (
-                <motion.span 
-                    animate={{ opacity: [0, 1, 0] }}
-                    transition={{ duration: 0.8, repeat: Infinity }}
-                    className="inline-block w-1.5 h-4 ml-0.5 bg-indigo-500 align-middle"
-                />
-            )}
-        </span>
-    );
-}

@@ -27,6 +27,7 @@ export interface IUser extends Document {
     lastCallDate: Date;
     productResult?: Record<string, unknown>;
     serviceResult?: Record<string, unknown>;
+    unifiedResult?: Record<string, unknown>;
   };
 }
 
@@ -126,6 +127,7 @@ const UserSchema: Schema = new Schema({
     lastCallDate: { type: Date, default: null },
     productResult: { type: Object, default: null },
     serviceResult: { type: Object, default: null },
+    unifiedResult: { type: Object, default: null },
   },
 }, {
   timestamps: true,

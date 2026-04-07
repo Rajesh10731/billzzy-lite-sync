@@ -7,7 +7,7 @@ import { Package, AlertTriangle, Loader2, Lock } from "lucide-react";
 import { IUser } from "@/models/User";
 import dynamic from "next/dynamic";
 import SalesSummary from "./SalesSummary";
-import AIInsights from "./AIInsights";
+import AIInsights, { InsightsData } from "./AIInsights";
 
 const StockStyleSalesChart = dynamic(() => import("./StockStyleSalesChart"), { ssr: false });
 
@@ -101,6 +101,32 @@ export default function Dashboard() {
     customWhatsapp: isPro || dbData?.features?.customWhatsapp || session?.user?.features?.customWhatsapp || false
   };
 
+  const [aiData, setAiData] = useState<InsightsData | null>(null);
+
+  // Initialize aiData from settings if available
+  useEffect(() => {
+    if (dbData?.aiUsage && !aiData) {
+      const cached = dbData.aiUsage.unifiedResult || dbData.aiUsage.productResult || dbData.aiUsage.serviceResult;
+      if (cached) setAiData(cached as unknown as InsightsData);
+    }
+  }, [dbData, aiData]);
+
+  useEffect(() => {
+    if (status === "authenticated" && (features.productAI || features.serviceAI)) {
+      // Only trigger API if we don't have today's data yet
+      const today = new Date().toISOString().split('T')[0];
+      const lastCall = dbData?.aiUsage?.lastCallDate ? new Date(dbData.aiUsage.lastCallDate).toISOString().split('T')[0] : null;
+      
+      if (lastCall !== today) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        fetch(`/api/ai-insights?tz=${encodeURIComponent(tz)}&type=all`)
+          .then(res => res.json())
+          .then(data => setAiData(data))
+          .catch(err => console.error("AI Insights Error:", err));
+      }
+    }
+  }, [status, features.productAI, features.serviceAI, dbData?.aiUsage?.lastCallDate]);
+
   const LockedFeature = ({ title }: { title: string }) => (
     <div className="relative group cursor-pointer overflow-hidden rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 flex flex-col items-center justify-center min-h-[120px]">
       <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-10 flex flex-col items-center justify-center">
@@ -121,8 +147,8 @@ export default function Dashboard() {
         <SalesSummary enableTabs={false} />
         <StockStyleSalesChart hideTabs />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {features?.productAI ? <AIInsights mode="product" /> : <LockedFeature title="Product AI Insights" />}
-          {features?.serviceAI ? <AIInsights mode="service" /> : <LockedFeature title="Service AI Insights" />}
+          {features?.productAI ? <AIInsights mode="product" data={aiData} /> : <LockedFeature title="Product AI Insights" />}
+          {features?.serviceAI ? <AIInsights mode="service" data={aiData} /> : <LockedFeature title="Service AI Insights" />}
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5">
           <div className="flex items-center gap-2 mb-2.5">

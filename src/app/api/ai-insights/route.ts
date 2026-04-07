@@ -290,20 +290,21 @@ async function getAIInsights(prompt: string): Promise<AIResponse | null> {
  * Merges AI insights with local fallbacks.
  */
 function formatFinalResponse(insights: AIResponse | null, metrics: BusinessMetrics, type: string) {
+    const isAll = type === "all";
     return {
         salesInsight: insights?.salesInsight || `Stable performance, peak at ${metrics.peakTimeStr}.`,
         peakTime: metrics.peakTimeStr,
         dailyPeaks: metrics.dailyPeaks,
-        topProduct: insights?.topProduct || (type !== "service" ? `Top revenue from ${metrics.topProduct}.` : "N/A"),
-        slowProduct: insights?.slowProduct || (type !== "service" ? `Improve ${metrics.slowProduct} sales.` : "N/A"),
-        topService: insights?.topService || (type !== "product" ? `Top revenue from ${metrics.topService}.` : "N/A"),
-        slowService: insights?.slowService || (type !== "product" ? `Improve ${metrics.slowService} sales.` : "N/A"),
+        topProduct: insights?.topProduct || ((isAll || type === "product") ? metrics.topProduct : "N/A"),
+        slowProduct: insights?.slowProduct || ((isAll || type === "product") ? metrics.slowProduct : "N/A"),
+        topService: insights?.topService || ((isAll || type === "service") ? metrics.topService : "N/A"),
+        slowService: insights?.slowService || ((isAll || type === "service") ? metrics.slowService : "N/A"),
         suggestion: insights?.suggestion || (metrics.purchaseSuggestions.length > 0 
             ? `Restock ${metrics.purchaseSuggestions[0].split('(')[0].trim()} and other low items.` 
             : "Maintain current inventory levels and service quality."),
         retargeting: insights?.retargeting || (metrics.atRiskCustomers > 0 ? "Re-engage at-risk customers." : "Engage with loyal customers."),
         churnRate: insights?.churnRate || `${metrics.churnRateVal.toFixed(1)}%`,
-        offPeakTip: insights?.offPeakTip || (type === "service" ? `Offer special deals for ${metrics.quietHours[0]} bookings.` : `Run limited-time flash sales at ${metrics.quietHours[0]}.`),
+        offPeakTip: insights?.offPeakTip || ((isAll || type === "service") ? `Offer special deals for ${metrics.quietHours[0]} bookings.` : `Run limited-time flash sales at ${metrics.quietHours[0]}.`),
         lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isFallback: !insights
     };
@@ -315,7 +316,9 @@ function formatFinalResponse(insights: AIResponse | null, metrics: BusinessMetri
  */
 function generateAIPrompt(metrics: BusinessMetrics, type: string): string {
     const { topProduct, slowProduct, topService, slowService, peakTimeStr, quietHoursStr, churnRateVal, atRiskCustomers, purchaseSuggestions } = metrics;
-    return `You are an AI business ${type === "service" ? "service advisor" : type === "product" ? "inventory advisor" : "advisor"} for small retail shop owners.
+    const isAll = type === "all";
+    
+    return `You are an AI business ${isAll ? "expert advisor for both inventory and services" : type === "service" ? "service advisor" : "inventory advisor"} for small retail shop owners.
 Analyze following data and generate short, professional, and actionable insights. Use perfect spelling and clear business terminology.
 
 Data Summary:
@@ -372,13 +375,22 @@ export async function GET(request: Request) {
         const lastCall = dbUser.aiUsage?.lastCallDate ? new Date(dbUser.aiUsage.lastCallDate).toISOString().split('T')[0] : null;
 
         if (lastCall === today && dbUser.aiUsage) {
+            // Priority 1: Unified result (Best)
+            if (dbUser.aiUsage.unifiedResult) {
+                return NextResponse.json(dbUser.aiUsage.unifiedResult);
+            }
+            // Priority 2: Specific results if requested
             if (type === "product" && dbUser.aiUsage.productResult) {
                 return NextResponse.json(dbUser.aiUsage.productResult);
             }
             if (type === "service" && dbUser.aiUsage.serviceResult) {
                 return NextResponse.json(dbUser.aiUsage.serviceResult);
             }
-            // If they called today but for a different type, block it to save costs as per user req
+            // Priority 3: Any existing result (Better than 429)
+            const fallback = dbUser.aiUsage.productResult || dbUser.aiUsage.serviceResult;
+            if (fallback) return NextResponse.json(fallback);
+
+            // Priority 4: Lock if reached here (should be rare now)
             return NextResponse.json({ message: "1 AI call per day limit reached. Please try again tomorrow." }, { status: 429 });
         }
         // --- END CACHING LOGIC ---
@@ -410,8 +422,9 @@ export async function GET(request: Request) {
         await User.findByIdAndUpdate(dbUser._id, {
             $set: {
                 "aiUsage.lastCallDate": new Date(),
-                "aiUsage.productResult": type === "product" ? finalInsights : null,
-                "aiUsage.serviceResult": type === "service" ? finalInsights : null,
+                "aiUsage.unifiedResult": finalInsights,
+                "aiUsage.productResult": type === "product" ? finalInsights : (dbUser.aiUsage?.productResult || null),
+                "aiUsage.serviceResult": type === "service" ? finalInsights : (dbUser.aiUsage?.serviceResult || null),
             }
         });
 
