@@ -1187,7 +1187,7 @@ const ProductFormModal: FC<ProductFormModalProps> = ({ product, onSave, onClose 
 };
 
 const LockedOverlay = ({ title }: { title: string }) => (
-    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-[60] flex flex-col items-center justify-center rounded-2xl border border-dashed border-amber-300 m-[-1px]">
+    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-30 flex flex-col items-center justify-center rounded-2xl border border-dashed border-amber-300 m-[-1px]">
         <div className="bg-white p-3 rounded-full shadow-lg mb-2">
             <Lock className="w-5 h-5 text-amber-500" />
         </div>
