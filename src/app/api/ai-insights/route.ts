@@ -5,7 +5,7 @@ import dbConnect from "@/lib/mongodb";
 import Sale, { ISale } from "@/models/Sales";
 import Product from "@/models/Product";
 import Service from "@/models/Service";
-import User from "@/models/User";
+import User, { IUser } from "@/models/User";
 
 interface SaleItem {
     name: string;
@@ -14,14 +14,7 @@ interface SaleItem {
     type?: "product" | "service";
 }
 
-interface UserContext {
-    email: string;
-    plan: string;
-    features?: {
-        productAI?: boolean;
-        serviceAI?: boolean;
-    };
-}
+// Removed unused UserContext interface
 
 interface BusinessData {
     salesHistory: ISale[];
@@ -58,14 +51,14 @@ interface AIResponse {
 /**
  * Validates the user session and checks feature gating.
  */
-async function validateUserAndPlan(type: string): Promise<{ user?: UserContext; error?: { message: string; status: number } }> {
+async function validateUserAndPlan(type: string): Promise<{ user?: { email: string; plan: string; features: Record<string, unknown> }; dbUser?: IUser; error?: { message: string; status: number } }> {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
         return { error: { message: "Unauthorized", status: 401 } };
     }
 
     await dbConnect();
-    const dbUser = await User.findOne({ email: session.user.email }).select('plan features');
+    const dbUser = await User.findOne({ email: session.user.email });
     if (!dbUser) {
         return { error: { message: "User not found.", status: 404 } };
     }
@@ -80,7 +73,7 @@ async function validateUserAndPlan(type: string): Promise<{ user?: UserContext; 
         return { error: { message: "Service AI Insight is locked for your plan.", status: 403 } };
     }
 
-    return { user: { email: session.user.email, plan, features } };
+    return { user: { email: session.user.email, plan, features }, dbUser };
 }
 
 /**
@@ -317,7 +310,7 @@ function formatFinalResponse(insights: AIResponse | null, metrics: BusinessMetri
 }
 
 
-        /**
+/**
  * Constructs the prompt for the AI.
  */
 function generateAIPrompt(metrics: BusinessMetrics, type: string): string {
@@ -370,9 +363,25 @@ export async function GET(request: Request) {
         const tz = searchParams.get("tz") || "UTC";
         const type = searchParams.get("type") || "all";
 
-        const { user, error } = await validateUserAndPlan(type);
+        const { user, dbUser, error } = await validateUserAndPlan(type);
         if (error) return NextResponse.json({ message: error.message }, { status: error.status });
-        if (!user) return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+        if (!user || !dbUser) return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+
+        // --- CACHING LOGIC ---
+        const today = new Date().toISOString().split('T')[0];
+        const lastCall = dbUser.aiUsage?.lastCallDate ? new Date(dbUser.aiUsage.lastCallDate).toISOString().split('T')[0] : null;
+
+        if (lastCall === today && dbUser.aiUsage) {
+            if (type === "product" && dbUser.aiUsage.productResult) {
+                return NextResponse.json(dbUser.aiUsage.productResult);
+            }
+            if (type === "service" && dbUser.aiUsage.serviceResult) {
+                return NextResponse.json(dbUser.aiUsage.serviceResult);
+            }
+            // If they called today but for a different type, block it to save costs as per user req
+            return NextResponse.json({ message: "1 AI call per day limit reached. Please try again tomorrow." }, { status: 429 });
+        }
+        // --- END CACHING LOGIC ---
 
         const data = await getBusinessData(user.email);
         const { salesHistory, tenantProducts, tenantServices } = data;
@@ -396,6 +405,15 @@ export async function GET(request: Request) {
         const prompt = generateAIPrompt(metrics, type);
         const insights = await getAIInsights(prompt);
         const finalInsights = formatFinalResponse(insights, metrics, type);
+
+        // Update cache
+        await User.findByIdAndUpdate(dbUser._id, {
+            $set: {
+                "aiUsage.lastCallDate": new Date(),
+                "aiUsage.productResult": type === "product" ? finalInsights : null,
+                "aiUsage.serviceResult": type === "service" ? finalInsights : null,
+            }
+        });
 
         return NextResponse.json(finalInsights);
 

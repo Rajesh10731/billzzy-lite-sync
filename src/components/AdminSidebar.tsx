@@ -58,7 +58,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const pathname = usePathname();
 
   const handleLogout = () => {
-    signOut({ callbackUrl: '/admin' });
+    signOut({ callbackUrl: '/' });
   };
 
   return (

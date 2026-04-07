@@ -34,12 +34,13 @@ export default function AIInsights({ mode = "product" }: { mode?: "product" | "s
         try {
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             const res = await fetch(`/api/ai-insights?tz=${encodeURIComponent(tz)}&type=${mode}`);
-            if (!res.ok) throw new Error("Failed to load insights");
             const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Failed to load insights");
             setInsights(data);
-        } catch (err) {
+        } catch (err: unknown) {
             console.error("AI Insights Error:", err);
-            setError("Could not generate insights at this time.");
+            const errorMessage = err instanceof Error ? err.message : "Could not generate insights at this time.";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }

@@ -23,6 +23,11 @@ export interface IUser extends Document {
     serviceAI: boolean;
     customWhatsapp: boolean;
   };
+  aiUsage?: {
+    lastCallDate: Date;
+    productResult?: Record<string, unknown>;
+    serviceResult?: Record<string, unknown>;
+  };
 }
 
 const UserSchema: Schema = new Schema({
@@ -116,6 +121,11 @@ const UserSchema: Schema = new Schema({
     customWhatsapp: {type: Boolean,
       default: false,
     },
+  },
+  aiUsage: {
+    lastCallDate: { type: Date, default: null },
+    productResult: { type: Object, default: null },
+    serviceResult: { type: Object, default: null },
   },
 }, {
   timestamps: true,

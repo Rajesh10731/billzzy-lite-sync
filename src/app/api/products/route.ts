@@ -114,8 +114,7 @@ export async function POST(request: NextRequest) {
         ]
       };
 
-      // Count existing products (case-insensitive)
-      const productCount = await Product.countDocuments(tenantQuery);
+      // Removed unused productCount
       // Count existing services (case-insensitive)
       const serviceCount = await Service.countDocuments(tenantQuery);
       // Mutual Exclusion: If they have services, they cannot add products on the Free Tier

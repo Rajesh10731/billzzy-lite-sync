@@ -66,8 +66,7 @@ export async function POST(request: NextRequest) {
 
       // Count existing products (case-insensitive)
       const productCount = await Product.countDocuments(tenantQuery);
-      // Count existing services (case-insensitive)
-      const serviceCount = await Service.countDocuments(tenantQuery);
+      // Removed unused serviceCount
       // Mutual Exclusion: If they have products, they cannot add services on the Free Tier
       if (productCount > 0) {
         return NextResponse.json(

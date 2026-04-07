@@ -17,7 +17,6 @@ import {
   ShoppingCart,
   BarChart2,
   Bell,
-  Briefcase,
   User,
 } from 'lucide-react';
 import ProTag from './ui/ProTag';
