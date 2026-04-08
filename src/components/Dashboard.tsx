@@ -83,12 +83,19 @@ export default function Dashboard() {
     if (status === "authenticated") {
       fetch("/api/notifications/engage", { method: "POST" })
         .catch(err => console.error("Engagement Trigger Failed:", err));
-      // Only sync if dbData has been fetched and there's a mismatch
-      if (dbData && session?.user?.plan !== dbData.plan) {
-        update();
+      
+      // Sync session if database state (plan or selectedModule) differs
+      if (dbData) {
+        const planMismatch = session?.user?.plan !== dbData.plan;
+        const moduleMismatch = session?.user?.selectedModule !== dbData.selectedModule;
+        
+        if (planMismatch || moduleMismatch) {
+          console.log('💎 Dashboard Sync: Mismatch detected, updating session...');
+          update();
+        }
       }
     }
-  }, [status, session?.user?.plan, dbData, update]);
+  }, [status, session?.user?.plan, session?.user?.selectedModule, dbData, update]);
 
   // Prioritize fresh database data for features to avoid stale session issues
   // The source of truth is dbData. If not yet loaded, fall back to session.

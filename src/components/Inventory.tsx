@@ -1225,6 +1225,41 @@ const Inventory: FC = () => {
         }
     }, [updatedProductInfo]);
 
+    // 1. Guarded Sync with Database - Ensure frontend session matches admin changes
+    useEffect(() => {
+        if (sessionStatus === 'authenticated') {
+            fetch('/api/users/settings')
+                .then(res => res.json())
+                .then(dbData => {
+                    const sessionModule = session?.user?.selectedModule;
+                    const dbModule = dbData.selectedModule;
+                    const sessionPlan = session?.user?.plan;
+                    const dbPlan = dbData.plan;
+
+                    if ((dbModule && sessionModule !== dbModule) || (dbPlan && sessionPlan !== dbPlan)) {
+                        console.log('💎 Mismatch detected, syncing session with DB...');
+                        update();
+                    }
+                })
+                .catch(err => console.error('Session Sync Failed:', err));
+        }
+    }, [sessionStatus, session?.user?.selectedModule, session?.user?.plan, update]);
+
+    // 2. Auto-switch activeView based on selectedModule
+    useEffect(() => {
+        if (sessionStatus === 'authenticated' && session?.user?.selectedModule) {
+            const targetView = session.user.selectedModule.toLowerCase() as 'inventory' | 'services';
+            // Only switch automatically on initial mount or if user preference changed
+            if (activeView !== targetView && (targetView === 'inventory' || targetView === 'services')) {
+                // To avoid interrupting user, we only switch if we are at 'inventory' (default)
+                // and the user actually has 'SERVICE' as their preferred module.
+                if (activeView === 'inventory' && targetView === 'services') {
+                   setActiveView('services');
+                }
+            }
+        }
+    }, [sessionStatus, session?.user?.selectedModule, activeView]);
+
     const filteredProducts = useMemo(() => {
         let result = products;
 
