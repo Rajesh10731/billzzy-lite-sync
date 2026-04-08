@@ -1217,11 +1217,6 @@ const Inventory: FC = () => {
 
     useEffect(() => { setIsMounted(true); }, []);
  
-    useEffect(() => {
-        if (sessionStatus === 'authenticated') {
-            update();
-        }
-    }, [sessionStatus, update]);
 
     useEffect(() => {
         if (updatedProductInfo) {
