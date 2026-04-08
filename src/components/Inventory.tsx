@@ -1250,6 +1250,14 @@ const Inventory: FC = () => {
         return result;
     }, [products, searchQuery, activeFilter]);
 
+    const stats = useMemo(() => {
+        return {
+            totalProducts: products.length,
+            lowStock: products.filter(p => p.quantity > 0 && p.quantity <= (p.lowStockThreshold ?? LOW_STOCK_THRESHOLD)).length,
+            outOfStock: products.filter(p => p.quantity === 0).length,
+        };
+    }, [products]);
+
     const parentRef = useRef<HTMLDivElement>(null);
     const rowVirtualizer = useVirtualizer({ count: filteredProducts.length, getScrollElement: () => parentRef.current, estimateSize: () => 90, overscan: 5 });
 

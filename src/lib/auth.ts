@@ -17,11 +17,11 @@ const dbName = uri.pathname.substring(1) || 'billzzyDB';
 
 function mapUserToToken(token: JWT, user: NextAuthUser) {
   token.id = user.id;
-  token.role = user.role || 'user';
+  token.role = (user.role || 'user') as 'user' | 'admin' | 'tenant';
   token.tenantId = user.tenantId;
   token.phoneNumber = user.phoneNumber;
-  token.plan = user.plan || 'FREE';
-  token.selectedModule = (user as unknown as { selectedModule?: string }).selectedModule || 'INVENTORY';
+  token.plan = (user.plan || 'FREE') as 'FREE' | 'PRO';
+  token.selectedModule = (user.selectedModule || 'INVENTORY') as 'INVENTORY' | 'SERVICE';
   token.features = user.features || { productAI: false, serviceAI: false, customWhatsapp: false };
 }
 
@@ -32,14 +32,14 @@ async function syncTokenWithDb(token: JWT, overwriteId = false) {
   if (!dbUser) return;
 
   if (overwriteId) token.id = dbUser._id.toString();
-  token.plan = dbUser.plan || 'FREE';
-  token.selectedModule = dbUser.selectedModule || 'INVENTORY';
+  token.plan = (dbUser.plan || 'FREE') as 'FREE' | 'PRO';
+  token.selectedModule = (dbUser.selectedModule || 'INVENTORY') as 'INVENTORY' | 'SERVICE';
   token.features = {
     productAI: dbUser.features?.productAI || false,
     serviceAI: dbUser.features?.serviceAI || false,
     customWhatsapp: dbUser.features?.customWhatsapp || false
   };
-  token.role = dbUser.role || 'user';
+  token.role = (dbUser.role || 'user') as 'user' | 'admin' | 'tenant';
   if (dbUser.phoneNumber) token.phoneNumber = dbUser.phoneNumber;
   if (dbUser.name) token.name = dbUser.name;
 }
@@ -64,7 +64,14 @@ export const authOptions: NextAuthOptions = {
           if (!credentials) return null;
 
           if (credentials.email === process.env.ADMIN_EMAIL && credentials.password === process.env.ADMIN_PASSWORD) {
-            return { id: 'master-admin-01', email: process.env.ADMIN_EMAIL, role: 'admin' as const, plan: 'PRO', features: { productAI: true, serviceAI: true, customWhatsapp: true } };
+            return {
+              id: 'master-admin-01',
+              email: process.env.ADMIN_EMAIL,
+              role: 'admin' as const,
+              plan: 'PRO' as const,
+              selectedModule: 'INVENTORY' as const,
+              features: { productAI: true, serviceAI: true, customWhatsapp: true }
+            };
           }
 
           await dbConnect();
