@@ -1,9 +1,6 @@
 import { getToken, JWT } from 'next-auth/jwt';
 import { NextRequest, NextResponse } from 'next/server';
 
-/**
- * Helper: Handle verification redirects and landing page bypasses
- */
 function handleAuthVerification(token: JWT | null, pathname: string, req: NextRequest) {
   const isAdmin = token?.role === 'admin';
   const hasPhone = token?.phoneNumber && String(token.phoneNumber).trim().length > 0;
@@ -29,10 +26,12 @@ function handleFeatureAccess(token: JWT | null, pathname: string, req: NextReque
 
   const features = token?.features || { productAI: false, serviceAI: false, customWhatsapp: false };
 
-  // A. PRODUCT AI ACCESS
-  if (pathname.startsWith('/api/ai-insights') || pathname.includes('/inventory/ai')) {
-    if (!features.productAI) return blockAccess(req, "Product AI requires a PRO feature upgrade.");
-  }
+      // A. PRODUCT AI ACCESS
+      if (pathname.startsWith('/api/ai-insights') || pathname.includes('/inventory/ai')) {
+        if (!features.productAI) {
+          return blockAccess(req, "Product AI requires a PRO feature upgrade.");
+        }
+      }
 
   // B. SERVICE AI ACCESS
   if (pathname.startsWith('/api/services/ai') || pathname.includes('/services/ai')) {
@@ -75,7 +74,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 1. Allow API Auth & Receipts (Public access)
-  if (pathname.startsWith('/api/auth') || pathname.startsWith('/receipt')) {
+  if (pathname.startsWith('/api/auth') || pathname.startsWith('/receipt')||pathname.startsWith('/api/external')) {
     return NextResponse.next();
   }
 

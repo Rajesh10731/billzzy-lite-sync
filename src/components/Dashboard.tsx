@@ -1,5 +1,5 @@
 // src/components/Dashboard.tsx
-"use client";
+'use client';
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
@@ -9,7 +9,7 @@ import dynamic from "next/dynamic";
 import SalesSummary from "./SalesSummary";
 import AIInsights, { InsightsData } from "./AIInsights";
 
-const StockStyleSalesChart = dynamic(() => import("./StockStyleSalesChart"), { ssr: false });
+const StockStyleSalesChart = dynamic(() => import('./StockStyleSalesChart'), { ssr: false });
 
 interface Product {
   id: string;
@@ -30,22 +30,55 @@ export default function Dashboard() {
   const { data: session, status, update } = useSession();
   const [dbData, setDbData] = useState<Partial<IUser> | null>(null);
   const [inventorySummary, setInventorySummary] = useState<InventorySummary>({
-    inStock: 0, lowStock: 0, outOfStock: 0,
+    inStock: 0,
+    lowStock: 0,
+    outOfStock: 0
   });
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState<string | null>(null);
-
+  // --- NEW: BILLZZY MASTER HANDSHAKE EFFECT ---
   useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/users/settings")
-        .then(res => res.json())
-        .then(data => setDbData(data))
-        .catch(err => console.error("Dashboard Sync Failed:", err));
+    // Only attempt the handshake if the user is fully logged in
+    if (status === 'authenticated') {
+      const syncToken = sessionStorage.getItem('sync_token');
+
+      if (syncToken) {
+        console.log('Found sync token from Master, attempting handshake...');
+
+        fetch('/api/auth/sync-handshake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: syncToken })
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) {
+              console.log('✅ Successfully linked to Billzzy Master!');
+              // Clean up so it doesn't fire again
+              sessionStorage.removeItem('sync_token');
+              const masterUrl =
+                process.env.NEXT_PUBLIC_BILLZZY_MASTER_URL || 'http://localhost:3001';
+              window.location.href = `${masterUrl}/settings?sync=success`;
+            } else {
+              console.error('❌ Handshake failed:', data.error);
+            }
+          })
+          .catch((err) => console.error('❌ Sync Handshake API error:', err));
+      }
+    }
+  }, [status]);
+  // ---------------------------------------------
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetch('/api/users/settings')
+        .then((res) => res.json())
+        .then((data) => setDbData(data))
+        .catch((err) => console.error('Dashboard Sync Failed:', err));
     }
   }, [status]);
 
   useEffect(() => {
-    if (status !== "authenticated") {
+    if (status !== 'authenticated') {
       setIsSummaryLoading(false);
       return;
     }
@@ -54,24 +87,27 @@ export default function Dashboard() {
       setIsSummaryLoading(true);
       setSummaryError(null);
       try {
-        const res = await fetch("/api/products");
-        if (!res.ok) throw new Error("Failed to fetch product data");
+        const res = await fetch('/api/products');
+        if (!res.ok) throw new Error('Failed to fetch product data');
         const products: Product[] = await res.json();
-        const summary: InventorySummary = products.reduce((acc, product) => {
-          const threshold = product.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
-          if (product.quantity === 0) {
-            acc.outOfStock++;
-          } else if (product.quantity <= threshold) {
-            acc.lowStock++;
-          } else {
-            acc.inStock++;
-          }
-          return acc;
-        }, { inStock: 0, lowStock: 0, outOfStock: 0 });
+        const summary: InventorySummary = products.reduce(
+          (acc, product) => {
+            const threshold = product.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
+            if (product.quantity === 0) {
+              acc.outOfStock++;
+            } else if (product.quantity <= threshold) {
+              acc.lowStock++;
+            } else {
+              acc.inStock++;
+            }
+            return acc;
+          },
+          { inStock: 0, lowStock: 0, outOfStock: 0 }
+        );
         setInventorySummary(summary);
       } catch (err) {
-        console.error("Failed to load inventory summary:", err);
-        setSummaryError("Could not load data.");
+        console.error('Failed to load inventory summary:', err);
+        setSummaryError('Could not load data.');
       } finally {
         setIsSummaryLoading(false);
       }
@@ -100,12 +136,13 @@ export default function Dashboard() {
   // Prioritize fresh database data for features to avoid stale session issues
   // The source of truth is dbData. If not yet loaded, fall back to session.
   const currentPlan = dbData?.plan || session?.user?.plan;
-  const isPro = currentPlan === "PRO";
+  const isPro = currentPlan === 'PRO';
 
   const features = {
     productAI: isPro || dbData?.features?.productAI || session?.user?.features?.productAI || false,
     serviceAI: isPro || dbData?.features?.serviceAI || session?.user?.features?.serviceAI || false,
-    customWhatsapp: isPro || dbData?.features?.customWhatsapp || session?.user?.features?.customWhatsapp || false
+    customWhatsapp:
+      isPro || dbData?.features?.customWhatsapp || session?.user?.features?.customWhatsapp || false
   };
 
   const [aiData, setAiData] = useState<InsightsData | null>(null);
@@ -140,13 +177,15 @@ export default function Dashboard() {
         <div className="bg-white p-2 rounded-full shadow-md mb-2">
           <Lock className="w-4 h-4 text-amber-500" />
         </div>
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Pro Feature</p>
+        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
+          Pro Feature
+        </p>
       </div>
       <p className="text-xs font-semibold text-gray-400">{title}</p>
     </div>
   );
 
-  if (status === "loading") return null;
+  if (status === 'loading') return null;
 
   return (
     <div className="h-full bg-gray-50 overflow-y-auto p-2.5 pb-20">
@@ -197,4 +236,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-} 
+}

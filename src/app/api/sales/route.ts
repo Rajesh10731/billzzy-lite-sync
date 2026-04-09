@@ -8,6 +8,9 @@ import Notification from "@/models/Notification";
 import { authOptions } from "@/lib/auth";
 import { sendPushNotification } from "@/lib/send-push";
 import { getRandomMessage } from "@/lib/notifications/messages";
+import { pushSaleToMaster } from '@/lib/sync-back';
+import Product from "@/models/Product"; 
+
 
 /**
  * GET: Securely fetches sales summary data for the dashboard
@@ -156,6 +159,22 @@ export async function POST(request: Request) {
     });
 
     await newSale.save();
+     const itemsWithSkus = await Promise.all(items.map(async (item: any) => {
+      const dbProduct = await Product.findOne({ 
+        tenantId: tenantId, 
+        name: item.name 
+      });
+      
+      return {
+        sku: dbProduct?.sku || "UNKNOWN", // Get the SKU from the product document
+        quantity: item.quantity
+      };
+    }));
+
+    console.log("📤 [Sync-Back] Items with fetched SKUs:", itemsWithSkus);
+    pushSaleToMaster(itemsWithSkus, session.user.id, newSale.billId) .catch(err => 
+       console.error("Sync-back trigger failed", err)
+    );  
 
     // Trigger Automated "Alive" Notification
     try {
