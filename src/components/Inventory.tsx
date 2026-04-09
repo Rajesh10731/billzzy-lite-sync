@@ -687,22 +687,19 @@ const MobileProductCard: FC<MobileProductCardProps> = React.memo(({ product, isS
   return (
     <div className={`relative w-full bg-gray-200 rounded-lg overflow-hidden shadow-sm ${isLowStock ? 'ring-2 ring-red-500' : ''}`}>
       <div className="absolute inset-y-0 right-0 flex" style={{ width: ACTION_WIDTH }}>
-        {p.source === 'MASTER' ? (
-          <span className="text-gray-400 flex items-center gap-1 text-xs font-medium">
-            <Lock size={14} /> Managed
-          </span>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={() => !isSynced && onEdit(product)}
-              disabled={isSynced}
-              className={`w-1/2 h-full flex flex-col items-center justify-center text-white transition-colors ${isSynced ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#5a4fcf] hover:bg-[#4a3fb5]'}`}
-            >
-              {isSynced ? <Lock className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
-              <span className="text-xs mt-1">{isSynced ? 'Locked' : 'Edit'}</span>
-            </button>
-            <button onClick={() => onDelete(p.id)}>Delete</button>
+        {isSynced ? (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-400 text-white cursor-not-allowed">
+            <Lock className="w-5 h-5" /><span className="text-xs mt-1">Managed</span>
           </div>
+        ) : (
+          <>
+            <button onClick={() => onEdit(product)} className="w-1/2 h-full flex flex-col items-center justify-center bg-[#5a4fcf] text-white transition-colors hover:bg-[#4a3fb5]">
+              <Edit2 className="w-5 h-5" /><span className="text-xs mt-1">Edit</span>
+            </button>
+            <button onClick={() => onDelete(product.id)} className="w-1/2 h-full flex flex-col items-center justify-center bg-red-500 text-white transition-colors hover:bg-red-600">
+              <Trash2 className="w-5 h-5" /><span className="text-xs mt-1">Delete</span>
+            </button>
+          </>
         )}
       </div>
       <motion.div
@@ -783,6 +780,7 @@ const DesktopProductTable: FC<{ products: Product[]; onEdit: (p: Product) => voi
             const alertThreshold = p.lowStockThreshold ?? LOW_STOCK_THRESHOLD;
             const isLowStock = p.quantity <= alertThreshold;
             const updateInfo = updatedProductInfo?.id === p.id ? updatedProductInfo : null;
+            const isSynced = p.source === 'MASTER';
             return (
               <motion.tr layout key={p.id} className={isLowStock ? 'bg-red-50' : ''}>
                 <td className="px-3 py-2">
@@ -821,7 +819,7 @@ const DesktopProductTable: FC<{ products: Product[]; onEdit: (p: Product) => voi
                 <td className="px-3 py-2 text-sm text-green-600 font-medium">{p.profitPerUnit ? formatCurrency(p.profitPerUnit) : '-'}</td>
                 <td className="px-3 py-2 text-right">
                   <div className="flex justify-end gap-4">
-                    {p.source === 'MASTER' ? (
+                    {isSynced ? (
                       <span className="text-gray-400 flex items-center gap-1 text-xs font-medium cursor-help" title="Managed by Billzzy">
                         <Lock size={14} /> Managed
                       </span>
