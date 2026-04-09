@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     console.log("📦 [EXTERNAL API] Request Body:", body);
 
     const { sku, quantity, sellingPrice, tenantId } = body;
-    
+
     await dbConnect();
     console.log("DB [EXTERNAL API] Connected to MongoDB");
 
@@ -38,17 +38,17 @@ export async function POST(req: Request) {
 
     // 2. Update Product
     const updatedProduct = await Product.findOneAndUpdate(
-      { 
-        tenantId: user.email, 
-        sku: { $regex: new RegExp(`^${sku}$`, 'i') } 
-      }, 
-      { 
-        $set: { 
-          quantity: Number(quantity), 
+      {
+        tenantId: user.email,
+        sku: { $regex: new RegExp(`^${sku}$`, 'i') }
+      },
+      {
+        $set: {
+          quantity: Number(quantity),
           sellingPrice: Number(sellingPrice),
-           source: 'MASTER',
-          updatedAt: new Date() 
-        } 
+          source: 'MASTER',
+          updatedAt: new Date()
+        }
       },
       { new: true }
     );
@@ -61,8 +61,9 @@ export async function POST(req: Request) {
     console.log(`✅ [EXTERNAL API] SUCCESS! Updated ${updatedProduct.name} to ${updatedProduct.quantity}`);
     return NextResponse.json({ success: true });
 
-  } catch (error: any) {
-    console.error('❌ [EXTERNAL API] CRITICAL ERROR:', error.message);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ [EXTERNAL API] CRITICAL ERROR:', errorMessage);
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

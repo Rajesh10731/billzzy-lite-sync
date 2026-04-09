@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-export async function pushSaleToMaster(items: any[], tenantId: string,billId: string) {
+interface SaleItem {
+  sku?: string;
+  SKU?: string;
+  quantity: number;
+}
+
+export async function pushSaleToMaster(items: SaleItem[], tenantId: string, billId: string) {
   try {
     const masterUrl = process.env.NEXT_PUBLIC_BILLZZY_MASTER_URL;
     const secret = process.env.SYNC_SECRET;
@@ -18,13 +24,14 @@ export async function pushSaleToMaster(items: any[], tenantId: string,billId: st
     await axios.post(`${masterUrl}/api/external/record-sale`, {
       items: payload,
       tenantId: tenantId,// This is the MongoDB User ID (_id)
-     billId: billId     
+      billId: billId
     }, {
       headers: { 'x-sync-secret': secret }
     });
 
     console.log("✅ [Sync-Back] Master Inventory Updated Successfully");
-  } catch (error: any) {
-    console.error("❌ [Sync-Back] Failed to update Master:", error.message);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("❌ [Sync-Back] Failed to update Master:", errorMessage);
   }
 }

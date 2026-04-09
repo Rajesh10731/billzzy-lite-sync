@@ -13,9 +13,10 @@ export async function pushSaleToMaster(items: { sku: string, quantity: number }[
     }, {
       headers: { 'x-sync-secret': process.env.SYNC_SECRET }
     });
-    
+
     console.log("✅ Sale synced back to Billzzy Master");
-  } catch (error: any) {
-    console.error("❌ Failed to sync sale to Master:", error.message);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("❌ Failed to sync sale to Master:", errorMessage);
   }
 }

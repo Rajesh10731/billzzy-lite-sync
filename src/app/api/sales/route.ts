@@ -9,7 +9,7 @@ import { authOptions } from "@/lib/auth";
 import { sendPushNotification } from "@/lib/send-push";
 import { getRandomMessage } from "@/lib/notifications/messages";
 import { pushSaleToMaster } from '@/lib/sync-back';
-import Product from "@/models/Product"; 
+import Product from "@/models/Product";
 
 
 /**
@@ -159,12 +159,18 @@ export async function POST(request: Request) {
     });
 
     await newSale.save();
-     const itemsWithSkus = await Promise.all(items.map(async (item: any) => {
-      const dbProduct = await Product.findOne({ 
-        tenantId: tenantId, 
-        name: item.name 
+
+    interface SaleItem {
+      name: string;
+      quantity: number;
+    }
+
+    const itemsWithSkus = await Promise.all((items as SaleItem[]).map(async (item) => {
+      const dbProduct = await Product.findOne({
+        tenantId: tenantId,
+        name: item.name
       });
-      
+
       return {
         sku: dbProduct?.sku || "UNKNOWN", // Get the SKU from the product document
         quantity: item.quantity
@@ -172,9 +178,9 @@ export async function POST(request: Request) {
     }));
 
     console.log("📤 [Sync-Back] Items with fetched SKUs:", itemsWithSkus);
-    pushSaleToMaster(itemsWithSkus, session.user.id, newSale.billId) .catch(err => 
-       console.error("Sync-back trigger failed", err)
-    );  
+    pushSaleToMaster(itemsWithSkus, session.user.id, newSale.billId).catch(err =>
+      console.error("Sync-back trigger failed", err)
+    );
 
     // Trigger Automated "Alive" Notification
     try {

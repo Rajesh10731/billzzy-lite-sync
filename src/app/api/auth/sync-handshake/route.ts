@@ -16,7 +16,10 @@ export async function POST(req: Request) {
     const liteTenantId = session.user.id; // Or however you store tenantId in the session
 
     // 2. Verify the token sent from Billzzy Master
-    const decoded: any = jwt.verify(token, process.env.SYNC_SECRET!);
+    interface SyncJwtPayload {
+      orgId: string;
+    }
+    const decoded = jwt.verify(token, process.env.SYNC_SECRET!) as SyncJwtPayload;
     
     // 3. Tell Billzzy Master to save the link!
     const response = await fetch(`${process.env.NEXT_PUBLIC_BILLZZY_MASTER_URL}/api/integrations/billzzy-lite/confirm`, {
@@ -34,8 +37,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Handshake error:', error.message);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Handshake error:', errorMessage);
     return NextResponse.json({ error: 'Handshake failed' }, { status: 500 });
   }
 }
